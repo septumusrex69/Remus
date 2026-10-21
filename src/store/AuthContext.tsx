@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from '
 import type { Session } from '@supabase/supabase-js'
 import { supabase, isSupabaseConfigured, pendingPasswordUser, setPendingPasswordUser } from '../lib/supabase'
 import type { Profile } from '../types'
+import { clearLoadCache } from '../hooks/useLoad'
 
 /**
  * Same shape and behaviour as Raptor's AuthContext (session + the signed-in person's profile row,
@@ -48,7 +49,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setPendingUser(newSession.user.id)
       }
       setSession(newSession)
-      if (!newSession) setCurrentUser(null)
+      if (!newSession) {
+        setCurrentUser(null)
+        clearLoadCache() // never show one person's cached pages to the next
+      }
     })
     return () => {
       active = false

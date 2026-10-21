@@ -15,7 +15,7 @@ export function ProjectsList() {
   const { data, error, loading, reload } = useLoad(async () => {
     const [list, fin, dir] = await Promise.all([projectsApi.list(), listProjectFinancials(), loadClientDirectory()])
     return { list, fin, dir }
-  })
+  }, [], 'projects')
 
   const rows = useMemo(() => {
     if (!data) return []

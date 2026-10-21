@@ -20,7 +20,7 @@ export function QuotesList() {
   const { data, error, loading } = useLoad(async () => {
     const [list, totals, dir] = await Promise.all([quotesApi.list(), listQuoteTotals(), loadClientDirectory()])
     return { list, totals, dir }
-  })
+  }, [], 'quotes')
 
   async function createQuote() {
     setCreating(true)

@@ -63,7 +63,7 @@ export function SlipCapture() {
   const [params] = useSearchParams()
   const presetProject = params.get('project')
   const vatRate = useVatRate()
-  const { data: projects } = useLoad(() => projectsApi.list())
+  const { data: projects } = useLoad(() => projectsApi.list(), [], 'projects-list')
   const [queue, setQueue] = useState<Slip[]>([])
   const [savedCount, setSavedCount] = useState(0)
   const [form, setForm] = useState<FormState>(blankForm(presetProject))

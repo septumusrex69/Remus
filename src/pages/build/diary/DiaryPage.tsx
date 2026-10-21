@@ -60,7 +60,7 @@ export function DiaryPage() {
       siteDiary.list(),
     ])
     return { events, projects, team, entries }
-  }, [range.from.getTime(), range.to.getTime()])
+  }, [range.from.getTime(), range.to.getTime()], 'diary')
 
   const projectName = (id: string | null) => data?.projects.find((p) => p.id === id)?.name ?? ''
   const eventsOn = (d: Date) => (data?.events ?? []).filter((e) => isSameDay(parseISO(e.start_at), d))

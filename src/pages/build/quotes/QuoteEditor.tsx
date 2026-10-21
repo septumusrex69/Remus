@@ -128,7 +128,7 @@ export function QuoteEditor() {
   const totals = useMemo(() => quoteTotals(lines, quote?.discount ?? 0, quote?.vat_rate ?? 15), [lines, quote?.discount, quote?.vat_rate])
   const groups = useMemo(() => groupBySection(lines), [lines])
 
-  if (loading) return <Spinner />
+  if (loading) return <Spinner page />
   if (!quote) return <ErrorBanner error={error ?? 'Quote not found'} />
 
   const patchQuote = (p: Partial<Quote>) => {

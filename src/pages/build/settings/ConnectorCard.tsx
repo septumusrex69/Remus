@@ -7,7 +7,7 @@ import { Button, Card, ErrorBanner } from '../../../components/ui'
 
 /** Personal access tokens for connecting your own Claude to Remus (api/mcp.ts). */
 export function ConnectorCard() {
-  const tokens = useLoad(() => listApiTokens())
+  const tokens = useLoad(() => listApiTokens(), [], 'api-tokens')
   const [name, setName] = useState('Claude')
   const [created, setCreated] = useState<string | null>(null)
   const [copied, setCopied] = useState<string | null>(null)

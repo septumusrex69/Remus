@@ -1,6 +1,5 @@
 import { Link } from 'react-router-dom'
 import { endOfMonth, startOfDay, startOfMonth, addDays } from 'date-fns'
-import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { AlertCircle, Banknote, CalendarDays, Camera, FileText, FolderKanban, Receipt } from 'lucide-react'
 import {
   invoices as invoicesApi,
@@ -14,11 +13,12 @@ import {
   projects as projectsApi,
   quotes as quotesApi,
 } from '../../../lib/api'
-import { formatDate, formatDateTime, formatPct, formatZAR, formatZARShort, labelize, ymd } from '../../../lib/format'
+import { formatDate, formatDateTime, formatPct, formatZAR, labelize, ymd } from '../../../lib/format'
 import { outstandingInvoices } from '../../../lib/finance'
 import { useLoad } from '../../../hooks/useLoad'
 import { Card, EmptyState, ErrorBanner, PageHeader, Spinner, StatTile } from '../../../components/ui'
 import { paths } from '../paths'
+import { LazyProfitPerProjectChart } from '../components/LazyCharts'
 import { useBuild } from '../BuildContext'
 
 async function load() {
@@ -42,10 +42,10 @@ async function load() {
 }
 
 export function DashboardPage() {
-  const { data, error, loading } = useLoad(load)
+  const { data, error, loading } = useLoad(load, [], 'dashboard')
   const { needsLinking } = useBuild()
 
-  if (loading && !data) return <Spinner />
+  if (loading && !data) return <Spinner page />
   if (!data) return <ErrorBanner error={error} />
 
   const active = data.projects.filter((p) => p.status === 'active')
@@ -109,17 +109,7 @@ export function DashboardPage() {
             <EmptyState title="No active projects">Projects marked active show their gross profit here.</EmptyState>
           ) : (
             <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={profitData} margin={{ left: 0, right: 8, top: 8 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                  <XAxis dataKey="name" tick={{ fontSize: 12, fill: '#64748b' }} tickLine={false} axisLine={false} />
-                  <YAxis tickFormatter={formatZARShort} tick={{ fontSize: 11, fill: '#64748b' }} tickLine={false} axisLine={false} width={60} />
-                  <Tooltip formatter={(v) => formatZAR(Number(v))} labelFormatter={(_l, p) => p?.[0]?.payload?.full ?? ''} />
-                  <Bar dataKey="profit" radius={[4, 4, 0, 0]}>
-                    {profitData.map((d) => <Cell key={d.full} fill={d.profit >= 0 ? '#059669' : '#dc2626'} />)}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
+              <LazyProfitPerProjectChart data={profitData} />
             </div>
           )}
         </Card>

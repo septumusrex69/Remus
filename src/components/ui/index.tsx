@@ -104,10 +104,25 @@ export function EmptyState({ title, children, icon }: { title: string; children?
   )
 }
 
-export function Spinner({ label = 'Loading…' }: { label?: string }) {
+/**
+ * First-load placeholder shaped like what is coming, so the layout doesn't jump: a few list rows,
+ * or with `page` a whole page (title, figures, list).
+ */
+export function Spinner({ label = 'Loading…', page }: { label?: string; page?: boolean }) {
   return (
-    <div className="flex items-center justify-center gap-2 py-12 text-sm text-slate-400">
-      <Loader2 size={16} className="animate-spin" /> {label}
+    <div role="status" aria-label={label} className="animate-pulse">
+      {page && (
+        <>
+          <div className="mb-5 h-7 w-48 rounded-md bg-slate-200" />
+          <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
+            {[0, 1, 2, 3].map((i) => <div key={i} className="h-24 rounded-xl bg-slate-200/70" />)}
+          </div>
+        </>
+      )}
+      <div className={clsx('space-y-2 p-4', page && 'rounded-xl border border-slate-200 bg-white')}>
+        {[0, 1, 2, 3, 4].map((i) => <div key={i} className="h-5 rounded bg-slate-100" style={{ width: `${92 - i * 9}%` }} />)}
+      </div>
+      <span className="sr-only">{label}</span>
     </div>
   )
 }

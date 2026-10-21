@@ -45,7 +45,7 @@ export function ClientDetail({ kind }: { kind: 'company' | 'contact' }) {
       invoices: allInvoices.filter(mine),
       paid: paidByInvoice(allPayments),
     }
-  }, [id, kind])
+  }, [id, kind], 'client')
 
   const [form, setForm] = useState<Partial<Company & Contact>>({})
   const [saving, setSaving] = useState(false)
@@ -54,7 +54,7 @@ export function ClientDetail({ kind }: { kind: 'company' | 'contact' }) {
     if (data) setForm((data.company ?? data.contact ?? {}) as Partial<Company & Contact>)
   }, [data])
 
-  if (loading && !data) return <Spinner />
+  if (loading && !data) return <Spinner page />
   if (!data || (!data.company && !data.contact)) return <ErrorBanner error={error ?? 'Client not found'} />
 
   const name = data.company ? data.company.name : contactName(data.contact)

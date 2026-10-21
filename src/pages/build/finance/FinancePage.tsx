@@ -56,7 +56,7 @@ export function FinancePage() {
       listLinkedExpenseIds(),
     ])
     return { exp, pay, projects, fin, invoices, allPayments, dir, linked }
-  }, [range.from, range.to])
+  }, [range.from, range.to], 'finance')
 
   const calc = useMemo(() => {
     if (!data) return null

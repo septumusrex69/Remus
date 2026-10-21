@@ -1,7 +1,6 @@
 import { parseISO } from 'date-fns'
 import { useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { ArrowLeft, Camera, Check, Pencil, Plus, Trash2 } from 'lucide-react'
 import {
   clientLabel,
@@ -18,7 +17,7 @@ import {
   siteDiary,
   variations as variationsApi,
 } from '../../../lib/api'
-import { formatDate, formatDateTime, formatPct, formatZAR, formatZARShort, labelize, round2, todayYmd } from '../../../lib/format'
+import { formatDate, formatDateTime, formatPct, formatZAR, labelize, round2, todayYmd } from '../../../lib/format'
 import { invoiceTotal, paidByInvoice } from '../../../lib/finance'
 import { useLoad } from '../../../hooks/useLoad'
 import { Button, Card, EmptyState, ErrorBanner, Field, Modal, PageHeader, ProgressBar, Spinner, StatTile, StatusBadge, Tabs } from '../../../components/ui'
@@ -40,6 +39,7 @@ import { ExpenseTable } from '../components/ExpenseTable'
 import { EventFormModal } from '../components/EventFormModal'
 import { SiteDiaryForm } from '../components/SiteDiaryForm'
 import { paths } from '../paths'
+import { LazyCategoryBarChart } from '../components/LazyCharts'
 import { useVatRate } from '../BuildContext'
 import { ProjectFormModal } from './ProjectFormModal'
 
@@ -74,7 +74,7 @@ export function ProjectDetail() {
   const navigate = useNavigate()
   const [params, setParams] = useSearchParams()
   const tab = (params.get('tab') as Tab) || 'overview'
-  const { data, error, loading, reload } = useLoad(() => load(id), [id])
+  const { data, error, loading, reload } = useLoad(() => load(id), [id], 'project')
   const [editing, setEditing] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
   const act: Act = async (fn) => {
@@ -86,7 +86,7 @@ export function ProjectDetail() {
     }
   }
 
-  if (loading && !data) return <Spinner />
+  if (loading && !data) return <Spinner page />
   if (!data?.project) return <ErrorBanner error={error ?? 'Project not found'} />
   const { project } = data
 
@@ -184,15 +184,7 @@ function Overview({ data }: { data: Data }) {
             <EmptyState title="No expenses yet" />
           ) : (
             <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={byCat} layout="vertical" margin={{ left: 10, right: 16 }}>
-                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e2e8f0" />
-                  <XAxis type="number" tickFormatter={formatZARShort} tick={{ fontSize: 11, fill: '#64748b' }} />
-                  <YAxis type="category" dataKey="name" width={90} tick={{ fontSize: 12, fill: '#475569' }} />
-                  <Tooltip formatter={(v) => formatZAR(Number(v))} />
-                  <Bar dataKey="value" fill="#ef6723" radius={[0, 4, 4, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+              <LazyCategoryBarChart data={byCat} />
             </div>
           )}
         </Card>

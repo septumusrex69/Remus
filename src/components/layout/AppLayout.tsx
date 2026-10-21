@@ -1,4 +1,4 @@
-import { Suspense, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { clsx } from 'clsx'
 import {
@@ -19,6 +19,8 @@ import {
 import { useAuth } from '../../store/AuthContext'
 import { useBuild } from '../../pages/build/BuildContext'
 import { paths } from '../../pages/build/paths'
+import { preloadPages } from '../../pages/build/routes'
+import { Spinner } from '../ui'
 
 const NAV = [
   { to: paths.dashboard(), label: 'Dashboard', icon: LayoutDashboard, end: true },
@@ -111,6 +113,11 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
 }
 
 export function AppLayout() {
+  // Once the first page is up, fetch the other pages' code in the background.
+  useEffect(() => {
+    const idle = window.requestIdleCallback ?? ((cb: () => void) => window.setTimeout(cb, 1500))
+    idle(() => preloadPages())
+  }, [])
   const [open, setOpen] = useState(false)
   const location = useLocation()
   const isPrint = location.pathname.endsWith('/print')
@@ -151,7 +158,7 @@ export function AppLayout() {
       )}
 
       <main className="mx-auto max-w-7xl px-4 py-5 pb-24 sm:px-6 lg:px-8 lg:py-8">
-        <Suspense fallback={<div className="py-12 text-center text-sm text-slate-400">Loading…</div>}>
+        <Suspense fallback={<Spinner page />}>
           <Outlet />
         </Suspense>
       </main>

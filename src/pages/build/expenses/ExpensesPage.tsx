@@ -24,7 +24,7 @@ export function ExpensesPage() {
   const { data, error, loading, reload } = useLoad(async () => {
     const [rows, projects, linked] = await Promise.all([listExpensesBetween(range.from, range.to), projectsApi.list(), listLinkedExpenseIds()])
     return { rows, projects, linked }
-  }, [range.from, range.to])
+  }, [range.from, range.to], 'expenses')
 
   const rows = useMemo(() => {
     if (!data) return []

@@ -20,7 +20,7 @@ function roleLabel(role: Profile['role']): string {
 export function TeamCard() {
   const { currentUser } = useAuth()
   const isAdmin = currentUser?.role === 'Administrator'
-  const team = useLoad(() => listProfiles())
+  const team = useLoad(() => listProfiles(), [], 'team')
   const [error, setError] = useState<string | null>(null)
   const [inviteOpen, setInviteOpen] = useState(false)
   const [invite, setInvite] = useState({ email: '', name: '', role: 'Sales Representative' as Profile['role'] })

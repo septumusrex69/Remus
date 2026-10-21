@@ -51,7 +51,7 @@ export function QuotePrint() {
     return g
   }, [data?.items])
 
-  if (loading && !data) return <Spinner />
+  if (loading && !data) return <Spinner page />
   if (!data?.quote) return <ErrorBanner error={error ?? 'Quote not found'} />
   const { quote, items, dir } = data
   const t = quoteTotals(items, quote.discount, quote.vat_rate)

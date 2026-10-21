@@ -23,7 +23,7 @@ do $$
 begin
   if not exists (select 1 from pg_policies where schemaname = 'public' and tablename = 'api_tokens' and policyname = 'api_tokens_own') then
     create policy "api_tokens_own" on public.api_tokens for all to authenticated
-      using (user_id = auth.uid() and public.is_active_member())
-      with check (user_id = auth.uid() and public.is_active_member());
+      using (user_id = (select auth.uid()) and (select public.is_active_member()))
+      with check (user_id = (select auth.uid()) and (select public.is_active_member()));
   end if;
 end $$;

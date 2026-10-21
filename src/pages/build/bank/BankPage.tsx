@@ -66,7 +66,7 @@ async function load() {
 export function BankPage() {
   const vatRate = useVatRate()
   const { refreshNeedsLinking } = useBuild()
-  const { data, error, loading, reload } = useLoad(load)
+  const { data, error, loading, reload } = useLoad(load, [], 'bank')
   const [tab, setTab] = useState<Tab>('needs')
   const [accountId, setAccountId] = useState<string>('all')
   const [importOpen, setImportOpen] = useState(false)
@@ -103,7 +103,7 @@ export function BankPage() {
     return new Map(ds.map((d) => [d.transactionId, d.candidates]))
   }, [data, invoiceInputs, linkedExpenseIds, linkedPaymentIds])
 
-  if (loading && !data) return <Spinner />
+  if (loading && !data) return <Spinner page />
   if (!data) return <ErrorBanner error={error} />
 
   const accounts = justAdded && !data.accounts.some((a) => a.id === justAdded.id) ? [...data.accounts, justAdded] : data.accounts
