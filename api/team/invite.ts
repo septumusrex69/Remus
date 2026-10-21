@@ -45,8 +45,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (error) return res.status(400).json({ error: error.message })
 
   // handle_new_user() already created the profile with the default role; apply the chosen one.
-  if (data.user?.id && role) {
-    await admin.from('profiles').update({ role }).eq('id', data.user.id)
+  // This runs as the inviting admin, not the service role: protect_profile_privileged_fields only
+  // lets an Administrator's own session change a role, and silently keeps the old one otherwise.
+  if (data.user?.id && role && role !== 'Sales Representative') {
+    const { data: rows, error: roleErr } = await caller.db.from('profiles').update({ role }).eq('id', data.user.id).select('role')
+    if (roleErr || rows?.[0]?.role !== role) {
+      return res.status(500).json({ error: `Invite sent, but their access could not be set to ${role}. Change it in the team list.` })
+    }
   }
   return res.status(200).json({ ok: true, userId: data.user?.id ?? null })
 }

@@ -316,7 +316,12 @@ export function BankPage() {
                 return txRow(
                   t,
                   // A payment against an invoice was most likely recorded by confirming the match: offer to undo it too.
-                  <Button size="sm" variant="ghost" onClick={() => (p?.invoice_id ? setUnlinkFor({ tx: t, payment: p }) : act(t.id, () => unlink(t)))} loading={busy === t.id}><Undo2 size={13} /> Unlink</Button>,
+                  <Button size="sm" variant="ghost" onClick={async () => {
+                    // The payment may be older than the loaded window: look it up before deciding.
+                    const pay = p ?? (t.matched_payment_id ? await paymentsApi.get(t.matched_payment_id).catch(() => null) : null)
+                    if (pay?.invoice_id) setUnlinkFor({ tx: t, payment: pay })
+                    else void act(t.id, () => unlink(t))
+                  }} loading={busy === t.id}><Undo2 size={13} /> Unlink</Button>,
                   <p className="mt-1 flex items-center gap-1 text-xs text-emerald-700">
                     <Link2 size={12} />
                     {e ? `${e.supplier || e.description || labelize(e.category)} · ${projectName(e.project_id)}` : p ? `Payment ${formatDate(p.date)}${p.invoice_id ? ` · ${invoiceById.get(p.invoice_id)?.number ?? ''}` : ''}` : 'Linked'}
@@ -399,9 +404,18 @@ export function BankPage() {
             setImportOpen(false)
             setNotice(summary)
             setWarning(uploadWarning)
-            // Run matching over the fresh lines straight away.
+            // Run matching over the fresh lines straight away, against expenses and payments around
+            // their dates (the page only loaded those around earlier statements).
             try {
-              const auto = await writeDecisions(engine(inserted), inserted)
+              const dates = inserted.map((t) => t.date).sort()
+              const [expenses, payments] = dates.length
+                ? await Promise.all([
+                    listBankExpenses(shiftDays(dates[0], -WINDOW_DAYS), shiftDays(dates[dates.length - 1], WINDOW_DAYS)),
+                    listBankPayments(shiftDays(dates[0], -WINDOW_DAYS), shiftDays(dates[dates.length - 1], WINDOW_DAYS)),
+                  ])
+                : [[], []]
+              const ds = reconcile({ transactions: inserted, expenses, payments, invoices: invoiceInputs, linkedExpenseIds, linkedPaymentIds })
+              const auto = await writeDecisions(ds, inserted)
               if (auto) setNotice(`${summary} ${auto} matched automatically.`)
             } catch (e) {
               setActionError(`Imported, but matching failed: ${e instanceof Error ? e.message : String(e)}`)

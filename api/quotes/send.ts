@@ -77,6 +77,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const message = typeof body.message === 'string' ? body.message.slice(0, 5000) : ''
 
   const { db } = caller
+  const { data: me } = await db.from('profiles').select('role, status').eq('id', caller.user.id).maybeSingle()
+  if (!me || me.status !== 'Active' || me.role === 'Read Only') {
+    res.status(403).json({ error: 'Your access is read-only, so you can\'t send quotes.' })
+    return
+  }
   const [quoteRes, itemsRes, settingsRes, attRes] = await Promise.all([
     db.from('quotes').select('*').eq('id', body.quoteId).maybeSingle(),
     db.from('quote_items').select('section, description, quantity, unit, unit_price').eq('quote_id', body.quoteId).order('sort_order'),
@@ -189,12 +194,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     .from('quotes')
     .update({ sent_at: now, sent_to: [...to, ...cc].join(', '), updated_at: now, ...(quote.status === 'draft' ? { status: 'sent' } : {}) })
     .eq('id', quote.id)
-  if (stamp.error) {
+    .select('id')
+  if (stamp.error || !stamp.data?.length) {
     console.error('Quote sent but not stamped', quote.id, stamp.error)
     res.status(200).json({
       ok: true,
       attached: files.map((f) => f.filename),
-      warning: `The email was sent, but the quote could not be marked as sent (${stamp.error.message}). Use "Mark sent" instead of sending again.`,
+      warning: `The email was sent, but the quote could not be marked as sent (${stamp.error?.message ?? "no permission"}). Use "Mark sent" instead of sending again.`,
     })
     return
   }
