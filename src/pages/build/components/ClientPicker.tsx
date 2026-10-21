@@ -89,6 +89,22 @@ export function NewClientModal({ open, onClose, onSaved }: { open: boolean; onCl
   const [vatNo, setVatNo] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // A company saved on an earlier attempt whose contact person then failed: retries reuse it.
+  const [createdCompanyId, setCreatedCompanyId] = useState<string | null>(null)
+
+  function reset() {
+    setName(''); setFirst(''); setLast(''); setEmail(''); setPhone(''); setAddress(''); setVatNo('')
+    setCreatedCompanyId(null)
+    setError(null)
+  }
+
+  function cancel() {
+    // Don't lose a company that was already saved: hand it back without the contact person.
+    const partial = createdCompanyId
+    reset()
+    if (partial) onSaved({ company_id: partial, contact_id: null })
+    else onClose()
+  }
 
   async function save() {
     setSaving(true)
@@ -96,19 +112,29 @@ export function NewClientModal({ open, onClose, onSaved }: { open: boolean; onCl
     try {
       if (kind === 'company') {
         if (!name.trim()) throw new Error('Company name is required')
-        const co = await companies.create({ name: name.trim(), email: email || null, phone: phone || null, address: address || null, vat_no: vatNo || null })
+        const fields = { name: name.trim(), email: email || null, phone: phone || null, address: address || null, vat_no: vatNo || null }
+        let companyId = createdCompanyId
+        if (companyId) await companies.update(companyId, fields)
+        else {
+          companyId = (await companies.create(fields)).id
+          setCreatedCompanyId(companyId)
+        }
         let contactId: string | null = null
         if (first.trim()) {
-          const ct = await contacts.create({ first_name: first.trim(), last_name: last.trim(), company_id: co.id, email: email || null, mobile: phone || null })
-          contactId = ct.id
+          try {
+            const ct = await contacts.create({ first_name: first.trim(), last_name: last.trim(), company_id: companyId, email: email || null, mobile: phone || null })
+            contactId = ct.id
+          } catch (e) {
+            throw new Error(`The company was saved, but the contact person could not be added: ${e instanceof Error ? e.message : String(e)}. Save again to retry, or Cancel to keep just the company.`)
+          }
         }
-        onSaved({ company_id: co.id, contact_id: contactId })
+        onSaved({ company_id: companyId, contact_id: contactId })
       } else {
         if (!first.trim()) throw new Error('First name is required')
         const ct = await contacts.create({ first_name: first.trim(), last_name: last.trim(), email: email || null, mobile: phone || null, address: address || null })
         onSaved({ company_id: null, contact_id: ct.id })
       }
-      setName(''); setFirst(''); setLast(''); setEmail(''); setPhone(''); setAddress(''); setVatNo('')
+      reset()
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
     } finally {
@@ -119,18 +145,18 @@ export function NewClientModal({ open, onClose, onSaved }: { open: boolean; onCl
   return (
     <Modal
       open={open}
-      onClose={onClose}
+      onClose={cancel}
       title="New client"
       footer={
         <>
-          <Button variant="ghost" onClick={onClose}>Cancel</Button>
+          <Button variant="ghost" onClick={cancel}>Cancel</Button>
           <Button variant="dark" onClick={save} loading={saving}>Save client</Button>
         </>
       }
     >
       <div className="mb-4 inline-flex rounded-lg bg-slate-100 p-1 text-sm">
         {(['individual', 'company'] as const).map((k) => (
-          <button key={k} onClick={() => setKind(k)} className={`rounded-md px-3 py-1.5 ${kind === k ? 'bg-white font-medium shadow-sm' : 'text-slate-500'}`}>
+          <button key={k} onClick={() => setKind(k)} disabled={!!createdCompanyId && k === 'individual'} className={`rounded-md px-3 py-1.5 ${kind === k ? 'bg-white font-medium shadow-sm' : 'text-slate-500'}`}>
             {k === 'individual' ? 'Private individual' : 'Company'}
           </button>
         ))}

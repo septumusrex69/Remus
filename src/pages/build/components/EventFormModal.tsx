@@ -64,11 +64,16 @@ export function EventFormModal({
 
   async function save() {
     if (!title.trim()) return setError('Title is required')
+    const startDay = start.slice(0, 10)
+    const endDay = end.slice(0, 10)
+    const startDate = allDay ? new Date(`${startDay}T00:00`) : new Date(start)
+    const endDate = endDay ? (allDay ? new Date(`${endDay}T23:59`) : new Date(end)) : null
+    if (!startDay || Number.isNaN(startDate.getTime())) return setError('Enter when the event starts.')
+    if (endDate && Number.isNaN(endDate.getTime())) return setError('The end date/time is not valid — fix it or clear it.')
+    if (endDate && endDate < startDate) return setError('The event ends before it starts.')
     setSaving(true)
     setError(null)
     try {
-      const startDate = allDay ? new Date(`${start.slice(0, 10)}T00:00`) : new Date(start)
-      const endDate = end ? (allDay ? new Date(`${end.slice(0, 10)}T23:59`) : new Date(end)) : null
       const values = {
         title: title.trim(),
         type,
@@ -92,8 +97,13 @@ export function EventFormModal({
 
   async function remove() {
     if (!editing || !window.confirm('Delete this event?')) return
-    await diaryEvents.remove(editing.id)
-    onSaved()
+    setError(null)
+    try {
+      await diaryEvents.remove(editing.id)
+      onSaved()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    }
   }
 
   return (

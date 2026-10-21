@@ -1,22 +1,29 @@
-import { useEffect, useState } from 'react'
-import { Save } from 'lucide-react'
-import { listProfiles, updateOwnProfile, updateSettings } from '../../../lib/api'
-import { useLoad } from '../../../hooks/useLoad'
+import { useEffect, useRef, useState } from 'react'
+import { ImageUp, Save } from 'lucide-react'
+import { updateOwnProfile, updateSettings, uploadLogo } from '../../../lib/api'
 import { useAuth } from '../../../store/AuthContext'
-import { Badge, Button, Card, ErrorBanner, Field, PageHeader } from '../../../components/ui'
+import { Button, Card, ErrorBanner, Field, PageHeader } from '../../../components/ui'
 import type { CompanySettings } from '../../../types'
 import { useBuild } from '../BuildContext'
+import { TeamCard } from './TeamCard'
+import { ConnectorCard } from './ConnectorCard'
 
 export function SettingsPage() {
   const { settings, reloadSettings } = useBuild()
-  const { currentUser } = useAuth()
+  const { currentUser, reloadProfile } = useAuth()
   const [form, setForm] = useState<Partial<CompanySettings>>({})
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const team = useLoad(() => listProfiles())
   const [me, setMe] = useState({ name: '', phone: '' })
+  const [uploadingLogo, setUploadingLogo] = useState(false)
+  const logoInput = useRef<HTMLInputElement>(null)
 
+  // Settings in context were loaded when the app opened; quotes and invoices created since have
+  // moved the counters on, so fetch a fresh copy before editing.
+  useEffect(() => {
+    reloadSettings()
+  }, [reloadSettings])
   useEffect(() => {
     if (settings) setForm(settings)
   }, [settings])
@@ -30,9 +37,15 @@ export function SettingsPage() {
   }
 
   async function save() {
+    if (!settings) return
     setSaving(true)
     setError(null)
     try {
+      // Send the counters only when someone changed them here; otherwise a stale copy would
+      // rewind them and the next quote or invoice would reuse a number.
+      const counters: Partial<CompanySettings> = {}
+      if (Number(form.next_quote_number) !== settings.next_quote_number) counters.next_quote_number = Math.max(1, Number(form.next_quote_number) || 1)
+      if (Number(form.next_invoice_number) !== settings.next_invoice_number) counters.next_invoice_number = Math.max(1, Number(form.next_invoice_number) || 1)
       await updateSettings({
         name: form.name ?? '',
         reg_no: form.reg_no || null,
@@ -45,9 +58,8 @@ export function SettingsPage() {
         quote_terms: form.quote_terms || null,
         bank_details: form.bank_details || null,
         quote_prefix: form.quote_prefix || 'Q',
-        next_quote_number: Number(form.next_quote_number ?? 1),
         invoice_prefix: form.invoice_prefix || 'INV',
-        next_invoice_number: Number(form.next_invoice_number ?? 1),
+        ...counters,
       })
       reloadSettings()
       setSaved(true)
@@ -62,9 +74,23 @@ export function SettingsPage() {
     if (!currentUser) return
     try {
       await updateOwnProfile(currentUser.id, { name: me.name, phone: me.phone || null })
-      team.reload()
+      reloadProfile()
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
+    }
+  }
+
+  async function onLogo(file: File | undefined) {
+    if (!file) return
+    setUploadingLogo(true)
+    setError(null)
+    try {
+      set('logo_url', await uploadLogo(file))
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setUploadingLogo(false)
+      if (logoInput.current) logoInput.current.value = ''
     }
   }
 
@@ -72,7 +98,7 @@ export function SettingsPage() {
     <div>
       <PageHeader
         title="Settings"
-        actions={<Button variant="primary" onClick={save} loading={saving}><Save size={15} /> {saved ? 'Saved' : 'Save settings'}</Button>}
+        actions={<Button variant="primary" onClick={save} loading={saving} disabled={!settings}><Save size={15} /> {saved ? 'Saved' : 'Save settings'}</Button>}
       />
       <ErrorBanner error={error} />
       <div className="grid gap-4 lg:grid-cols-2">
@@ -84,7 +110,15 @@ export function SettingsPage() {
             <Field label="Phone"><input className="input" value={form.phone ?? ''} onChange={(e) => set('phone', e.target.value)} /></Field>
             <Field label="Email"><input className="input" type="email" value={form.email ?? ''} onChange={(e) => set('email', e.target.value)} /></Field>
             <Field label="Address" className="sm:col-span-2"><textarea className="input" value={form.address ?? ''} onChange={(e) => set('address', e.target.value)} /></Field>
-            <Field label="Logo URL" className="sm:col-span-2" hint="A public image URL shown on printed quotes."><input className="input" value={form.logo_url ?? ''} onChange={(e) => set('logo_url', e.target.value)} /></Field>
+            <Field label="Logo" className="sm:col-span-2" hint="Shown on printed quotes, quote PDFs and emails. PNG or JPG, up to 2 MB.">
+              <div className="flex flex-wrap items-center gap-3">
+                {form.logo_url && <img src={form.logo_url} alt="Logo" className="h-12 max-w-40 rounded border border-slate-200 bg-white object-contain p-1" />}
+                <input ref={logoInput} type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" className="hidden" onChange={(e) => onLogo(e.target.files?.[0])} />
+                <Button size="sm" onClick={() => logoInput.current?.click()} loading={uploadingLogo}><ImageUp size={14} /> {form.logo_url ? 'Replace logo' : 'Upload logo'}</Button>
+                {form.logo_url && <Button size="sm" variant="ghost" onClick={() => set('logo_url', null)}>Remove</Button>}
+              </div>
+              <input className="input mt-2" value={form.logo_url ?? ''} onChange={(e) => set('logo_url', e.target.value)} placeholder="…or paste a public image URL" />
+            </Field>
           </div>
         </Card>
         <Card title="Tax & numbering">
@@ -110,20 +144,8 @@ export function SettingsPage() {
           </div>
           <Button className="mt-3" size="sm" onClick={saveMe}>Save profile</Button>
         </Card>
-        <Card title="Team" padded={false}>
-          <ul className="divide-y divide-slate-100">
-            {(team.data ?? []).map((p) => (
-              <li key={p.id} className="flex items-center gap-3 px-4 py-2.5">
-                <span className="flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold text-white" style={{ background: p.avatar_color }}>{(p.name || p.email).slice(0, 1).toUpperCase()}</span>
-                <span className="min-w-0 flex-1"><span className="block truncate text-sm font-medium">{p.name || '—'}</span><span className="block truncate text-xs text-slate-500">{p.email}</span></span>
-                {p.status === 'Inactive' && <Badge>Inactive</Badge>}
-              </li>
-            ))}
-          </ul>
-          <p className="border-t border-slate-100 px-4 py-3 text-xs text-slate-500">
-            Add people from the Supabase dashboard (Authentication → Users → Invite). Everyone signed in can see and edit all company data.
-          </p>
-        </Card>
+        <TeamCard />
+        <ConnectorCard />
       </div>
     </div>
   )

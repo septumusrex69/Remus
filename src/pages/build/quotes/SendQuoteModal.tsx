@@ -10,8 +10,9 @@ const splitEmails = (s: string) => s.split(/[,;\s]+/).map((x) => x.trim()).filte
 
 /**
  * Emails the quote via api/quotes/send.ts. With a client-version PDF uploaded, that PDF is
- * attached; otherwise the uploaded documents/renders are attached and the email body carries
- * the quote summary. (Generating a PDF on the server is out of scope.)
+ * attached; otherwise the attachments marked "show on quote" / "send to client" are attached
+ * (internal documents and photos never go out), together with a PDF of the quote built on the server,
+ * and the email body carries the quote summary.
  */
 export function SendQuoteModal({
   open,
@@ -32,7 +33,7 @@ export function SendQuoteModal({
   defaultTo: string
   companyName: string
   beforeSend: () => Promise<boolean>
-  onSent: (q: Quote) => void
+  onSent: (q: Quote, opts?: { keepOpen?: boolean }) => void
 }) {
   const [to, setTo] = useState('')
   const [cc, setCc] = useState('')
@@ -40,6 +41,7 @@ export function SendQuoteModal({
   const [message, setMessage] = useState('')
   const [sending, setSending] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [warning, setWarning] = useState<string | null>(null)
 
   useEffect(() => {
     if (!open) return
@@ -48,10 +50,12 @@ export function SendQuoteModal({
     setSubject(`Quote ${quote.number ?? ''}: ${quote.title}`.trim())
     setMessage(`Good day,\n\nPlease find our quote for ${quote.title || 'the work discussed'} attached.\n\nKind regards,\n${companyName}`)
     setError(null)
+    setWarning(null)
   }, [open, defaultTo, quote.number, quote.title, companyName])
 
   const clientPdf = attachments.find((a) => a.kind === 'client_pdf')
-  const files = clientPdf ? [clientPdf] : attachments.filter((a) => a.kind !== 'client_pdf')
+  // Keep in step with api/quotes/send.ts.
+  const files = clientPdf ? [clientPdf] : attachments.filter((a) => a.kind !== 'client_pdf' && a.show_on_quote)
 
   async function send() {
     const toList = splitEmails(to)
@@ -60,9 +64,13 @@ export function SendQuoteModal({
     setError(null)
     try {
       if (!(await beforeSend())) throw new Error('Could not save the quote before sending.')
-      await sendQuote(quote.id, { to: toList, cc: splitEmails(cc), subject, message })
+      const res = (await sendQuote(quote.id, { to: toList, cc: splitEmails(cc), subject, message })) as { warning?: string }
       const fresh = await quotesApi.get(quote.id)
-      if (fresh) onSent(fresh)
+      if (res.warning) {
+        // The email went out but the quote wasn't stamped as sent: keep the modal open to say so.
+        setWarning(res.warning)
+        if (fresh) onSent(fresh, { keepOpen: true })
+      } else if (fresh) onSent(fresh)
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
     } finally {
@@ -102,8 +110,9 @@ export function SendQuoteModal({
           ) : (
             <>
               <p className="text-slate-600">
-                A summary in the email body (total {formatZAR(totals.totalIncl)} incl. VAT){files.length ? ' plus:' : '.'}
+                A summary in the email body (total {formatZAR(totals.totalIncl)} incl. VAT), plus:
               </p>
+              <p className="flex items-center gap-1.5 text-slate-600"><FileText size={14} /> Quote {quote.number ?? ''} (PDF)</p>
               {files.map((f) => (
                 <p key={f.id} className="flex items-center gap-1.5 text-slate-600"><Paperclip size={13} /> {f.file_name}</p>
               ))}
@@ -111,6 +120,7 @@ export function SendQuoteModal({
             </>
           )}
         </div>
+        {warning && <p className="text-sm text-amber-700">{warning}</p>}
         {error && <p className="text-sm text-red-600">{error}</p>}
       </div>
     </Modal>

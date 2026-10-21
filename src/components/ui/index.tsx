@@ -1,4 +1,5 @@
 import { useEffect, type ButtonHTMLAttributes, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { clsx } from 'clsx'
 import { Loader2, X } from 'lucide-react'
 import { labelize } from '../../lib/format'
@@ -160,7 +161,8 @@ export function Modal({ open, onClose, title, children, footer, wide }: { open: 
     return () => window.removeEventListener('keydown', onKey)
   }, [open, onClose])
   if (!open) return null
-  return (
+  // Portalled so a modal opened from inside a <label> or form doesn't inherit its clicks/submits.
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/40 sm:items-center sm:p-4" onMouseDown={onClose}>
       <div
         role="dialog"
@@ -177,7 +179,8 @@ export function Modal({ open, onClose, title, children, footer, wide }: { open: 
         <div className="overflow-y-auto px-5 py-4">{children}</div>
         {footer && <footer className="flex justify-end gap-2 border-t border-slate-100 px-5 py-3">{footer}</footer>}
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
 

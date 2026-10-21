@@ -4,7 +4,7 @@
  *
  * Functions throw on error (with the PostgREST message); pages catch and show it.
  */
-import { supabase, QUOTE_FILES_BUCKET, RECEIPTS_BUCKET } from './supabase'
+import { supabase, BRANDING_BUCKET, QUOTE_FILES_BUCKET, RECEIPTS_BUCKET } from './supabase'
 import { quoteTotals } from './quoteMath'
 import type {
   BankAccount,
@@ -116,6 +116,61 @@ export async function updateOwnProfile(id: ID, values: Pick<Partial<Profile>, 'n
   unwrap(await supabase.from('profiles').update(values).eq('id', id))
 }
 
+/** Administrators only (enforced by RLS and the protect_profile_privileged_fields trigger). */
+export async function updateProfileAccess(id: ID, values: Pick<Partial<Profile>, 'role' | 'status'>): Promise<void> {
+  const rows = unwrap<Profile[]>(await supabase.from('profiles').update(values).eq('id', id).select('*'))
+  if (rows.length === 0) throw new Error('Only administrators can change access.')
+}
+
+export async function inviteUser(payload: { email: string; name?: string; role: Profile['role'] }): Promise<void> {
+  const res = await fetch('/api/team/invite', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...(await authHeader()) },
+    body: JSON.stringify(payload),
+  })
+  const body = (await res.json().catch(() => null)) as { ok?: boolean; error?: string } | null
+  if (!res.ok || !body?.ok) throw new Error(body?.error ?? `Invite failed (HTTP ${res.status}).`)
+}
+
+// ---------- Claude connector tokens ----------
+
+export interface ApiToken {
+  id: ID
+  name: string
+  token_hint: string | null
+  created_at: string
+  last_used_at: string | null
+  revoked_at: string | null
+}
+
+export async function listApiTokens(): Promise<ApiToken[]> {
+  return unwrap<ApiToken[]>(
+    await supabase.from('api_tokens').select('id, name, token_hint, created_at, last_used_at, revoked_at').is('revoked_at', null).order('created_at', { ascending: false }),
+  )
+}
+
+/** Creates a personal access token for the connector. The token is returned once; only its hash is stored. */
+export async function createApiToken(name: string): Promise<string> {
+  const bytes = crypto.getRandomValues(new Uint8Array(32))
+  const token = `remus_${Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('')}`
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token))
+  const hash = Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, '0')).join('')
+  unwrap(await supabase.from('api_tokens').insert({ name: name.trim() || 'Claude', token_hash: hash, token_hint: token.slice(-4) }))
+  return token
+}
+
+export async function revokeApiToken(id: ID): Promise<void> {
+  unwrap(await supabase.from('api_tokens').update({ revoked_at: new Date().toISOString() }).eq('id', id))
+}
+
+/** Uploads the letterhead logo to the public 'branding' bucket and returns its public URL. */
+export async function uploadLogo(file: File): Promise<string> {
+  const path = `logo/${crypto.randomUUID()}-${safeName(file.name || 'logo.png')}`
+  const up = await supabase.storage.from(BRANDING_BUCKET).upload(path, file, { contentType: file.type || undefined })
+  if (up.error) throw new Error(up.error.message)
+  return supabase.storage.from(BRANDING_BUCKET).getPublicUrl(path).data.publicUrl
+}
+
 // ---------- Clients (Raptor companies + contacts) ----------
 
 export const companies = crud<Company>('companies', [], 'name', true)
@@ -171,22 +226,28 @@ export async function listQuoteItems(quoteId: ID): Promise<QuoteItem[]> {
 
 export type QuoteItemDraft = Omit<QuoteItem, 'id' | 'quote_id'> & { id?: ID }
 
-/** Replaces a quote's lines with the given list (simplest correct approach for an editor). */
+/**
+ * Replaces a quote's lines with the given list. The new rows go in first and the old ones are
+ * removed after, so a failed insert never leaves the quote empty.
+ */
 export async function saveQuoteItems(quoteId: ID, items: QuoteItemDraft[]): Promise<QuoteItem[]> {
-  unwrap(await supabase.from('quote_items').delete().eq('quote_id', quoteId))
-  if (items.length === 0) return []
-  const rows = items.map((it, i) => ({
-    quote_id: quoteId,
-    sort_order: i,
-    section: it.section || null,
-    description: it.description,
-    unit: it.unit,
-    quantity: it.quantity,
-    unit_cost: it.unit_cost,
-    markup_pct: it.markup_pct,
-    unit_price: it.unit_price,
-  }))
-  const saved = unwrap<QuoteItem[]>(await supabase.from('quote_items').insert(rows).select('*'))
+  const old = unwrap<{ id: ID }[]>(await supabase.from('quote_items').select('id').eq('quote_id', quoteId))
+  let saved: QuoteItem[] = []
+  if (items.length > 0) {
+    const rows = items.map((it, i) => ({
+      quote_id: quoteId,
+      sort_order: i,
+      section: it.section || null,
+      description: it.description,
+      unit: it.unit,
+      quantity: it.quantity,
+      unit_cost: it.unit_cost,
+      markup_pct: it.markup_pct,
+      unit_price: it.unit_price,
+    }))
+    saved = unwrap<QuoteItem[]>(await supabase.from('quote_items').insert(rows).select('*'))
+  }
+  if (old.length > 0) unwrap(await supabase.from('quote_items').delete().in('id', old.map((r) => r.id)))
   return saved.map((r) => nums(r, ITEM_NUM)).sort((a, b) => a.sort_order - b.sort_order)
 }
 
@@ -215,9 +276,9 @@ export async function convertQuoteToProject(id: ID): Promise<Project> {
   if (!q) throw new Error('Quote not found')
   const items = await listQuoteItems(id)
   const t = quoteTotals(items, q.discount, q.vat_rate)
-  const project = await projects.create({
+  const values: Patch<Project> = {
     name: q.title || `Project from ${q.number ?? 'quote'}`,
-    code: q.number ? q.number.replace(/^[A-Z]+-?/i, 'P-') : null,
+    code: q.number ? `P-${q.number.replace(/^.*?(\d+)$/, '$1')}` : null,
     company_id: q.company_id,
     contact_id: q.contact_id,
     quote_id: q.id,
@@ -225,8 +286,21 @@ export async function convertQuoteToProject(id: ID): Promise<Project> {
     status: 'planned',
     contract_value: t.totalExcl,
     budget: t.estimatedCost,
-  })
-  await quotes.update(q.id, { project_id: project.id, status: q.status === 'draft' || q.status === 'sent' ? 'accepted' : q.status })
+  }
+  let project: Project
+  try {
+    project = await projects.create(values)
+  } catch (e) {
+    // The derived code may already be taken by a project made by hand; leave it blank then.
+    if (!(e instanceof Error) || !/projects_code_key|duplicate key/i.test(e.message)) throw e
+    project = await projects.create({ ...values, code: null })
+  }
+  try {
+    await quotes.update(q.id, { project_id: project.id, status: 'accepted', updated_at: new Date().toISOString() })
+  } catch (e) {
+    await projects.remove(project.id).catch(() => {})
+    throw e
+  }
   return project
 }
 
@@ -364,9 +438,24 @@ export async function sendQuote(quoteId: ID, payload: { to: string[]; cc?: strin
     headers: { 'Content-Type': 'application/json', ...(await authHeader()) },
     body: JSON.stringify({ quoteId, ...payload }),
   })
-  const body = (await res.json().catch(() => null)) as { ok?: boolean; error?: string; configured?: boolean } | null
+  const body = (await res.json().catch(() => null)) as { ok?: boolean; error?: string; configured?: boolean; warning?: string } | null
   if (!res.ok || !body?.ok) throw new Error(body?.error ?? `Sending failed (HTTP ${res.status}).`)
   return body
+}
+
+/** Opens the server-built PDF of a quote in a new tab (the endpoint needs the session token, so fetch it first). */
+export async function openQuotePdf(quoteId: ID): Promise<void> {
+  const win = window.open('', '_blank')
+  const res = await fetch(`/api/quotes/pdf?id=${encodeURIComponent(quoteId)}`, { headers: await authHeader() })
+  if (!res.ok) {
+    win?.close()
+    const body = (await res.json().catch(() => null)) as { error?: string } | null
+    throw new Error(body?.error ?? `Could not build the PDF (HTTP ${res.status}).`)
+  }
+  const url = URL.createObjectURL(await res.blob())
+  if (win) win.location.href = url
+  else window.location.href = url
+  setTimeout(() => URL.revokeObjectURL(url), 60_000)
 }
 
 // ---------- Diary ----------
@@ -387,18 +476,62 @@ export const bankStatements = crud<BankStatement>('bank_statements', [], 'import
 const TX_NUM: (keyof BankTransaction)[] = ['amount', 'balance', 'match_score']
 export const bankTransactions = crud<BankTransaction>('bank_transactions', TX_NUM, 'date')
 
+/**
+ * PostgREST returns at most 1000 rows per request (less if the project lowers max-rows), so the
+ * bank screens page through with .range until a page comes back empty. `max` bounds the total.
+ */
+async function pageAll<T>(query: (from: number, to: number) => PromiseLike<Result<T[]>>, max = 20_000): Promise<T[]> {
+  const out: T[] = []
+  while (out.length < max) {
+    const rows = unwrap<T[]>(await query(out.length, out.length + 999)) ?? []
+    if (rows.length === 0) break
+    out.push(...rows)
+  }
+  return out
+}
+
 export async function listBankTransactions(statuses?: BankTransaction['status'][]): Promise<BankTransaction[]> {
-  let q = supabase.from('bank_transactions').select('*')
-  if (statuses?.length) q = q.in('status', statuses)
-  const rows = unwrap<BankTransaction[]>(await q.order('date', { ascending: false }).limit(2000))
+  const rows = await pageAll<BankTransaction>((from, to) => {
+    let q = supabase.from('bank_transactions').select('*')
+    if (statuses?.length) q = q.in('status', statuses)
+    // id breaks ties so pages never overlap or skip rows on the same date.
+    return q.order('date', { ascending: false }).order('id').range(from, to)
+  })
   return rows.map((r) => nums(r, TX_NUM))
 }
 
+/** Expenses dated in [from, to] (yyyy-mm-dd), every page: the reconciliation window. */
+export async function listBankExpenses(from: string, to: string): Promise<Expense[]> {
+  const rows = await pageAll<Expense>((a, b) =>
+    supabase.from('expenses').select('*').gte('date', from).lte('date', to).order('date', { ascending: false }).order('id').range(a, b),
+  )
+  return rows.map((r) => nums(r, ['amount_excl', 'vat']))
+}
+
+export async function listBankPayments(from: string, to: string): Promise<Payment[]> {
+  const rows = await pageAll<Payment>((a, b) =>
+    supabase.from('payments').select('*').gte('date', from).lte('date', to).order('date', { ascending: false }).order('id').range(a, b),
+  )
+  return rows.map((r) => nums(r, ['amount']))
+}
+
+export async function listBankInvoices(): Promise<Invoice[]> {
+  const rows = await pageAll<Invoice>((a, b) => supabase.from('invoices').select('*').order('issue_date', { ascending: false }).order('id').range(a, b))
+  return rows.map((r) => nums(r, ['amount_excl', 'vat']))
+}
+
+/** Payments recorded against an invoice (to decide whether it is still fully paid). */
+export async function listInvoicePayments(invoiceId: ID): Promise<Payment[]> {
+  const rows = unwrap<Payment[]>(await supabase.from('payments').select('*').eq('invoice_id', invoiceId))
+  return rows.map((r) => nums(r, ['amount']))
+}
+
+/** Same rule as needsLinking() in reconcile.ts: open lines, plus 'matched' lines with nothing linked. */
 export async function countNeedsLinking(): Promise<number> {
   const { count, error } = await supabase
     .from('bank_transactions')
     .select('id', { count: 'exact', head: true })
-    .in('status', ['unmatched', 'suggested'])
+    .or('status.in.(unmatched,suggested),and(status.eq.matched,matched_expense_id.is.null,matched_payment_id.is.null)')
   if (error) throw new Error(error.message)
   return count ?? 0
 }
@@ -415,6 +548,50 @@ export async function insertBankTransactions(rows: Omit<BankTransaction, 'id' | 
   return inserted.map((r) => nums(r, TX_NUM))
 }
 
+/**
+ * Creates the statement row and its transactions. If the transaction insert fails the statement
+ * is deleted again, so no empty statement with wrong counts is left behind; if some rows were
+ * already there (a concurrent import), the counts are corrected to what was really inserted.
+ */
+export async function importBankStatement(
+  statement: Omit<BankStatement, 'id' | 'imported_at'>,
+  rows: Omit<BankTransaction, 'id' | 'created_at' | 'statement_id'>[],
+): Promise<{ statement: BankStatement; inserted: BankTransaction[] }> {
+  let created = await bankStatements.create(statement)
+  let inserted: BankTransaction[]
+  try {
+    inserted = await insertBankTransactions(rows.map((r) => ({ ...r, statement_id: created.id })))
+  } catch (e) {
+    await bankStatements.remove(created.id).catch(() => {})
+    throw e
+  }
+  if (inserted.length === 0) {
+    await bankStatements.remove(created.id)
+    return { statement: created, inserted }
+  }
+  if (inserted.length !== statement.imported_count) {
+    created = await bankStatements.update(created.id, {
+      imported_count: inserted.length,
+      duplicate_count: statement.duplicate_count + statement.imported_count - inserted.length,
+    })
+  }
+  return { statement: created, inserted }
+}
+
+/** Deletes a statement; its transactions go with it (statement_id is ON DELETE CASCADE). */
+export async function deleteBankStatement(s: BankStatement): Promise<void> {
+  await bankStatements.remove(s.id)
+  // Removing the stored file is tidy-up only; a leftover file harms nothing.
+  if (s.file_path) await supabase.storage.from(RECEIPTS_BUCKET).remove([s.file_path])
+}
+
+/** Sets the same values on many transactions: one PATCH per 200 ids instead of one per row. */
+export async function updateBankTransactions(ids: ID[], values: Partial<Omit<BankTransaction, 'id' | 'created_at'>>): Promise<void> {
+  for (let i = 0; i < ids.length; i += 200) {
+    unwrap(await supabase.from('bank_transactions').update(values).in('id', ids.slice(i, i + 200)))
+  }
+}
+
 export async function existingTransactionKeys(bankAccountId: ID, keys: string[]): Promise<Set<string>> {
   const found = new Set<string>()
   for (let i = 0; i < keys.length; i += 200) {
@@ -429,22 +606,24 @@ export async function existingTransactionKeys(bankAccountId: ID, keys: string[])
 
 export async function uploadStatementFile(file: File): Promise<string> {
   const path = `statements/${crypto.randomUUID()}-${safeName(file.name)}`
-  const up = await supabase.storage.from(RECEIPTS_BUCKET).upload(path, file, { contentType: file.type || 'text/plain' })
+  // Browsers give .ofx/.qfx no (or an odd) MIME type, which the bucket may reject.
+  const contentType = /\.(ofx|qfx)$/i.test(file.name) ? 'application/x-ofx' : file.type || 'text/plain'
+  const up = await supabase.storage.from(RECEIPTS_BUCKET).upload(path, file, { contentType })
   if (up.error) throw new Error(up.error.message)
   return path
 }
 
 /** Expense ids a bank transaction has been matched to (for the linked/unlinked indicator). */
 export async function listLinkedExpenseIds(): Promise<Set<ID>> {
-  const rows = unwrap<{ matched_expense_id: ID | null }[]>(
-    await supabase.from('bank_transactions').select('matched_expense_id').eq('status', 'matched').not('matched_expense_id', 'is', null),
+  const rows = await pageAll<{ matched_expense_id: ID | null }>((from, to) =>
+    supabase.from('bank_transactions').select('matched_expense_id').eq('status', 'matched').not('matched_expense_id', 'is', null).order('id').range(from, to),
   )
   return new Set(rows.map((r) => r.matched_expense_id!).filter(Boolean))
 }
 
 export async function listLinkedPaymentIds(): Promise<Set<ID>> {
-  const rows = unwrap<{ matched_payment_id: ID | null }[]>(
-    await supabase.from('bank_transactions').select('matched_payment_id').eq('status', 'matched').not('matched_payment_id', 'is', null),
+  const rows = await pageAll<{ matched_payment_id: ID | null }>((from, to) =>
+    supabase.from('bank_transactions').select('matched_payment_id').eq('status', 'matched').not('matched_payment_id', 'is', null).order('id').range(from, to),
   )
   return new Set(rows.map((r) => r.matched_payment_id!).filter(Boolean))
 }

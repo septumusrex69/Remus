@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import type { Session } from '@supabase/supabase-js'
-import { supabase, isSupabaseConfigured } from '../lib/supabase'
+import { supabase, isSupabaseConfigured, authLinkType } from '../lib/supabase'
 import type { Profile } from '../types'
 
 /**
@@ -15,6 +15,9 @@ interface AuthContextValue {
   signOut: () => Promise<void>
   profileError: string | null
   reloadProfile: () => void
+  /** Signed in from an invite or reset link and still has to choose a password. */
+  needsPassword: boolean
+  setPassword: (password: string) => Promise<{ error: string | null }>
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
@@ -25,6 +28,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(isSupabaseConfigured)
   const [profileError, setProfileError] = useState<string | null>(null)
   const [reloadKey, setReloadKey] = useState(0)
+  const [needsPassword, setNeedsPassword] = useState(authLinkType !== null)
 
   useEffect(() => {
     if (!isSupabaseConfigured) return
@@ -36,8 +40,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false)
     })
 
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, newSession) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((event, newSession) => {
       if (!active) return
+      if (event === 'PASSWORD_RECOVERY') setNeedsPassword(true)
       setSession(newSession)
       if (!newSession) setCurrentUser(null)
     })
@@ -81,6 +86,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function signOut() {
     await supabase.auth.signOut()
+    setNeedsPassword(false)
+  }
+
+  async function setPassword(password: string) {
+    const { error } = await supabase.auth.updateUser({ password })
+    if (!error) setNeedsPassword(false)
+    return { error: error?.message ?? null }
   }
 
   return (
@@ -91,6 +103,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         loading,
         signIn,
         signOut,
+        needsPassword,
+        setPassword,
         profileError,
         reloadProfile: () => {
           setProfileError(null)

@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { endOfMonth, startOfMonth, addDays } from 'date-fns'
+import { endOfMonth, startOfDay, startOfMonth, addDays } from 'date-fns'
 import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { AlertCircle, Banknote, CalendarDays, Camera, FileText, FolderKanban, Receipt } from 'lucide-react'
 import {
@@ -14,7 +14,7 @@ import {
   projects as projectsApi,
   quotes as quotesApi,
 } from '../../../lib/api'
-import { formatDate, formatDateTime, formatZAR, formatZARShort, labelize, ymd } from '../../../lib/format'
+import { formatDate, formatDateTime, formatPct, formatZAR, formatZARShort, labelize, ymd } from '../../../lib/format'
 import { outstandingInvoices } from '../../../lib/finance'
 import { useLoad } from '../../../hooks/useLoad'
 import { Card, EmptyState, ErrorBanner, PageHeader, Spinner, StatTile } from '../../../components/ui'
@@ -34,7 +34,8 @@ async function load() {
     paymentsApi.list(),
     listPaymentsBetween(from, to),
     listExpensesBetween(from, to),
-    listEventsBetween(now.toISOString(), addDays(now, 14).toISOString()),
+    // From the start of today, so today's earlier and all-day events still show.
+    listEventsBetween(startOfDay(now).toISOString(), addDays(startOfDay(now), 15).toISOString()),
     listRecentExpenses(8),
   ])
   return { projects, fin, quotes, totals, invoices, allPayments, monthPayments, monthExpenses, events, recent }
@@ -159,7 +160,7 @@ export function DashboardPage() {
                       </span>
                       <span className="tabular shrink-0 text-right text-sm">
                         <span className={f && f.gross_profit < 0 ? 'text-red-600' : 'text-slate-800'}>{formatZAR(f?.gross_profit ?? 0, { decimals: 0 })}</span>
-                        <span className="block text-xs text-slate-500">{f?.margin_pct ?? '—'}% margin</span>
+                        <span className="block text-xs text-slate-500">{formatPct(f?.margin_pct)} margin</span>
                       </span>
                     </Link>
                   </li>

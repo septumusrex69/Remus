@@ -5,7 +5,7 @@ import { useAuth } from '../../store/AuthContext'
 import { isSupabaseConfigured, supabase } from '../../lib/supabase'
 
 export function LoginPage() {
-  const { session, loading, signIn } = useAuth()
+  const { session, loading, signIn, needsPassword } = useAuth()
   const location = useLocation()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -13,6 +13,7 @@ export function LoginPage() {
   const [info, setInfo] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
+  if (!loading && session && needsPassword) return <Navigate to="/set-password" replace />
   if (!loading && session) {
     const from = (location.state as { from?: { pathname: string } } | null)?.from
     return <Navigate to={from?.pathname ?? '/'} replace />
@@ -30,7 +31,7 @@ export function LoginPage() {
   async function handleReset() {
     if (!email) return setError('Enter your email first, then click "Forgot password?".')
     setError(null)
-    const { error: err } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}/login` })
+    const { error: err } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}/set-password` })
     if (err) setError(err.message)
     else setInfo('Check your inbox for a reset link.')
   }

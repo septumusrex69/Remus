@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import { ArrowLeft, Printer } from 'lucide-react'
 import { contactName, listQuoteItems, loadClientDirectory, quoteAttachments, quotes as quotesApi, signedUrls } from '../../../lib/api'
 import { QUOTE_FILES_BUCKET } from '../../../lib/supabase'
-import { formatDate, formatZAR } from '../../../lib/format'
+import { formatDate, formatZAR, round2 } from '../../../lib/format'
 import { quoteTotals } from '../../../lib/quoteMath'
 import { useLoad } from '../../../hooks/useLoad'
 import { Button, ErrorBanner, Spinner } from '../../../components/ui'
@@ -11,14 +11,25 @@ import { paths } from '../paths'
 import { useBuild } from '../BuildContext'
 import type { QuoteItem } from '../../../types'
 
+/** Quantity with up to 3 decimals, formatted like formatZAR amounts ("1 250.5": space thousands, point decimal). */
+function formatQty(n: number): string {
+  const [int, frac] = Math.abs(n).toFixed(3).replace(/\.?0+$/, '').split('.')
+  return `${n < 0 ? '-' : ''}${int.replace(/\B(?=(\d{3})+(?!\d))/g, ' ')}${frac ? `.${frac}` : ''}`
+}
+
+/** Placeholder line kept so an empty section survives saving; not printed. */
+const isPlaceholder = (it: QuoteItem) => !it.description.trim() && !Number(it.unit_price)
+
 /** Client-facing quote. Browser Print → Save as PDF gives an A4 document (see print CSS). */
 export function QuotePrint() {
   const { id = '' } = useParams()
   const { settings } = useBuild()
   const { data, error, loading } = useLoad(async () => {
     const [quote, items, dir, attachments] = await Promise.all([quotesApi.get(id), listQuoteItems(id), loadClientDirectory(), quoteAttachments.list({ quote_id: id })])
-    const gallery = attachments.filter((a) => a.show_on_quote && a.mime_type?.startsWith('image/'))
-    const urls = await signedUrls(QUOTE_FILES_BUCKET, gallery.map((a) => a.file_path))
+    // HEIC/HEIF photos don't render in most browsers: leave them out rather than print a broken image.
+    const gallery = attachments.filter((a) => a.show_on_quote && a.mime_type?.startsWith('image/') && !/^image\/hei[cf]/i.test(a.mime_type))
+    // 24 h so a print view left open (or a PDF saved later) still has its images.
+    const urls = await signedUrls(QUOTE_FILES_BUCKET, gallery.map((a) => a.file_path), 24 * 60 * 60)
     return { quote, items, dir, gallery, urls }
   }, [id])
 
@@ -31,7 +42,7 @@ export function QuotePrint() {
 
   const groups = useMemo(() => {
     const g: { section: string | null; items: QuoteItem[] }[] = []
-    for (const it of data?.items ?? []) {
+    for (const it of (data?.items ?? []).filter((x) => !isPlaceholder(x))) {
       const s = it.section || null
       let grp = g.find((x) => x.section === s)
       if (!grp) g.push((grp = { section: s, items: [] }))
@@ -124,10 +135,10 @@ export function QuotePrint() {
               {g.items.map((it) => (
                 <tr key={it.id} className="border-b border-slate-100">
                   <td className="py-1.5 pr-2">{it.description}</td>
-                  <td className="tabular py-1.5 px-2 text-right">{Number(it.quantity).toLocaleString('en-ZA')}</td>
+                  <td className="tabular py-1.5 px-2 text-right">{formatQty(Number(it.quantity))}</td>
                   <td className="py-1.5 px-2">{it.unit}</td>
                   <td className="tabular py-1.5 px-2 text-right">{formatZAR(it.unit_price)}</td>
-                  <td className="tabular py-1.5 pl-2 text-right">{formatZAR(Number(it.quantity) * Number(it.unit_price))}</td>
+                  <td className="tabular py-1.5 pl-2 text-right">{formatZAR(round2(Number(it.quantity) * Number(it.unit_price)))}</td>
                 </tr>
               ))}
             </tbody>

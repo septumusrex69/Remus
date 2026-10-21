@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { FileText, Plus, Search } from 'lucide-react'
 import { clientLabel, listQuoteTotals, loadClientDirectory, quotes as quotesApi } from '../../../lib/api'
-import { formatDate, formatZAR, labelize } from '../../../lib/format'
+import { formatDate, formatZAR, labelize, todayYmd, ymd } from '../../../lib/format'
 import { useLoad } from '../../../hooks/useLoad'
 import { Button, Card, EmptyState, ErrorBanner, PageHeader, Spinner, StatusBadge, Table, td, th } from '../../../components/ui'
 import { QUOTE_STATUSES, type QuoteStatus } from '../../../types'
@@ -33,7 +33,9 @@ export function QuotesList() {
         status: 'draft',
         vat_rate: settings?.vat_rate ?? 15,
         terms: settings?.quote_terms ?? null,
-        valid_until: validUntil.toISOString().slice(0, 10),
+        // Local dates: the column default (current_date) and toISOString are UTC, a day out before 02:00 SAST.
+        issue_date: todayYmd(),
+        valid_until: ymd(validUntil),
       })
       navigate(paths.quote(quote.id))
     } catch (e) {
@@ -42,14 +44,17 @@ export function QuotesList() {
     }
   }
 
-  // Dashboard "New quote" lands here with ?new=1.
+  // Dashboard "New quote" lands here with ?new=1. Wait for settings (VAT rate, default terms),
+  // and create once only: StrictMode runs effects twice.
+  const autoCreated = useRef(false)
+  const wantsNew = params.get('new') === '1'
   useEffect(() => {
-    if (params.get('new') === '1') {
-      setParams({}, { replace: true })
-      void createQuote()
-    }
+    if (!wantsNew || !settings || autoCreated.current) return
+    autoCreated.current = true
+    setParams({}, { replace: true })
+    void createQuote()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [wantsNew, settings])
 
   const rows = useMemo(() => {
     if (!data) return []

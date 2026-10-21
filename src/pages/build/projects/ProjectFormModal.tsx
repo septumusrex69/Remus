@@ -27,7 +27,7 @@ export function ProjectFormModal({ open, onClose, onSaved, editing }: { open: bo
     try {
       const values = {
         name: form.name.trim(),
-        code: form.code || null,
+        code: form.code?.trim() || null,
         company_id: form.company_id ?? null,
         contact_id: form.contact_id ?? null,
         site_address: form.site_address || null,
@@ -40,7 +40,8 @@ export function ProjectFormModal({ open, onClose, onSaved, editing }: { open: bo
       }
       onSaved(editing ? await projectsApi.update(editing.id, values) : await projectsApi.create(values))
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e))
+      const msg = e instanceof Error ? e.message : String(e)
+      setError(/duplicate key|unique/i.test(msg) && /code/i.test(msg) ? 'That project code is already used.' : msg)
     } finally {
       setSaving(false)
     }

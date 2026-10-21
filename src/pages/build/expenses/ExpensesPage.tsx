@@ -19,6 +19,7 @@ export function ExpensesPage() {
   const [link, setLink] = useState<'all' | 'linked' | 'unlinked'>('all')
   const [editing, setEditing] = useState<Expense | null>(null)
   const [adding, setAdding] = useState(false)
+  const [actionError, setActionError] = useState<string | null>(null)
   const range = periodRange(period)
   const { data, error, loading, reload } = useLoad(async () => {
     const [rows, projects, linked] = await Promise.all([listExpensesBetween(range.from, range.to), projectsApi.list(), listLinkedExpenseIds()])
@@ -50,7 +51,7 @@ export function ExpensesPage() {
           </>
         }
       />
-      <ErrorBanner error={error} />
+      <ErrorBanner error={actionError ?? error} />
       <div className="mb-3 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
         <select className="input sm:w-auto" value={period} onChange={(e) => setPeriod(e.target.value as PeriodKey)}>
           {(Object.keys(PERIOD_LABELS) as PeriodKey[]).filter((k) => k !== 'custom').map((k) => <option key={k} value={k}>{PERIOD_LABELS[k]}</option>)}
@@ -83,9 +84,13 @@ export function ExpensesPage() {
             linked={data?.linked ?? new Set()}
             onEdit={setEditing}
             onDelete={async (e) => {
-              if (window.confirm('Delete this expense?')) {
+              if (!window.confirm('Delete this expense?')) return
+              setActionError(null)
+              try {
                 await expensesApi.remove(e.id)
                 reload()
+              } catch (err) {
+                setActionError(err instanceof Error ? err.message : String(err))
               }
             }}
           />

@@ -10,6 +10,7 @@ import {
   Mail,
   Plus,
   Printer,
+  FileDown,
   Save,
   Send,
   Trash2,
@@ -20,14 +21,16 @@ import {
   duplicateQuote,
   listQuoteItems,
   loadClientDirectory,
+  openQuotePdf,
   quoteAttachments,
   quotes as quotesApi,
   saveQuoteItems,
   type ClientDirectory,
   type QuoteItemDraft,
 } from '../../../lib/api'
-import { formatDateTime, formatPct, formatZAR, round2 } from '../../../lib/format'
-import { markupFromPrice, priceFromMarkup, quoteTotals } from '../../../lib/quoteMath'
+import { formatDateTime, formatPct, formatZAR, round2, todayYmd } from '../../../lib/format'
+import { applyLineEdit, applyMarkup, MAX_MARKUP_PCT, quoteTotals, quoteValidationError, type EditableLine } from '../../../lib/quoteMath'
+import { QUOTE_FILES_BUCKET, supabase } from '../../../lib/supabase'
 import { Button, Card, ErrorBanner, Field, PageHeader, Spinner, StatusBadge } from '../../../components/ui'
 import { QUOTE_STATUSES, UNITS, type Quote, type QuoteAttachment, type QuoteStatus, type Unit } from '../../../types'
 import { ClientPicker } from '../components/ClientPicker'
@@ -36,7 +39,7 @@ import { useBuild } from '../BuildContext'
 import { QuoteAttachmentsPanel } from './QuoteAttachmentsPanel'
 import { SendQuoteModal } from './SendQuoteModal'
 
-type Line = QuoteItemDraft & { key: string }
+type Line = QuoteItemDraft & EditableLine & { key: string }
 
 let keySeq = 0
 const newKey = () => `l${++keySeq}`
@@ -58,6 +61,21 @@ function groupBySection(lines: Line[]): { section: string | null; lines: Line[] 
     g.lines.push(l)
   }
   return groups
+}
+
+const hasContent = (l: Line) => Boolean(l.description.trim() || Number(l.unit_price) || Number(l.unit_cost))
+
+/**
+ * Lines worth saving: blank lines are dropped, except that a section with nothing in it yet keeps
+ * its first (blank) line so the new section doesn't vanish on save. The print view skips it.
+ */
+function linesToSave(lines: Line[]): Line[] {
+  return lines.filter((l, i) => {
+    if (hasContent(l)) return true
+    const s = l.section || null
+    if (!s) return false
+    return !lines.some((x) => (x.section || null) === s && hasContent(x)) && lines.findIndex((x) => (x.section || null) === s) === i
+  })
 }
 
 const num = (v: string) => (v === '' ? 0 : Number(v))
@@ -122,10 +140,7 @@ export function QuoteEditor() {
     setLines((ls) =>
       ls.map((l) => {
         if (l.key !== key) return l
-        const next = { ...l, ...p }
-        if ('unit_cost' in p || 'markup_pct' in p) next.unit_price = priceFromMarkup(Number(next.unit_cost), Number(next.markup_pct))
-        else if ('unit_price' in p) next.markup_pct = markupFromPrice(Number(next.unit_cost), Number(next.unit_price))
-        return next
+        return applyLineEdit(l, p)
       }),
     )
     setDirty(true)
@@ -178,32 +193,46 @@ export function QuoteEditor() {
   }
 
   function applyMarkupToAll() {
-    const v = window.prompt('Markup % to apply to every line', String(defaultMarkup))
-    if (v === null || !Number.isFinite(Number(v))) return
-    setLines((ls) => ls.map((l) => ({ ...l, markup_pct: Number(v), unit_price: priceFromMarkup(Number(l.unit_cost), Number(v)) })))
+    const v = window.prompt('Markup % to apply to every line with a unit cost (lines priced by hand keep their price)', String(defaultMarkup))
+    if (v === null || v.trim() === '') return
+    const m = Number(v)
+    if (!Number.isFinite(m) || Math.abs(m) > MAX_MARKUP_PCT) {
+      setError(`Markup must be a number between -${MAX_MARKUP_PCT} and ${MAX_MARKUP_PCT}%.`)
+      return
+    }
+    setError(null)
+    setLines((ls) => ls.map((l) => applyMarkup(l, round2(m))))
     setDirty(true)
   }
 
   async function save(): Promise<boolean> {
     if (!quote) return false
-    setSaving(true)
     setError(null)
+    const keep = linesToSave(lines)
+    const invalid = quoteValidationError(keep, Number(quote.discount || 0), Number(quote.vat_rate || 0))
+    if (invalid) {
+      setError(invalid)
+      return false
+    }
+    setSaving(true)
     try {
+      const now = new Date().toISOString()
       const saved = await quotesApi.update(quote.id, {
         title: quote.title,
         company_id: quote.company_id,
         contact_id: quote.contact_id,
         site_address: quote.site_address,
         status: quote.status,
-        issue_date: quote.issue_date,
+        ...(quote.status === 'sent' && !quote.sent_at ? { sent_at: now } : {}),
+        issue_date: quote.issue_date || todayYmd(),
         valid_until: quote.valid_until,
         notes: quote.notes,
         terms: quote.terms,
         discount: Number(quote.discount || 0),
         vat_rate: Number(quote.vat_rate || 0),
-        updated_at: new Date().toISOString(),
+        updated_at: now,
       })
-      const items = await saveQuoteItems(quote.id, lines.filter((l) => l.description.trim() || l.unit_price || l.unit_cost))
+      const items = await saveQuoteItems(quote.id, keep)
       setQuote(saved)
       setLines(items.map((i) => ({ ...i, key: newKey() })))
       setDirty(false)
@@ -220,9 +249,11 @@ export function QuoteEditor() {
   async function setStatus(status: QuoteStatus) {
     if (!quote) return
     setBusy(status)
+    setError(null)
     try {
       if (dirty && !(await save())) return
-      const saved = await quotesApi.update(quote.id, { status })
+      const now = new Date().toISOString()
+      const saved = await quotesApi.update(quote.id, { status, updated_at: now, ...(status === 'sent' && !quote.sent_at ? { sent_at: now } : {}) })
       setQuote(saved)
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
@@ -244,11 +275,38 @@ export function QuoteEditor() {
     }
   }
 
+  async function removeQuote() {
+    if (!quote || !window.confirm('Delete this quote and its uploaded files?')) return
+    setBusy('del')
+    setError(null)
+    try {
+      // Storage objects first (the rows cascade with the quote, the files would not). No save needed.
+      const files = await quoteAttachments.list({ quote_id: quote.id })
+      if (files.length) {
+        const { error: rmError } = await supabase.storage.from(QUOTE_FILES_BUCKET).remove(files.map((a) => a.file_path))
+        if (rmError) throw new Error(`Could not delete the quote's files: ${rmError.message}`)
+      }
+      await quotesApi.remove(quote.id)
+      setDirty(false)
+      navigate(paths.quotes())
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  function convert() {
+    if (quote?.status === 'declined' && !window.confirm('This quote was declined. Convert it to a project anyway? It will be marked accepted.')) return
+    void run('convert', async () => navigate(paths.project((await convertQuoteToProject(quote!.id)).id)))
+  }
+
   const clientEmail = (() => {
     if (!dir) return ''
-    if (quote.contact_id) return dir.contactById.get(quote.contact_id)?.email ?? ''
-    if (quote.company_id) return dir.companyById.get(quote.company_id)?.email ?? ''
-    return ''
+    const contact = quote.contact_id ? dir.contactById.get(quote.contact_id) : null
+    if (contact?.email) return contact.email
+    const companyId = quote.company_id ?? contact?.company_id ?? null
+    return (companyId && dir.companyById.get(companyId)?.email) || ''
   })()
 
   return (
@@ -275,8 +333,16 @@ export function QuoteEditor() {
               <Save size={15} /> Save
             </Button>
             <Link to={paths.quotePrint(quote.id)} onClick={(e) => dirty && !window.confirm('You have unsaved changes. Open the print view anyway?') && e.preventDefault()} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50">
-              <Printer size={15} /> Print / PDF
+              <Printer size={15} /> Print
             </Link>
+            <Button
+              onClick={() => {
+                if (dirty && !window.confirm('You have unsaved changes. The PDF shows the last saved version. Continue?')) return
+                openQuotePdf(quote.id).catch((e) => setError(e instanceof Error ? e.message : String(e)))
+              }}
+            >
+              <FileDown size={15} /> PDF
+            </Button>
             <Button onClick={() => setSending(true)}>
               <Mail size={15} /> Send to client
             </Button>
@@ -303,14 +369,14 @@ export function QuoteEditor() {
             <FolderPlus size={13} /> View project
           </Link>
         ) : (
-          <Button size="sm" variant="dark" onClick={() => run('convert', async () => navigate(paths.project((await convertQuoteToProject(quote.id)).id)))} loading={busy === 'convert'}>
+          <Button size="sm" variant="dark" onClick={convert} loading={busy === 'convert'}>
             <FolderPlus size={13} /> Convert to project
           </Button>
         )}
         <Button
           size="sm"
           variant="danger"
-          onClick={() => window.confirm('Delete this quote?') && run('del', async () => { await quotesApi.remove(quote.id); navigate(paths.quotes()) })}
+          onClick={removeQuote}
           loading={busy === 'del'}
         >
           <Trash2 size={13} /> Delete
@@ -324,19 +390,21 @@ export function QuoteEditor() {
               <Field label="Title" className="sm:col-span-2">
                 <input className="input" value={quote.title} onChange={(e) => patchQuote({ title: e.target.value })} placeholder="e.g. Double garage extension" />
               </Field>
-              <Field label="Client" className="sm:col-span-2">
+              {/* Not a <Field>: a <label> around the picker would also wrap its "new client" modal. */}
+              <div className="sm:col-span-2">
+                <span className="label">Client</span>
                 <ClientPicker
                   dir={dir}
                   value={{ company_id: quote.company_id, contact_id: quote.contact_id }}
                   onChange={(v) => patchQuote(v)}
                   onCreated={() => loadClientDirectory().then(setDir)}
                 />
-              </Field>
+              </div>
               <Field label="Site address" className="sm:col-span-2">
                 <input className="input" value={quote.site_address ?? ''} onChange={(e) => patchQuote({ site_address: e.target.value })} />
               </Field>
               <Field label="Issue date">
-                <input type="date" className="input" value={quote.issue_date} onChange={(e) => patchQuote({ issue_date: e.target.value })} />
+                <input type="date" className="input" value={quote.issue_date} onChange={(e) => patchQuote({ issue_date: e.target.value || todayYmd() })} />
               </Field>
               <Field label="Valid until">
                 <input type="date" className="input" value={quote.valid_until ?? ''} onChange={(e) => patchQuote({ valid_until: e.target.value || null })} />
@@ -439,11 +507,11 @@ export function QuoteEditor() {
               <div className="flex justify-between"><dt className="text-slate-500">Subtotal</dt><dd>{formatZAR(totals.subtotal)}</dd></div>
               <div className="flex items-center justify-between gap-3">
                 <dt className="text-slate-500">Discount (R)</dt>
-                <dd><input className="input w-32 py-1 text-right" type="number" inputMode="decimal" step="0.01" value={quote.discount} onChange={(e) => patchQuote({ discount: num(e.target.value) })} /></dd>
+                <dd><input className="input w-32 py-1 text-right" type="number" inputMode="decimal" step="0.01" min="0" value={quote.discount} onChange={(e) => patchQuote({ discount: num(e.target.value) })} /></dd>
               </div>
               <div className="flex justify-between border-t border-slate-100 pt-2"><dt className="text-slate-500">Total excl. VAT</dt><dd>{formatZAR(totals.totalExcl)}</dd></div>
               <div className="flex items-center justify-between gap-3">
-                <dt className="text-slate-500">VAT @ <input className="input inline w-16 px-1.5 py-0.5 text-right" type="number" step="0.01" value={quote.vat_rate} onChange={(e) => patchQuote({ vat_rate: num(e.target.value) })} />%</dt>
+                <dt className="text-slate-500">VAT @ <input className="input inline w-16 px-1.5 py-0.5 text-right" type="number" step="0.01" min="0" max="100" value={quote.vat_rate} onChange={(e) => patchQuote({ vat_rate: num(e.target.value) })} />%</dt>
                 <dd>{formatZAR(totals.vat)}</dd>
               </div>
               <div className="flex justify-between border-t border-slate-200 pt-2 text-base font-semibold"><dt>Total</dt><dd>{formatZAR(totals.totalIncl)}</dd></div>
@@ -468,9 +536,9 @@ export function QuoteEditor() {
         defaultTo={clientEmail}
         companyName={settings?.name ?? ''}
         beforeSend={async () => (dirty ? save() : true)}
-        onSent={(q) => {
+        onSent={(q, opts) => {
           setQuote(q)
-          setSending(false)
+          if (!opts?.keepOpen) setSending(false)
         }}
       />
     </div>

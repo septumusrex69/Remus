@@ -22,11 +22,20 @@ npm run dev
 ```
 
 1. Create a Supabase project.
-2. Run `supabase/migrations/0001_init.sql` in the SQL editor (or `supabase db push`). It is safe to
-   re-run. It creates the tables, views, RLS policies, the signup trigger, quote/invoice numbering
-   and two private Storage buckets (`receipts`, `quote-files`).
-3. Create users under Authentication → Users (email + password). The first person to sign up
-   becomes Administrator. Everyone signed in can read and write all company data.
+2. Run the files in `supabase/migrations/` in order in the SQL editor (or `supabase db push`).
+   Each is safe to re-run.
+   - `0001_init.sql`: tables, views, RLS, the signup trigger, quote/invoice numbering, and the
+     private Storage buckets `receipts` and `quote-files`.
+   - `0002_access_control.sql`: deactivated people lose access, "Read only" people can't change
+     anything, administrators can manage the team; public `branding` bucket for the logo.
+   - `0003_integrity_fixes.sql`: numbering never reuses a number, bank lines whose expense was
+     deleted go back to "needs linking", deleting a statement removes its lines, draft invoices
+     don't count as invoiced, profile backfill.
+   - `0004_connector_tokens.sql`: personal access tokens for the Claude connector.
+3. In Authentication → URL Configuration set the Site URL to the app's address and add
+   `<app>/set-password` to the redirect URLs (invite and password-reset links land there).
+4. Create the first user under Authentication → Users. The first person becomes Administrator
+   and can invite everyone else from Settings → Team.
 
 ### Scripts
 
@@ -37,8 +46,9 @@ npm run dev
 | `npm run lint` | oxlint |
 | `npm test` | Vitest unit tests (bank CSV/OFX parser, reconciliation engine) |
 
-`api/` functions only run under Vercel (`vercel dev` locally). Without them the app still works;
-slip reading falls back to manual entry and "Send to client" reports that email isn't set up.
+`api/` functions only run under Vercel (`vercel dev` locally; plain `npm run dev` has no `/api`).
+Without them the app still works: slip reading falls back to manual entry and "Send to client"
+reports that email isn't set up.
 
 ### Environment
 
@@ -47,10 +57,14 @@ slip reading falls back to manual entry and "Send to client" reports that email 
 | `VITE_SUPABASE_URL` | browser + functions | yes |
 | `VITE_SUPABASE_ANON_KEY` | browser + functions | yes (anon or publishable key; `VITE_SUPABASE_PUBLISHABLE_KEY` is accepted as an alias) |
 | `ANTHROPIC_API_KEY` | functions only | no: enables AI slip reading |
-| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` | functions only | no: enables "Send to client" |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` | functions only | no: enables "Send to client" (Resend works: `smtp.resend.com`, port 465, user `resend`, an API key as the password) |
+| `SUPABASE_SERVICE_ROLE_KEY` | functions only | no: enables in-app invites and the Claude connector |
+| `APP_URL` | functions only | no: production address for invite and connector links (default `https://remus-xi.vercel.app`) |
 
-The functions verify the caller's Supabase session and then query *as that user*, so RLS applies
-and no service-role key is needed.
+Most functions verify the caller's Supabase session and then query *as that user*, so RLS applies.
+Only `api/team/invite.ts` (Supabase's admin invite API) and `api/mcp.ts` (which acts for the owner
+of a personal access token) use the service-role key, and both check the person's role and status
+themselves.
 
 ## Features
 
@@ -83,14 +97,40 @@ and no service-role key is needed.
 - **Finance**: period selector (including the SA tax year), income, expenses incl. overheads,
   net cash, profit per project, expenses by category, monthly income vs expenses, outstanding
   invoices with ageing, and a CSV export of expenses.
-- **Settings**: letterhead details, VAT rate, quote/invoice numbering, default terms, bank
-  details, your profile, and the team list.
+- **Settings**: letterhead details and logo upload, VAT rate, quote/invoice numbering, default
+  terms, bank details, your profile, the team (invite, change access, deactivate), and the Claude
+  connector.
+- **Quote PDF**: `GET /api/quotes/pdf?id=…` builds an A4 PDF on the server (pdf-lib). "Send to
+  client" attaches it when no client-version PDF was uploaded.
+- **Access**: Administrator, Team member (Raptor's `Sales Representative`), Read only. Deactivated
+  people are locked out by RLS, not just by the UI.
+
+## Claude connector
+
+`api/mcp.ts` is a remote MCP server, so each person can connect their own Claude to Remus. In
+Settings → Claude connector, create a connection: it shows a URL with a personal access token
+(only its hash is stored). Paste the URL in Claude → Settings → Connectors → Add custom connector,
+or use the `claude mcp add` line shown for Claude Code.
+
+Tools: `search_clients`, `list_projects`, `get_project`, `list_quotes`, `get_quote`,
+`finance_summary`, `list_unlinked_bank_lines`, `add_expense` (with the slip image attached),
+`create_quote_draft`, `add_site_diary_entry`, `add_diary_event`. Claude acts as the token's owner:
+read-only people can look but not change, and a deactivated person's tokens stop working.
+Revoke a connection in Settings at any time.
+
+## Live bank feed
+
+Not built. A live feed needs a South African aggregator account (e.g. Stitch) with its client
+credentials and a signed agreement, so it can't be added from code alone. The seam is
+`src/lib/bankFeed.ts` plus `bank_accounts.feed_provider` / `feed_external_id`; statement import
+(CSV/OFX) covers reconciliation until then.
 
 ## Layout
 
 ```
-api/                      Vercel functions (receipts/extract.ts, quotes/send.ts, _lib/auth.ts)
-supabase/migrations/      0001_init.sql
+api/                      Vercel functions: receipts/extract.ts, quotes/send.ts, quotes/pdf.ts,
+                          team/invite.ts, mcp.ts; _lib/ (auth, quotePdf, mcpTools)
+supabase/migrations/      0001_init.sql … 0004_connector_tokens.sql
 src/lib/                  api.ts (typed data access), reconcile.ts, bankCsv.ts, quoteMath.ts, …
 src/types.ts              Row types (column names = database names)
 src/store/AuthContext.tsx Same shape as Raptor's
@@ -117,11 +157,11 @@ src/pages/build/          The whole construction section, liftable into Raptor
 ## Hosting
 
 - **Supabase:** project "Remus" (`gakebvnwzxhxccgtvfuw`, eu-west-3) in the Team Raptor org.
-  The schema in `supabase/migrations/0001_init.sql` has been applied to it.
+  Migrations 0001–0004 must all be applied to it (see Getting started).
 - **Vercel:** project `remus` in the Team Raptor team, linked to this repo. Every push to
   `main` deploys to production; other branches get preview deployments.
-  `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` are set there. `ANTHROPIC_API_KEY` and the
-  `SMTP_*` variables are optional and not set yet.
+  `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` are set there. `ANTHROPIC_API_KEY`,
+  `SUPABASE_SERVICE_ROLE_KEY` and the `SMTP_*` variables are optional.
 - **Sign-ups:** turn off public sign-ups in Supabase (Authentication → Sign In / Providers →
   "Allow new users to sign up") and add staff from the dashboard instead, because every
   signed-in user can see all company data.

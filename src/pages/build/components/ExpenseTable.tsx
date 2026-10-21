@@ -1,12 +1,22 @@
 import { useEffect, useState } from 'react'
-import { Link2, Link2Off, Pencil, Receipt, Trash2 } from 'lucide-react'
+import { FileText, Link2, Link2Off, Pencil, Receipt, Trash2 } from 'lucide-react'
 import { signedUrls } from '../../../lib/api'
 import { RECEIPTS_BUCKET } from '../../../lib/supabase'
 import { formatDate, formatZAR, labelize } from '../../../lib/format'
 import { EmptyState } from '../../../components/ui'
 import type { Expense, Project } from '../../../types'
 
-function SlipThumb({ url, onOpen }: { url?: string; onOpen: () => void }) {
+/** Browsers can't render HEIC/HEIF in <img> (outside Safari) or PDFs at all, so those get a link instead. */
+const isRenderableImage = (path: string) => !/\.(pdf|heic|heif)$/i.test(path)
+
+function SlipThumb({ path, url, onOpen }: { path?: string | null; url?: string; onOpen: () => void }) {
+  if (path && url && !isRenderableImage(path)) {
+    return (
+      <a href={url} target="_blank" rel="noreferrer" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-slate-100 text-slate-500 ring-1 ring-slate-200 hover:text-slate-800" aria-label="View slip" title="View slip">
+        <FileText size={16} />
+      </a>
+    )
+  }
   if (!url) return <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-slate-100 text-slate-300"><Receipt size={16} /></span>
   return (
     <button onClick={onOpen} className="h-10 w-10 shrink-0 overflow-hidden rounded-md bg-slate-100 ring-1 ring-slate-200" aria-label="View slip">
@@ -37,7 +47,7 @@ export function ExpenseTable({
   const key = rows.map((r) => r.receipt_path ?? '').join('|')
 
   useEffect(() => {
-    const ps = rows.map((r) => r.receipt_path).filter((p): p is string => !!p && !p.endsWith('.pdf'))
+    const ps = rows.map((r) => r.receipt_path).filter((p): p is string => !!p)
     signedUrls(RECEIPTS_BUCKET, ps).then(setUrls).catch(() => {})
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key])
@@ -51,7 +61,7 @@ export function ExpenseTable({
           const isLinked = linked.has(e.id)
           return (
             <li key={e.id} className="flex items-center gap-3 px-4 py-2.5">
-              <SlipThumb url={e.receipt_path ? urls.get(e.receipt_path) : undefined} onOpen={() => setPreview(urls.get(e.receipt_path!) ?? null)} />
+              <SlipThumb path={e.receipt_path} url={e.receipt_path ? urls.get(e.receipt_path) : undefined} onOpen={() => setPreview(urls.get(e.receipt_path!) ?? null)} />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium text-slate-800">{e.supplier || e.description || labelize(e.category)}</p>
                 <p className="truncate text-xs text-slate-500">

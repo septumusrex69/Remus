@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { expenseCandidates, incomeCandidates, reconcile, supplierSimilarity, type ExpenseInput } from './reconcile'
+import { decisionUpdates, expenseCandidates, incomeCandidates, needsLinking, reconcile, supplierSimilarity, type Decision, type ExpenseInput } from './reconcile'
 
 describe('supplierSimilarity', () => {
   it('matches whole names, acronyms and abbreviations', () => {
@@ -102,5 +102,33 @@ describe('incomeCandidates', () => {
     expect(c[0]).toMatchObject({ kind: 'payment', id: 'p1' })
     expect(c[0].score).toBeGreaterThanOrEqual(90)
     expect(c.find((x) => x.kind === 'invoice')?.id).toBe('i1')
+  })
+})
+
+describe('needsLinking', () => {
+  it('treats a matched line with nothing linked as open', () => {
+    const t = { id: 't', status: 'matched' as const, matched_expense_id: null, matched_payment_id: null }
+    expect(needsLinking(t)).toBe(true)
+    expect(needsLinking({ ...t, matched_expense_id: 'e1' })).toBe(false)
+    expect(needsLinking({ ...t, status: 'ignored' })).toBe(false)
+    expect(needsLinking({ ...t, status: 'suggested' })).toBe(true)
+  })
+})
+
+describe('decisionUpdates', () => {
+  it('groups identical writes and skips unchanged lines', () => {
+    const best = (id: string, score: number) => ({ kind: 'expense' as const, id, score, reasons: [] })
+    const ds: Decision[] = [
+      { transactionId: 't1', status: 'matched', best: best('e1', 95), candidates: [] },
+      { transactionId: 't2', status: 'suggested', best: best('e2', 60), candidates: [] },
+      { transactionId: 't3', status: 'suggested', best: best('e3', 60), candidates: [] },
+      { transactionId: 't4', status: 'unmatched', best: null, candidates: [] },
+    ]
+    const open = (id: string) => ({ id, status: 'unmatched' as const, matched_expense_id: null, matched_payment_id: null, match_score: null })
+    const u = decisionUpdates(ds, [open('t1'), open('t2'), open('t3'), open('t4')])
+    expect(u).toEqual([
+      { values: { status: 'matched', matched_expense_id: 'e1', matched_payment_id: null, match_score: 95 }, ids: ['t1'] },
+      { values: { status: 'suggested', matched_expense_id: null, matched_payment_id: null, match_score: 60 }, ids: ['t2', 't3'] },
+    ])
   })
 })

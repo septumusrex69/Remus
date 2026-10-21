@@ -305,3 +305,60 @@ export function reconcile(input: ReconcileInput): Decision[] {
   }
   return input.transactions.map((t) => decisions.get(t.id)!)
 }
+
+// ---------- Writing decisions back ----------
+
+export interface LinkState {
+  id: string
+  status: Decision['status'] | 'ignored'
+  matched_expense_id: string | null
+  matched_payment_id: string | null
+  match_score?: number | null
+}
+
+/**
+ * Lines a person still has to deal with. A 'matched' line whose expense/payment was deleted (both
+ * ids null) counts too: the database trigger resets these, but older rows may still be around.
+ */
+export function needsLinking(t: LinkState): boolean {
+  return t.status === 'unmatched' || t.status === 'suggested' || (t.status === 'matched' && !t.matched_expense_id && !t.matched_payment_id)
+}
+
+export interface DecisionPatch {
+  status: Decision['status']
+  matched_expense_id: string | null
+  matched_payment_id: string | null
+  match_score: number | null
+}
+
+/**
+ * Turns decisions into database writes, skipping lines whose stored state already agrees and
+ * grouping identical values, so a statement of 300 suggestions is a handful of PATCHes, not 300.
+ */
+export function decisionUpdates(decisions: Decision[], current: LinkState[]): { values: DecisionPatch; ids: string[] }[] {
+  const byId = new Map(current.map((t) => [t.id, t]))
+  const groups = new Map<string, { values: DecisionPatch; ids: string[] }>()
+  for (const d of decisions) {
+    const matched = d.status === 'matched' && d.best
+    const values: DecisionPatch = {
+      status: d.status,
+      matched_expense_id: matched && d.best!.kind === 'expense' ? d.best!.id : null,
+      matched_payment_id: matched && d.best!.kind === 'payment' ? d.best!.id : null,
+      match_score: d.best?.score ?? null,
+    }
+    const t = byId.get(d.transactionId)
+    if (
+      t &&
+      t.status === values.status &&
+      (t.match_score ?? null) === values.match_score &&
+      t.matched_expense_id === values.matched_expense_id &&
+      t.matched_payment_id === values.matched_payment_id
+    )
+      continue
+    const key = JSON.stringify(values)
+    const g = groups.get(key) ?? { values, ids: [] }
+    g.ids.push(d.transactionId)
+    groups.set(key, g)
+  }
+  return [...groups.values()]
+}

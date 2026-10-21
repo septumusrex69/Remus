@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import nodemailer from 'nodemailer'
 import { requireCaller, supabaseEnv } from '../_lib/auth.js'
+import { buildQuotePdf } from '../_lib/quotePdf.js'
 
 /**
  * Emails a quote to the client over SMTP (SMTP_HOST/PORT/USER/PASS/FROM, as Raptor's
@@ -8,9 +9,9 @@ import { requireCaller, supabaseEnv } from '../_lib/auth.js'
  *
  * POST { quoteId, to: string[], cc?: string[], subject, message }
  *
- * Attachments: the quote's "client version" PDF if one was uploaded; otherwise the uploaded
- * documents/renders/photos, with a quote summary in the email body. Generating a PDF of the
- * quote server-side is out of scope (the app's print view → Save as PDF covers that by hand).
+ * Attachments: the quote's "client version" PDF if one was uploaded; otherwise the uploads marked
+ * show_on_quote (internal documents/photos never go out) plus a PDF of the quote built on the server
+ * (api/_lib/quotePdf.ts), with a quote summary in the email body.
  *
  * On success: quotes.sent_at / sent_to are stamped and a draft quote becomes 'sent'.
  */
@@ -19,6 +20,16 @@ const EMAIL_RE = /^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$/
 const MAX_ATTACHMENT_BYTES = 20 * 1024 * 1024
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!)
+
+/**
+ * Copy of round2 in src/lib/format.ts (api/ can't import from src): cents, half away from zero,
+ * like Postgres round(x, 2) in the quote_totals view.
+ */
+function round2(n: number): number {
+  if (!Number.isFinite(n)) return n
+  const cents = Math.round(Number((Math.abs(n) * 100).toPrecision(15)))
+  return (Math.sign(n) * cents) / 100 || 0
+}
 
 function zar(n: number): string {
   const [int, frac] = Math.abs(n).toFixed(2).split('.')
@@ -81,22 +92,41 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
   const items = (itemsRes.data ?? []) as { section: string | null; description: string; quantity: number; unit: string; unit_price: number }[]
   const settings = (settingsRes.data ?? {}) as { name?: string; email?: string | null; phone?: string | null }
-  const attachments = (attRes.data ?? []) as { file_path: string; file_name: string; mime_type: string | null; kind: string }[]
+  const attachments = (attRes.data ?? []) as { file_path: string; file_name: string; mime_type: string | null; kind: string; show_on_quote: boolean }[]
 
-  // Totals (same arithmetic as src/lib/quoteMath.ts).
-  const subtotal = items.reduce((s, i) => s + Number(i.quantity) * Number(i.unit_price), 0)
-  const totalExcl = subtotal - Number(quote.discount || 0)
-  const vat = Math.round(totalExcl * Number(quote.vat_rate)) / 100
-  const totalIncl = totalExcl + vat
+  // Totals (same arithmetic as src/lib/quoteMath.ts and the quote_totals view).
+  const rawExcl = items.reduce((s, i) => s + Number(i.quantity) * Number(i.unit_price), 0) - Number(quote.discount || 0)
+  const rate = Number(quote.vat_rate || 0)
+  const totalExcl = round2(rawExcl)
+  const vat = round2((rawExcl * rate) / 100)
+  const totalIncl = round2(rawExcl * (1 + rate / 100))
 
+  // Keep in step with src/pages/build/quotes/SendQuoteModal.tsx.
   const clientPdf = attachments.find((a) => a.kind === 'client_pdf')
-  const toAttach = clientPdf ? [clientPdf] : attachments.filter((a) => a.kind !== 'client_pdf')
+  const toAttach = clientPdf ? [clientPdf] : attachments.filter((a) => a.kind !== 'client_pdf' && a.show_on_quote)
 
   const files: { filename: string; content: Buffer; contentType?: string }[] = []
   let totalBytes = 0
+  if (!clientPdf) {
+    try {
+      const pdf = await buildQuotePdf(db, quote.id)
+      const content = Buffer.from(pdf.bytes)
+      totalBytes += content.length
+      files.push({ filename: pdf.filename, content, contentType: 'application/pdf' })
+    } catch (e) {
+      console.error('Quote PDF failed', e)
+      res.status(500).json({ error: 'Could not build the quote PDF, so the email was not sent. Try again, or upload a client PDF.' })
+      return
+    }
+  }
   for (const a of toAttach) {
     const dl = await db.storage.from('quote-files').download(a.file_path)
-    if (dl.error || !dl.data) continue
+    if (dl.error || !dl.data) {
+      // Never send the email without a file the person expects to go out (above all the client PDF).
+      console.error('Quote attachment download failed', a.file_path, dl.error)
+      res.status(502).json({ error: `Could not load "${a.file_name}" from storage, so the email was not sent. Try again, or remove the file.` })
+      return
+    }
     const content = Buffer.from(await dl.data.arrayBuffer())
     totalBytes += content.length
     if (totalBytes > MAX_ATTACHMENT_BYTES) {
@@ -108,14 +138,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   // Body: the person's message, plus a summary when no polished client PDF is attached.
   const sections = new Map<string, number>()
-  for (const i of items) sections.set(i.section || 'General', (sections.get(i.section || 'General') ?? 0) + Number(i.quantity) * Number(i.unit_price))
+  for (const i of items) {
+    if (!i.description.trim() && !Number(i.unit_price)) continue // empty placeholder line
+    sections.set(i.section || 'General', (sections.get(i.section || 'General') ?? 0) + Number(i.quantity) * Number(i.unit_price))
+  }
   const summary = clientPdf
     ? ''
     : `
 <table style="border-collapse:collapse;margin-top:16px;font-size:14px;min-width:320px">
   <tr><td colspan="2" style="padding:6px 0;font-weight:600;border-bottom:2px solid #f59e0b">Quote ${esc(quote.number ?? '')} · ${esc(quote.title)}</td></tr>
   ${quote.site_address ? `<tr><td style="padding:4px 12px 4px 0;color:#64748b">Site</td><td>${esc(quote.site_address)}</td></tr>` : ''}
-  ${[...sections].map(([name, amt]) => `<tr><td style="padding:4px 12px 4px 0;color:#64748b">${esc(name)}</td><td style="text-align:right">${zar(amt)}</td></tr>`).join('')}
+  ${[...sections].map(([name, amt]) => `<tr><td style="padding:4px 12px 4px 0;color:#64748b">${esc(name)}</td><td style="text-align:right">${zar(round2(amt))}</td></tr>`).join('')}
   ${Number(quote.discount) ? `<tr><td style="padding:4px 12px 4px 0;color:#64748b">Discount</td><td style="text-align:right">-${zar(Number(quote.discount))}</td></tr>` : ''}
   <tr><td style="padding:4px 12px 4px 0;color:#64748b;border-top:1px solid #e2e8f0">Total excl. VAT</td><td style="text-align:right;border-top:1px solid #e2e8f0">${zar(totalExcl)}</td></tr>
   <tr><td style="padding:4px 12px 4px 0;color:#64748b">VAT (${Number(quote.vat_rate)}%)</td><td style="text-align:right">${zar(vat)}</td></tr>
@@ -149,10 +182,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return
   }
 
-  await db
+  // The email has already gone, so a failure here is reported as a warning rather than an error:
+  // a 500 would invite a retry and the client would get the quote twice.
+  const now = new Date().toISOString()
+  const stamp = await db
     .from('quotes')
-    .update({ sent_at: new Date().toISOString(), sent_to: [...to, ...cc].join(', '), ...(quote.status === 'draft' ? { status: 'sent' } : {}) })
+    .update({ sent_at: now, sent_to: [...to, ...cc].join(', '), updated_at: now, ...(quote.status === 'draft' ? { status: 'sent' } : {}) })
     .eq('id', quote.id)
+  if (stamp.error) {
+    console.error('Quote sent but not stamped', quote.id, stamp.error)
+    res.status(200).json({
+      ok: true,
+      attached: files.map((f) => f.filename),
+      warning: `The email was sent, but the quote could not be marked as sent (${stamp.error.message}). Use "Mark sent" instead of sending again.`,
+    })
+    return
+  }
 
   res.status(200).json({ ok: true, attached: files.map((f) => f.filename) })
 }

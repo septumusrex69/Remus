@@ -5,6 +5,7 @@ import { expenses as expensesApi, extractReceipt, projects as projectsApi, uploa
 import { RECEIPTS_BUCKET, supabase } from '../../../lib/supabase'
 import { formatZAR, labelize, round2, todayYmd } from '../../../lib/format'
 import { splitInclusive } from '../../../lib/quoteMath'
+import { compressImage, inferFileType } from '../../../lib/image'
 import { useLoad } from '../../../hooks/useLoad'
 import { Button, Card, Field, PageHeader } from '../../../components/ui'
 import { EXPENSE_CATEGORIES, type ExpenseCategory, type ReceiptExtraction, type ReceiptSuggestion } from '../../../types'
@@ -14,7 +15,10 @@ import { useVatRate } from '../BuildContext'
 
 type Stage = 'uploading' | 'reading' | 'review' | 'saving' | 'error'
 
+const YMD = /^\d{4}-\d{2}-\d{2}$/
+
 interface Slip {
+  id: string
   file: File
   previewUrl: string
   path?: string
@@ -73,51 +77,79 @@ export function SlipCapture() {
   queueRef.current = queue
   useEffect(() => () => queueRef.current.forEach((s) => URL.revokeObjectURL(s.previewUrl)), [])
 
-  const updateCurrent = (patch: Partial<Slip>) => setQueue((q) => (q.length ? [{ ...q[0], ...patch }, ...q.slice(1)] : q))
+  // Read the latest projects / VAT rate when an extraction lands, not the values from when it started.
+  const projectsRef = useRef(projects)
+  projectsRef.current = projects
+  const vatRateRef = useRef(vatRate)
+  vatRateRef.current = vatRate
+
+  // Slips whose upload/read is running (survives StrictMode's double effect run), and slips the
+  // person has already discarded or skipped (their late uploads get cleaned up).
+  const inFlight = useRef(new Set<string>())
+  const removed = useRef(new Set<string>())
+
+  const updateSlip = (id: string, patch: Partial<Slip>) => setQueue((q) => q.map((s) => (s.id === id ? { ...s, ...patch } : s)))
+  const updateCurrent = (patch: Partial<Slip>) => {
+    if (current) updateSlip(current.id, patch)
+  }
 
   function addFiles(files: FileList | null) {
     if (!files?.length) return
-    const slips = Array.from(files).map((file) => ({ file, previewUrl: URL.createObjectURL(file), stage: 'uploading' as Stage }))
+    const slips = Array.from(files).map((file) => ({ id: crypto.randomUUID(), file, previewUrl: URL.createObjectURL(file), stage: 'uploading' as Stage }))
     setQueue((q) => [...q, ...slips])
   }
 
-  // Process the head of the queue: upload, then read.
-  const headKey = current ? `${current.file.name}:${current.file.size}:${current.file.lastModified}` : ''
+  // Process the head of the queue: upload, then read. Results are applied to the slip by id, so a
+  // stage change on the head never cancels its own in-flight request.
+  const headId = current?.id ?? ''
+  const headStage = current?.stage
   useEffect(() => {
-    if (!current || current.stage !== 'uploading') return
-    let active = true
+    const slip = queueRef.current[0]
+    if (!slip || slip.id !== headId || headStage !== 'uploading' || inFlight.current.has(slip.id)) return
+    const id = slip.id
+    inFlight.current.add(id)
     ;(async () => {
       try {
-        const path = await uploadReceipt(current.file)
-        if (!active) return
-        updateCurrent({ path, stage: 'reading' })
-        const res = await extractReceipt(path)
-        if (!active) return
-        if (res.configured) {
-          updateCurrent({ stage: 'review', extraction: res.extraction, suggestion: res.suggestion })
-          prefill(res.extraction, res.suggestion)
+        let path = slip.path
+        if (!path) {
+          path = await uploadReceipt(await compressImage(slip.file))
+          if (removed.current.has(id)) {
+            await supabase.storage.from(RECEIPTS_BUCKET).remove([path]).catch(() => {})
+            return
+          }
+          updateSlip(id, { path, stage: 'reading' })
         } else {
-          updateCurrent({ stage: 'review', extraction: null, suggestion: null, aiNote: res.message })
-          setForm(blankForm(presetProject))
-          setSuggested(new Set())
+          updateSlip(id, { stage: 'reading' })
+        }
+        const res = await extractReceipt(path)
+        if (removed.current.has(id)) return
+        const isHead = queueRef.current[0]?.id === id
+        if (res.configured) {
+          updateSlip(id, { stage: 'review', extraction: res.extraction, suggestion: res.suggestion })
+          if (isHead) prefill(res.extraction, res.suggestion)
+        } else {
+          updateSlip(id, { stage: 'review', extraction: null, suggestion: null, aiNote: res.message })
+          if (isHead) {
+            setForm(blankForm(presetProject))
+            setSuggested(new Set())
+          }
         }
       } catch (e) {
-        if (active) updateCurrent({ stage: 'error', error: e instanceof Error ? e.message : String(e) })
+        if (!removed.current.has(id)) updateSlip(id, { stage: 'error', error: e instanceof Error ? e.message : String(e) })
+      } finally {
+        inFlight.current.delete(id)
       }
     })()
-    return () => {
-      active = false
-    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [headKey, current?.stage])
+  }, [headId, headStage])
 
   function prefill(x: ReceiptExtraction, s: ReceiptSuggestion | null) {
     const marks = new Set<keyof FormState>()
     const total = x.total_incl ?? (x.amount_excl !== null && x.vat !== null ? round2(x.amount_excl + x.vat) : null)
-    const vat = x.vat ?? (total !== null ? splitInclusive(total, vatRate).vat : null)
+    const vat = x.vat ?? (total !== null ? splitInclusive(total, vatRateRef.current).vat : null)
     const f = blankForm(presetProject)
     if (x.supplier) f.supplier = x.supplier
-    if (x.date) f.date = x.date
+    if (x.date && YMD.test(x.date)) f.date = x.date
     if (x.slip_number) f.receipt_number = x.slip_number
     if (total !== null) f.total_incl = String(total)
     if (vat !== null) f.vat = String(vat)
@@ -125,7 +157,7 @@ export function SlipCapture() {
     if (s) {
       f.category = s.category
       marks.add('category')
-      if (!presetProject && s.project_id && projects?.some((p) => p.id === s.project_id)) {
+      if (!presetProject && s.project_id && projectsRef.current?.some((p) => p.id === s.project_id)) {
         f.project_id = s.project_id
         marks.add('project_id')
       }
@@ -136,6 +168,10 @@ export function SlipCapture() {
 
   async function save() {
     if (!current?.path) return
+    if (!YMD.test(form.date)) {
+      updateCurrent({ error: 'Enter the slip date.' })
+      return
+    }
     const total = Number(form.total_incl || 0)
     const vat = form.vat === '' ? splitInclusive(total, vatRate).vat : Number(form.vat)
     updateCurrent({ stage: 'saving' })
@@ -162,9 +198,13 @@ export function SlipCapture() {
     }
   }
 
+  /** Drops the head slip and deletes its upload (an upload still running is cleaned up when it lands). */
   async function discard() {
-    if (current?.path) await supabase.storage.from(RECEIPTS_BUCKET).remove([current.path]).catch(() => {})
+    if (!current) return
+    removed.current.add(current.id)
+    const path = current.path
     next()
+    if (path) await supabase.storage.from(RECEIPTS_BUCKET).remove([path]).catch(() => {})
   }
 
   function next() {
@@ -224,7 +264,7 @@ export function SlipCapture() {
   }
 
   const busy = current.stage === 'uploading' || current.stage === 'reading'
-  const isPdf = current.file.type === 'application/pdf'
+  const isPdf = inferFileType(current.file) === 'application/pdf'
 
   return (
     <div>
@@ -258,7 +298,7 @@ export function SlipCapture() {
               <p className="text-sm text-red-600">{current.error}</p>
               <div className="mt-4 flex justify-center gap-2">
                 <Button onClick={() => updateCurrent({ stage: 'uploading', error: undefined })}>Try again</Button>
-                <Button variant="ghost" onClick={next}>Skip</Button>
+                <Button variant="ghost" onClick={discard}>Skip</Button>
               </div>
             </div>
           ) : (

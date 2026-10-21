@@ -61,11 +61,12 @@ export function ClientDetail({ kind }: { kind: 'company' | 'contact' }) {
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v || null }))
 
   async function save() {
-    setSaving(true)
     setSaveError(null)
+    if (kind === 'company' && !form.name?.trim()) return setSaveError('Company name is required.')
+    setSaving(true)
     try {
       if (kind === 'company') {
-        await companies.update(id, { name: form.name ?? '', email: form.email ?? null, phone: form.phone ?? null, address: form.address ?? null, city: form.city ?? null, vat_no: form.vat_no ?? null, reg_no: form.reg_no ?? null, notes: form.notes ?? null })
+        await companies.update(id, { name: form.name?.trim() ?? '', email: form.email ?? null, phone: form.phone ?? null, address: form.address ?? null, city: form.city ?? null, vat_no: form.vat_no ?? null, reg_no: form.reg_no ?? null, notes: form.notes ?? null })
       } else {
         await contacts.update(id, { first_name: form.first_name ?? '', last_name: form.last_name ?? '', email: form.email ?? null, mobile: form.mobile ?? null, phone: form.phone ?? null, address: form.address ?? null, notes: form.notes ?? null })
       }
@@ -78,7 +79,11 @@ export function ClientDetail({ kind }: { kind: 'company' | 'contact' }) {
   }
 
   async function remove() {
-    if (!window.confirm(`Delete ${name}? Quotes and projects keep their history but lose the client link.`)) return
+    const people = data?.people.length ?? 0
+    const peopleNote = people > 0
+      ? ` Its ${people === 1 ? 'contact person' : `${people} contact people`} (${data!.people.map(contactName).join(', ')}) will be kept as private clients.`
+      : ''
+    if (!window.confirm(`Delete ${name}? Quotes and projects keep their history but lose the client link.${peopleNote}`)) return
     try {
       if (kind === 'company') await companies.remove(id)
       else await contacts.remove(id)

@@ -24,7 +24,7 @@ export function SiteDiaryForm({ open, onClose, onSaved, editing, projectId, proj
     try {
       const values = {
         project_id: form.project_id,
-        date: form.date ?? todayYmd(),
+        date: form.date || todayYmd(),
         weather: form.weather || null,
         workers_on_site: form.workers_on_site ?? null,
         work_done: form.work_done || null,

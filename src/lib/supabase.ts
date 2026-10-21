@@ -13,6 +13,17 @@ const supabaseAnonKey = (import.meta.env.VITE_SUPABASE_ANON_KEY || import.meta.e
  */
 export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey)
 
+/**
+ * Invite and password-reset links arrive as `#access_token=…&type=invite|recovery`. The client
+ * below consumes and clears that hash while it starts up, so read the type first: the app then
+ * sends the person to "Set your password" instead of straight in.
+ */
+export const authLinkType: 'invite' | 'recovery' | null = (() => {
+  if (typeof window === 'undefined') return null
+  const type = new URLSearchParams(window.location.hash.slice(1)).get('type')
+  return type === 'invite' || type === 'recovery' ? type : null
+})()
+
 export const supabase = createClient(
   supabaseUrl || 'http://localhost:54321',
   supabaseAnonKey || 'missing-anon-key',
@@ -20,3 +31,4 @@ export const supabase = createClient(
 
 export const RECEIPTS_BUCKET = 'receipts'
 export const QUOTE_FILES_BUCKET = 'quote-files'
+export const BRANDING_BUCKET = 'branding'

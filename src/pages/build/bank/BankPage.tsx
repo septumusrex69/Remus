@@ -1,41 +1,66 @@
 import { useMemo, useState, type ReactNode } from 'react'
-import { ArrowDownLeft, ArrowUpRight, Ban, Check, FileUp, Link2, Plus, RefreshCw, Search, Sparkles, Undo2 } from 'lucide-react'
+import { ArrowDownLeft, ArrowUpRight, Ban, Check, FileUp, Link2, Plus, RefreshCw, Search, Sparkles, Trash2, Undo2 } from 'lucide-react'
 import {
   bankAccounts,
+  bankStatements,
   bankTransactions,
   clientLabel,
-  expenses as expensesApi,
+  deleteBankStatement,
   invoices as invoicesApi,
+  listBankExpenses,
+  listBankInvoices,
+  listBankPayments,
   listBankTransactions,
+  listInvoicePayments,
+  listLinkedExpenseIds,
+  listLinkedPaymentIds,
   loadClientDirectory,
   payments as paymentsApi,
   projects as projectsApi,
+  updateBankTransactions,
 } from '../../../lib/api'
-import { formatDate, formatZAR, labelize, round2 } from '../../../lib/format'
+import { formatDate, formatDateTime, formatZAR, labelize, round2 } from '../../../lib/format'
 import { splitInclusive } from '../../../lib/quoteMath'
-import { reconcile, type Candidate } from '../../../lib/reconcile'
+import { decisionUpdates, needsLinking, reconcile, type Candidate, type Decision } from '../../../lib/reconcile'
 import { useLoad } from '../../../hooks/useLoad'
 import { Badge, Button, Card, EmptyState, ErrorBanner, Field, Modal, PageHeader, Spinner, Tabs } from '../../../components/ui'
-import { BANKS, type Bank, type BankAccount, type BankTransaction, type Expense } from '../../../types'
+import { BANKS, type Bank, type BankAccount, type BankTransaction, type Expense, type Payment } from '../../../types'
 import { ExpenseFormModal, type ExpenseDraft } from '../components/ExpenseFormModal'
 import { useBuild, useVatRate } from '../BuildContext'
 import { ImportStatementModal } from './ImportStatementModal'
 
-type Tab = 'needs' | 'matched' | 'ignored' | 'slips'
+type Tab = 'needs' | 'matched' | 'ignored' | 'slips' | 'statements'
 
 const IGNORE_REASONS = ['Transfer between own accounts', 'Personal', 'Bank fees (no slip)', 'Loan / drawings', 'Duplicate', 'Other']
 
+/** Days either side of the imported statements to load expenses/payments for (engine looks ±7). */
+const WINDOW_DAYS = 31
+
+function shiftDays(date: string, days: number): string {
+  return new Date(Date.UTC(+date.slice(0, 4), +date.slice(5, 7) - 1, +date.slice(8, 10) + days)).toISOString().slice(0, 10)
+}
+
 async function load() {
-  const [accounts, txs, expenses, payments, invoices, projects, dir] = await Promise.all([
+  const [accounts, statements, txs, linkedExpenseIds, linkedPaymentIds, invoices, projects, dir] = await Promise.all([
     bankAccounts.list(),
+    bankStatements.list(),
     listBankTransactions(),
-    expensesApi.list(),
-    paymentsApi.list(),
-    invoicesApi.list(),
+    listLinkedExpenseIds(),
+    listLinkedPaymentIds(),
+    listBankInvoices(),
     projectsApi.list(),
     loadClientDirectory(),
   ])
-  return { accounts, txs, expenses, payments, invoices, projects, dir }
+  // Expenses and payments only around the imported statements, not the whole history: nothing
+  // outside that window can match a bank line, and it keeps the page clear of the row cap.
+  const dates = [...statements.flatMap((s) => [s.period_start, s.period_end]), ...txs.map((t) => t.date)].filter((d): d is string => !!d).sort()
+  const [expenses, payments] = dates.length
+    ? await Promise.all([
+        listBankExpenses(shiftDays(dates[0], -WINDOW_DAYS), shiftDays(dates[dates.length - 1], WINDOW_DAYS)),
+        listBankPayments(shiftDays(dates[0], -WINDOW_DAYS), shiftDays(dates[dates.length - 1], WINDOW_DAYS)),
+      ])
+    : [[], []]
+  return { accounts, statements, txs, linkedExpenseIds, linkedPaymentIds, expenses, payments, invoices, projects, dir }
 }
 
 export function BankPage() {
@@ -46,44 +71,68 @@ export function BankPage() {
   const [accountId, setAccountId] = useState<string>('all')
   const [importOpen, setImportOpen] = useState(false)
   const [accountOpen, setAccountOpen] = useState(false)
+  /** "Import statement" with no account yet: carry on into the import once one is added. */
+  const [importAfterAccount, setImportAfterAccount] = useState(false)
+  /** An account added this session, until the reload brings it into data.accounts. */
+  const [justAdded, setJustAdded] = useState<BankAccount | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
+  const [warning, setWarning] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
   const [linkFor, setLinkFor] = useState<BankTransaction | null>(null)
   const [createFor, setCreateFor] = useState<BankTransaction | null>(null)
   const [ignoreFor, setIgnoreFor] = useState<BankTransaction | null>(null)
+  const [unlinkFor, setUnlinkFor] = useState<{ tx: BankTransaction; payment: Payment } | null>(null)
 
-  const linkedExpenseIds = useMemo(() => new Set((data?.txs ?? []).filter((t) => t.status === 'matched' && t.matched_expense_id).map((t) => t.matched_expense_id!)), [data])
-  const linkedPaymentIds = useMemo(() => new Set((data?.txs ?? []).filter((t) => t.status === 'matched' && t.matched_payment_id).map((t) => t.matched_payment_id!)), [data])
+  // Linked ids come from the server (all matched lines), not from the loaded page of transactions.
+  const linkedExpenseIds = useMemo(() => data?.linkedExpenseIds ?? new Set<string>(), [data])
+  const linkedPaymentIds = useMemo(() => data?.linkedPaymentIds ?? new Set<string>(), [data])
+  const invoiceInputs = useMemo(() => (data ? data.invoices.map((i) => ({ ...i, client_name: clientLabel(data.dir, i) })) : []), [data])
 
   // Live candidates for every open transaction (cheap: pure, in-memory).
   const decisions = useMemo(() => {
     if (!data) return new Map<string, Candidate[]>()
-    const open = data.txs.filter((t) => t.status === 'unmatched' || t.status === 'suggested')
     const ds = reconcile({
-      transactions: open,
+      transactions: data.txs.filter(needsLinking),
       expenses: data.expenses,
       payments: data.payments,
-      invoices: data.invoices.map((i) => ({ ...i, client_name: clientLabel(data.dir, i) })),
+      invoices: invoiceInputs,
       linkedExpenseIds,
       linkedPaymentIds,
     })
     return new Map(ds.map((d) => [d.transactionId, d.candidates]))
-  }, [data, linkedExpenseIds, linkedPaymentIds])
+  }, [data, invoiceInputs, linkedExpenseIds, linkedPaymentIds])
 
   if (loading && !data) return <Spinner />
   if (!data) return <ErrorBanner error={error} />
 
-  const inAccount = (t: BankTransaction) => accountId === 'all' || t.bank_account_id === accountId
-  const needs = data.txs.filter((t) => inAccount(t) && (t.status === 'unmatched' || t.status === 'suggested'))
-  const matched = data.txs.filter((t) => inAccount(t) && t.status === 'matched')
+  const accounts = justAdded && !data.accounts.some((a) => a.id === justAdded.id) ? [...data.accounts, justAdded] : data.accounts
+  const inAccount = (t: { bank_account_id: string }) => accountId === 'all' || t.bank_account_id === accountId
+  const needs = data.txs.filter((t) => inAccount(t) && needsLinking(t))
+  const matched = data.txs.filter((t) => inAccount(t) && t.status === 'matched' && !needsLinking(t))
   const ignored = data.txs.filter((t) => inAccount(t) && t.status === 'ignored')
-  const slipsNotOnStatement = data.expenses.filter((e) => e.paid && !linkedExpenseIds.has(e.id))
+  const statements = data.statements.filter(inAccount)
+  // Only slips dated inside an imported statement period are expected to be on a statement.
+  const inStatementPeriod = (date: string) => statements.some((s) => !!s.period_start && !!s.period_end && date >= s.period_start && date <= s.period_end)
+  const slipsNotOnStatement = data.expenses.filter((e) => e.paid && !linkedExpenseIds.has(e.id) && inStatementPeriod(e.date))
+  const linesByStatement = new Map<string, number>()
+  for (const t of data.txs) if (t.statement_id) linesByStatement.set(t.statement_id, (linesByStatement.get(t.statement_id) ?? 0) + 1)
   const expenseById = new Map(data.expenses.map((e) => [e.id, e]))
   const paymentById = new Map(data.payments.map((p) => [p.id, p]))
   const invoiceById = new Map(data.invoices.map((i) => [i.id, i]))
   const projectName = (id: string | null) => (id ? data.projects.find((p) => p.id === id)?.name ?? 'Project' : 'Overhead')
-  const selectedAccount = accountId === 'all' ? data.accounts[0] ?? null : data.accounts.find((a) => a.id === accountId) ?? null
+  const accountName = (id: string) => accounts.find((a) => a.id === id)?.name ?? ''
+
+  /** The engine with the same inputs everywhere: the live hints, "Re-run matching" and after import. */
+  const engine = (transactions: BankTransaction[]) =>
+    reconcile({ transactions, expenses: data.expenses, payments: data.payments, invoices: invoiceInputs, linkedExpenseIds, linkedPaymentIds })
+
+  /** Writes decisions back, grouped by identical values, a few requests at a time. */
+  async function writeDecisions(ds: Decision[], current: BankTransaction[]): Promise<number> {
+    const groups = decisionUpdates(ds, current)
+    for (let i = 0; i < groups.length; i += 8) await Promise.all(groups.slice(i, i + 8).map((g) => updateBankTransactions(g.ids, g.values)))
+    return ds.filter((d) => d.status === 'matched').length
+  }
 
   async function act(id: string, fn: () => Promise<void>) {
     setBusy(id)
@@ -108,41 +157,42 @@ export function BankPage() {
       await bankTransactions.update(t.id, { status: 'matched', matched_payment_id: c.id, matched_expense_id: null, match_score: c.score })
       return
     }
-    // Invoice: record the payment it represents, then link to that.
+    // Invoice: record the payment it represents, then link to that. Paid-so-far comes from the
+    // server: the page only holds payments near the statements.
     const inv = invoiceById.get(c.id)!
     const pay = await paymentsApi.create({ invoice_id: inv.id, project_id: inv.project_id, date: t.date, amount: t.amount, method: 'eft', reference: t.reference || t.description.slice(0, 80) })
-    const paidSoFar = data!.payments.filter((p) => p.invoice_id === inv.id).reduce((s, p) => s + p.amount, 0) + t.amount
+    const paidSoFar = (await listInvoicePayments(inv.id)).reduce((s, p) => s + p.amount, 0)
     if (paidSoFar >= inv.amount_excl + inv.vat - 0.005) await invoicesApi.update(inv.id, { status: 'paid' })
     await bankTransactions.update(t.id, { status: 'matched', matched_payment_id: pay.id, matched_expense_id: null, match_score: c.score })
   }
 
-  /** Re-runs the engine and writes auto-matches/suggestions back. */
-  async function rerun() {
-    const open = data!.txs.filter((t) => t.status === 'unmatched' || t.status === 'suggested')
-    const ds = reconcile({
-      transactions: open,
-      expenses: data!.expenses,
-      payments: data!.payments,
-      invoices: [], // invoice matches create payments, so they are only ever confirmed by a person
-      linkedExpenseIds,
-      linkedPaymentIds,
-    })
-    let auto = 0
-    for (const d of ds) {
-      const t = open.find((x) => x.id === d.transactionId)!
-      if (d.status === 'matched' && d.best) {
-        auto++
-        await bankTransactions.update(t.id, {
-          status: 'matched',
-          matched_expense_id: d.best.kind === 'expense' ? d.best.id : null,
-          matched_payment_id: d.best.kind === 'payment' ? d.best.id : null,
-          match_score: d.best.score,
-        })
-      } else if (d.status !== t.status) {
-        await bankTransactions.update(t.id, { status: d.status, match_score: d.best?.score ?? null })
-      }
+  const unlink = (t: BankTransaction) =>
+    bankTransactions.update(t.id, { status: 'unmatched', matched_expense_id: null, matched_payment_id: null, match_score: null }).then(() => {})
+
+  /** Unlink, delete the payment the match recorded, and reopen its invoice if no longer fully paid. */
+  async function unlinkAndDeletePayment(t: BankTransaction, p: Payment) {
+    await unlink(t)
+    await paymentsApi.remove(p.id)
+    const inv = p.invoice_id ? invoiceById.get(p.invoice_id) : undefined
+    if (inv?.status === 'paid') {
+      const paid = (await listInvoicePayments(inv.id)).reduce((s, x) => s + x.amount, 0)
+      if (paid < inv.amount_excl + inv.vat - 0.005) await invoicesApi.update(inv.id, { status: 'sent' })
     }
+  }
+
+  /** Re-runs the engine and writes auto-matches/suggestions back. Invoice candidates are only ever
+   * suggested (confirming one records a payment), so passing invoices is safe and matches the hints. */
+  async function rerun() {
+    const open = data!.txs.filter(needsLinking)
+    const auto = await writeDecisions(engine(open), open)
     setNotice(`Matching done: ${auto} auto-matched.`)
+  }
+
+  function startImport() {
+    setWarning(null)
+    if (accounts.length) return setImportOpen(true)
+    setImportAfterAccount(true)
+    setAccountOpen(true)
   }
 
   const describeCandidate = (c: Candidate) => {
@@ -172,7 +222,7 @@ export function BankPage() {
           <p className="text-xs text-slate-500">
             {formatDate(t.date)}
             {t.reference ? ` · ref ${t.reference}` : ''}
-            {accountId === 'all' && data.accounts.length > 1 ? ` · ${data.accounts.find((a) => a.id === t.bank_account_id)?.name ?? ''}` : ''}
+            {accountId === 'all' && accounts.length > 1 ? ` · ${accountName(t.bank_account_id)}` : ''}
           </p>
           {extra}
           <div className="mt-2 flex flex-wrap gap-1.5">{actions}</div>
@@ -189,19 +239,20 @@ export function BankPage() {
         actions={
           <>
             <Button onClick={() => act('rerun', rerun)} loading={busy === 'rerun'}><RefreshCw size={15} /> Re-run matching</Button>
-            <Button variant="primary" onClick={() => (data.accounts.length ? setImportOpen(true) : setAccountOpen(true))}><FileUp size={15} /> Import statement</Button>
+            <Button variant="primary" onClick={startImport}><FileUp size={15} /> Import statement</Button>
           </>
         }
       />
       <ErrorBanner error={error ?? actionError} />
       {notice && <div className="mb-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">{notice}</div>}
+      {warning && <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">{warning}</div>}
 
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <select className="input w-auto" value={accountId} onChange={(e) => setAccountId(e.target.value)}>
           <option value="all">All accounts</option>
-          {data.accounts.map((a) => <option key={a.id} value={a.id}>{a.name}{a.account_number_last4 ? ` ··${a.account_number_last4}` : ''}</option>)}
+          {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}{a.account_number_last4 ? ` ··${a.account_number_last4}` : ''}</option>)}
         </select>
-        <Button size="sm" variant="ghost" onClick={() => setAccountOpen(true)}><Plus size={13} /> Account</Button>
+        <Button size="sm" variant="ghost" onClick={() => { setImportAfterAccount(false); setAccountOpen(true) }}><Plus size={13} /> Account</Button>
       </div>
 
       <Tabs<Tab>
@@ -212,11 +263,12 @@ export function BankPage() {
           { id: 'matched', label: `Matched (${matched.length})` },
           { id: 'ignored', label: `Ignored (${ignored.length})` },
           { id: 'slips', label: `Slips not on statement (${slipsNotOnStatement.length})` },
+          { id: 'statements', label: `Statements (${statements.length})` },
         ]}
       />
 
-      {data.accounts.length === 0 ? (
-        <Card><EmptyState title="No bank accounts yet">Add your business account, then import a CSV statement export from internet banking.<div className="mt-3"><Button variant="primary" onClick={() => setAccountOpen(true)}><Plus size={14} /> Add bank account</Button></div></EmptyState></Card>
+      {accounts.length === 0 ? (
+        <Card><EmptyState title="No bank accounts yet">Add your business account, then import a CSV statement export from internet banking.<div className="mt-3"><Button variant="primary" onClick={() => { setImportAfterAccount(false); setAccountOpen(true) }}><Plus size={14} /> Add bank account</Button></div></EmptyState></Card>
       ) : tab === 'needs' ? (
         <Card padded={false}>
           {needs.length === 0 ? <EmptyState title="All caught up" icon={<Check size={28} />}>Every imported bank line is linked or ignored.</EmptyState> : (
@@ -263,7 +315,8 @@ export function BankPage() {
                 const p = t.matched_payment_id ? paymentById.get(t.matched_payment_id) : null
                 return txRow(
                   t,
-                  <Button size="sm" variant="ghost" onClick={() => act(t.id, () => bankTransactions.update(t.id, { status: 'unmatched', matched_expense_id: null, matched_payment_id: null, match_score: null }).then(() => {}))}><Undo2 size={13} /> Unlink</Button>,
+                  // A payment against an invoice was most likely recorded by confirming the match: offer to undo it too.
+                  <Button size="sm" variant="ghost" onClick={() => (p?.invoice_id ? setUnlinkFor({ tx: t, payment: p }) : act(t.id, () => unlink(t)))} loading={busy === t.id}><Undo2 size={13} /> Unlink</Button>,
                   <p className="mt-1 flex items-center gap-1 text-xs text-emerald-700">
                     <Link2 size={12} />
                     {e ? `${e.supplier || e.description || labelize(e.category)} · ${projectName(e.project_id)}` : p ? `Payment ${formatDate(p.date)}${p.invoice_id ? ` · ${invoiceById.get(p.invoice_id)?.number ?? ''}` : ''}` : 'Linked'}
@@ -287,9 +340,42 @@ export function BankPage() {
             </ul>
           )}
         </Card>
+      ) : tab === 'statements' ? (
+        <Card padded={false}>
+          <p className="border-b border-slate-100 px-4 py-2.5 text-xs text-slate-500">Imported statement files. Deleting one removes its bank lines (and their links); the expenses and payments themselves are kept.</p>
+          {statements.length === 0 ? <EmptyState title="No statements imported yet" /> : (
+            <ul className="divide-y divide-slate-100">
+              {statements.map((s) => {
+                const lines = linesByStatement.get(s.id) ?? 0
+                return (
+                  <li key={s.id} className="flex items-center justify-between gap-3 px-4 py-2.5 text-sm">
+                    <span className="min-w-0">
+                      <span className="block truncate font-medium text-slate-800">{s.file_name || 'Statement'}</span>
+                      <span className="block text-xs text-slate-500">
+                        {formatDate(s.period_start)} – {formatDate(s.period_end)} · {s.imported_count} imported{s.duplicate_count ? `, ${s.duplicate_count} duplicates skipped` : ''} · {formatDateTime(s.imported_at)}
+                        {accountId === 'all' && accounts.length > 1 ? ` · ${accountName(s.bank_account_id)}` : ''}
+                      </span>
+                    </span>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      loading={busy === s.id}
+                      onClick={() => {
+                        if (!window.confirm(`Delete this statement and its ${lines} bank line${lines === 1 ? '' : 's'}? Any links on those lines are removed; expenses and payments are kept.`)) return
+                        void act(s.id, () => deleteBankStatement(s))
+                      }}
+                    >
+                      <Trash2 size={13} /> Delete statement
+                    </Button>
+                  </li>
+                )
+              })}
+            </ul>
+          )}
+        </Card>
       ) : (
         <Card padded={false}>
-          <p className="border-b border-slate-100 px-4 py-2.5 text-xs text-slate-500">Paid expenses and slips that no bank line has been linked to yet — usually because the statement covering them hasn't been imported, or they were paid in cash.</p>
+          <p className="border-b border-slate-100 px-4 py-2.5 text-xs text-slate-500">Paid expenses and slips dated within an imported statement's period that no bank line has been linked to yet — usually paid from another account, or in cash.</p>
           {slipsNotOnStatement.length === 0 ? <EmptyState title="Every paid expense is on a statement" /> : (
             <ul className="divide-y divide-slate-100">
               {slipsNotOnStatement.slice(0, 200).map((e) => (
@@ -303,33 +389,31 @@ export function BankPage() {
         </Card>
       )}
 
-      <ImportStatementModal
-        open={importOpen}
-        account={selectedAccount}
-        onClose={() => setImportOpen(false)}
-        onImported={async (inserted, summary) => {
-          setImportOpen(false)
-          setNotice(summary)
-          // Run matching over the fresh lines straight away.
-          const ds = reconcile({ transactions: inserted, expenses: data.expenses, payments: data.payments, invoices: [], linkedExpenseIds, linkedPaymentIds })
-          let auto = 0
-          for (const d of ds) {
-            if (d.status === 'unmatched') continue
-            if (d.status === 'matched') auto++
-            await bankTransactions.update(d.transactionId, {
-              status: d.status,
-              matched_expense_id: d.status === 'matched' && d.best?.kind === 'expense' ? d.best.id : null,
-              matched_payment_id: d.status === 'matched' && d.best?.kind === 'payment' ? d.best.id : null,
-              match_score: d.best?.score ?? null,
-            }).catch(() => {})
-          }
-          if (auto) setNotice(`${summary} ${auto} matched automatically.`)
-          reload()
-          refreshNeedsLinking()
-        }}
-      />
+      {importOpen && (
+        <ImportStatementModal
+          open
+          accounts={accounts}
+          defaultAccountId={accountId === 'all' ? null : accountId}
+          onClose={() => setImportOpen(false)}
+          onImported={async (inserted, summary, uploadWarning) => {
+            setImportOpen(false)
+            setNotice(summary)
+            setWarning(uploadWarning)
+            // Run matching over the fresh lines straight away.
+            try {
+              const auto = await writeDecisions(engine(inserted), inserted)
+              if (auto) setNotice(`${summary} ${auto} matched automatically.`)
+            } catch (e) {
+              setActionError(`Imported, but matching failed: ${e instanceof Error ? e.message : String(e)}`)
+            }
+            reload()
+            refreshNeedsLinking()
+          }}
+        />
+      )}
 
       <LinkModal
+        key={`link-${linkFor?.id ?? ''}`}
         tx={linkFor}
         onClose={() => setLinkFor(null)}
         expenses={data.expenses.filter((e) => !linkedExpenseIds.has(e.id))}
@@ -364,6 +448,7 @@ export function BankPage() {
       />
 
       <IgnoreModal
+        key={`ignore-${ignoreFor?.id ?? ''}`}
         tx={ignoreFor}
         onClose={() => setIgnoreFor(null)}
         onIgnore={(reason) => {
@@ -373,7 +458,41 @@ export function BankPage() {
         }}
       />
 
-      <AccountModal open={accountOpen} onClose={() => setAccountOpen(false)} onSaved={(a) => { setAccountOpen(false); setAccountId(a.id); reload() }} />
+      {unlinkFor && (
+        <Modal
+          open
+          onClose={() => setUnlinkFor(null)}
+          title="Unlink payment"
+          footer={
+            <>
+              <Button variant="ghost" onClick={() => setUnlinkFor(null)}>Cancel</Button>
+              <Button onClick={() => { const { tx } = unlinkFor; setUnlinkFor(null); void act(tx.id, () => unlink(tx)) }}>Unlink only</Button>
+              <Button variant="dark" onClick={() => { const { tx, payment } = unlinkFor; setUnlinkFor(null); void act(tx.id, () => unlinkAndDeletePayment(tx, payment)) }}>Unlink and delete payment</Button>
+            </>
+          }
+        >
+          <p className="text-sm text-slate-600">
+            This bank line is linked to a payment of {formatZAR(unlinkFor.payment.amount)} on {formatDate(unlinkFor.payment.date)} recorded against invoice {invoiceById.get(unlinkFor.payment.invoice_id ?? '')?.number ?? ''}. If it was recorded by confirming this match, delete it too: the invoice goes back to "sent" when it is no longer fully paid.
+          </p>
+        </Modal>
+      )}
+
+      {accountOpen && (
+        <AccountModal
+          open
+          onClose={() => { setAccountOpen(false); setImportAfterAccount(false) }}
+          onSaved={(a) => {
+            setAccountOpen(false)
+            setAccountId(a.id)
+            setJustAdded(a)
+            reload()
+            if (importAfterAccount) {
+              setImportAfterAccount(false)
+              setImportOpen(true)
+            }
+          }}
+        />
+      )}
     </div>
   )
 }
@@ -487,10 +606,11 @@ function AccountModal({ open, onClose, onSaved }: { open: boolean; onClose: () =
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   async function save() {
+    if (!name.trim()) return setError('Give the account a name.')
     setSaving(true)
     setError(null)
     try {
-      onSaved(await bankAccounts.create({ name, bank, account_number_last4: last4 || null }))
+      onSaved(await bankAccounts.create({ name: name.trim(), bank, account_number_last4: last4 || null }))
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
     } finally {
@@ -498,7 +618,7 @@ function AccountModal({ open, onClose, onSaved }: { open: boolean; onClose: () =
     }
   }
   return (
-    <Modal open={open} onClose={onClose} title="Add bank account" footer={<><Button variant="ghost" onClick={onClose}>Cancel</Button><Button variant="dark" onClick={save} loading={saving}>Save</Button></>}>
+    <Modal open={open} onClose={onClose} title="Add bank account" footer={<><Button variant="ghost" onClick={onClose}>Cancel</Button><Button variant="dark" onClick={save} loading={saving} disabled={!name.trim()}>Save</Button></>}>
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label="Name" className="sm:col-span-2"><input className="input" value={name} onChange={(e) => setName(e.target.value)} /></Field>
         <Field label="Bank">

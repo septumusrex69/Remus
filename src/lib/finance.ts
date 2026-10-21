@@ -33,10 +33,15 @@ export function ageingBucket(daysOverdue: number): AgeingBucket {
   return '90+ days'
 }
 
+/**
+ * Invoices with a balance still owing: anything issued (not draft or cancelled) whose linked
+ * payments don't cover the incl.-VAT total. That includes an invoice marked 'paid' that was
+ * only part paid. `payments` should be all payments, not just a period's.
+ */
 export function outstandingInvoices(invoices: Invoice[], payments: Payment[], today = new Date()): OutstandingInvoice[] {
   const paid = paidByInvoice(payments)
   return invoices
-    .filter((i) => i.status === 'sent' || i.status === 'overdue')
+    .filter((i) => i.status !== 'draft' && i.status !== 'cancelled')
     .map((invoice) => {
       const total = invoiceTotal(invoice)
       const p = paid.get(invoice.id) ?? 0

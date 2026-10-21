@@ -19,7 +19,15 @@ const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'] as co
 type ImageType = (typeof IMAGE_TYPES)[number]
 const MAX_BYTES = 5 * 1024 * 1024 // Claude's per-image limit
 
-const nullable = (type: string) => ({ type: [type, 'null'] })
+// anyOf rather than `type: [X, 'null']`: the form structured outputs supports for nullable fields.
+const nullable = (type: string) => ({ anyOf: [{ type }, { type: 'null' }] })
+
+/** A real calendar date in YYYY-MM-DD form. */
+function isYmd(v: unknown): v is string {
+  if (typeof v !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(v)) return false
+  const d = new Date(`${v}T00:00:00Z`)
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === v
+}
 
 /** JSON schema for structured output. Every property required; nulls for anything not visible. */
 const OUTPUT_SCHEMA = {
@@ -179,7 +187,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const response = await client.beta.messages.create({
       model: MODEL,
-      max_tokens: 4096,
+      max_tokens: 16000,
       // Server-side fallback: if the model declines, the API retries on Anthropic's recommended model.
       betas: ['server-side-fallback-2026-07-01'],
       fallbacks: 'default',
@@ -201,12 +209,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       res.status(200).json({ configured: false, message: "Couldn't read this slip automatically. Fill in the details by hand." })
       return
     }
+    if (response.stop_reason === 'max_tokens') {
+      console.error('Slip extraction hit max_tokens')
+      res.status(200).json({ configured: false, message: 'This slip was too long to read automatically. Fill in the details by hand.' })
+      return
+    }
     const text = response.content.find((b): b is Anthropic.Beta.BetaTextBlock => b.type === 'text')?.text
     if (!text) throw new Error('Empty response')
     const parsed = JSON.parse(text) as {
       extraction: Record<string, unknown>
       suggestion: { project_id: string | null; category: string; confidence: string; reason: string }
     }
+    // Only a well-formed date reaches the form; anything else leaves the date for the person.
+    if (!isYmd(parsed.extraction.date)) parsed.extraction.date = null
     // Never let a hallucinated id through.
     if (parsed.suggestion.project_id && !projectIds.has(parsed.suggestion.project_id)) parsed.suggestion.project_id = null
     if (!CATEGORIES.includes(parsed.suggestion.category as (typeof CATEGORIES)[number])) parsed.suggestion.category = 'other'

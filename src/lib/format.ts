@@ -47,8 +47,14 @@ export function todayYmd(): string {
   return ymd(new Date())
 }
 
+/**
+ * Round to cents, half away from zero — the same as Postgres round(x, 2) on numeric.
+ * toPrecision(15) strips binary noise first (2.175 * 100 is 217.49999999999997 in floating point).
+ */
 export function round2(n: number): number {
-  return Math.round((n + Number.EPSILON) * 100) / 100
+  if (!Number.isFinite(n)) return n
+  const cents = Math.round(Number((Math.abs(n) * 100).toPrecision(15)))
+  return (Math.sign(n) * cents) / 100 || 0
 }
 
 export function labelize(value: string | null | undefined): string {

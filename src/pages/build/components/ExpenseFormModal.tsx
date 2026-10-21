@@ -57,10 +57,18 @@ export function ExpenseFormModal({
   }
 
   async function save() {
+    if (!form.date) return setError('Enter the expense date.')
     setSaving(true)
     setError(null)
     try {
-      const values = { ...form, amount_excl: Number(form.amount_excl ?? 0), vat: Number(form.vat ?? 0) }
+      const values = {
+        ...form,
+        supplier: form.supplier?.trim() || null,
+        description: form.description?.trim() || null,
+        receipt_number: form.receipt_number?.trim() || null,
+        amount_excl: Number(form.amount_excl ?? 0),
+        vat: Number(form.vat ?? 0),
+      }
       const saved = editing ? await expenses.update(editing.id, values) : await expenses.create(values)
       onSaved(saved)
     } catch (e) {

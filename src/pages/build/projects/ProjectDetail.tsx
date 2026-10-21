@@ -1,3 +1,4 @@
+import { parseISO } from 'date-fns'
 import { useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
@@ -44,6 +45,11 @@ import { ProjectFormModal } from './ProjectFormModal'
 
 type Tab = 'overview' | 'expenses' | 'invoices' | 'variations' | 'diary' | 'schedule'
 
+/** Runs a click action, reporting any failure to the page's error banner. */
+type Act = (fn: () => Promise<unknown>) => Promise<void>
+
+const errMsg = (e: unknown) => (e instanceof Error ? e.message : String(e))
+
 async function load(id: string) {
   const [project, fin, dir, exp, inv, pay, vars, entries, events, linked, team, allProjects] = await Promise.all([
     projectsApi.get(id),
@@ -70,6 +76,15 @@ export function ProjectDetail() {
   const tab = (params.get('tab') as Tab) || 'overview'
   const { data, error, loading, reload } = useLoad(() => load(id), [id])
   const [editing, setEditing] = useState(false)
+  const [actionError, setActionError] = useState<string | null>(null)
+  const act: Act = async (fn) => {
+    setActionError(null)
+    try {
+      await fn()
+    } catch (e) {
+      setActionError(errMsg(e))
+    }
+  }
 
   if (loading && !data) return <Spinner />
   if (!data?.project) return <ErrorBanner error={error ?? 'Project not found'} />
@@ -93,10 +108,12 @@ export function ProjectDetail() {
             <Button onClick={() => setEditing(true)}><Pencil size={14} /> Edit</Button>
             <Button
               variant="danger"
-              onClick={async () => {
-                if (!window.confirm('Delete this project? Its variations and site diary go with it; expenses and invoices are kept as unassigned.')) return
-                await projectsApi.remove(project.id)
-                navigate(paths.projects())
+              onClick={() => {
+                if (!window.confirm('Delete this project? Its variations, site diary and scheduled events are deleted with it; expenses and invoices are kept as unassigned.')) return
+                act(async () => {
+                  await projectsApi.remove(project.id)
+                  navigate(paths.projects())
+                })
               }}
             >
               <Trash2 size={14} />
@@ -104,7 +121,7 @@ export function ProjectDetail() {
           </>
         }
       />
-      <ErrorBanner error={error} />
+      <ErrorBanner error={actionError ?? error} />
       <Tabs<Tab>
         value={tab}
         onChange={(t) => setParams({ tab: t }, { replace: true })}
@@ -119,9 +136,9 @@ export function ProjectDetail() {
       />
 
       {tab === 'overview' && <Overview data={data} />}
-      {tab === 'expenses' && <ExpensesTab projectId={project.id} rows={data.exp} projects={data.allProjects} linked={data.linked} reload={reload} />}
-      {tab === 'invoices' && <InvoicesTab data={data} reload={reload} />}
-      {tab === 'variations' && <VariationsTab projectId={project.id} rows={data.vars} reload={reload} />}
+      {tab === 'expenses' && <ExpensesTab projectId={project.id} rows={data.exp} projects={data.allProjects} linked={data.linked} reload={reload} act={act} />}
+      {tab === 'invoices' && <InvoicesTab data={data} reload={reload} act={act} />}
+      {tab === 'variations' && <VariationsTab projectId={project.id} rows={data.vars} reload={reload} act={act} />}
       {tab === 'diary' && <DiaryTab projectId={project.id} rows={data.entries} projects={data.allProjects} reload={reload} />}
       {tab === 'schedule' && <ScheduleTab data={data} reload={reload} />}
 
@@ -184,7 +201,7 @@ function Overview({ data }: { data: Data }) {
   )
 }
 
-function ExpensesTab({ projectId, rows, projects, linked, reload }: { projectId: string; rows: Expense[]; projects: Data['allProjects']; linked: Set<string>; reload: () => void }) {
+function ExpensesTab({ projectId, rows, projects, linked, reload, act }: { projectId: string; rows: Expense[]; projects: Data['allProjects']; linked: Set<string>; reload: () => void; act: Act }) {
   const [editing, setEditing] = useState<Expense | null>(null)
   const [adding, setAdding] = useState(false)
   const total = rows.reduce((s, e) => s + e.amount_excl, 0)
@@ -205,11 +222,12 @@ function ExpensesTab({ projectId, rows, projects, linked, reload }: { projectId:
         linked={linked}
         showProject={false}
         onEdit={setEditing}
-        onDelete={async (e) => {
-          if (window.confirm('Delete this expense?')) {
+        onDelete={(e) => {
+          if (!window.confirm('Delete this expense?')) return
+          act(async () => {
             await expensesApi.remove(e.id)
             reload()
-          }
+          })
         }}
       />
       <ExpenseFormModal
@@ -224,7 +242,7 @@ function ExpensesTab({ projectId, rows, projects, linked, reload }: { projectId:
   )
 }
 
-function InvoicesTab({ data, reload }: { data: Data; reload: () => void }) {
+function InvoicesTab({ data, reload, act }: { data: Data; reload: () => void; act: Act }) {
   const vatRate = useVatRate()
   const p = data.project!
   const [invOpen, setInvOpen] = useState(false)
@@ -240,17 +258,29 @@ function InvoicesTab({ data, reload }: { data: Data; reload: () => void }) {
     setErr(null)
     setInvOpen(true)
   }
+  const outstandingOn = (invoice: Invoice) => Math.max(0, round2(invoiceTotal(invoice) - (paid.get(invoice.id) ?? 0)))
   function openPayment(invoice?: Invoice) {
-    const outstanding = invoice ? round2(invoiceTotal(invoice) - (paid.get(invoice.id) ?? 0)) : 0
+    const outstanding = invoice ? outstandingOn(invoice) : 0
     setPay({ date: todayYmd(), amount: outstanding, method: 'eft', invoice_id: invoice?.id ?? null, reference: invoice?.number ?? '' })
     setErr(null)
     setPayOpen({ invoice })
   }
 
   async function saveInvoice() {
+    if (!inv.issue_date) return setErr('Enter the issue date.')
+    if (inv.due_date && inv.due_date < inv.issue_date) return setErr('The due date is before the issue date.')
+    setErr(null)
     setSaving(true)
     try {
-      await invoicesApi.create({ ...inv, project_id: p.id, company_id: p.company_id, contact_id: p.contact_id, amount_excl: Number(inv.amount_excl), vat: Number(inv.vat) })
+      await invoicesApi.create({
+        ...inv,
+        due_date: inv.due_date || null,
+        project_id: p.id,
+        company_id: p.company_id,
+        contact_id: p.contact_id,
+        amount_excl: Number(inv.amount_excl),
+        vat: Number(inv.vat),
+      })
       setInvOpen(false)
       reload()
     } catch (e) {
@@ -261,13 +291,17 @@ function InvoicesTab({ data, reload }: { data: Data; reload: () => void }) {
   }
 
   async function savePayment() {
+    if (!pay.date) return setErr('Enter the payment date.')
+    if (!(Number(pay.amount) > 0)) return setErr('Enter the amount received.')
+    setErr(null)
     setSaving(true)
     try {
-      await paymentsApi.create({ ...pay, project_id: p.id, amount: Number(pay.amount) })
-      // Fully paid invoices flip to paid.
+      await paymentsApi.create({ ...pay, reference: pay.reference?.trim() || null, project_id: p.id, amount: Number(pay.amount) })
+      // Only a fully paid invoice flips to paid; a part payment leaves the status alone.
       if (pay.invoice_id) {
         const invoice = data.inv.find((i) => i.id === pay.invoice_id)
-        if (invoice && (paid.get(invoice.id) ?? 0) + Number(pay.amount) >= invoiceTotal(invoice) - 0.005) await invoicesApi.update(invoice.id, { status: 'paid' })
+        const fullyPaid = invoice && round2((paid.get(invoice.id) ?? 0) + Number(pay.amount)) >= invoiceTotal(invoice) - 0.005
+        if (invoice && fullyPaid && invoice.status !== 'paid' && invoice.status !== 'cancelled') await invoicesApi.update(invoice.id, { status: 'paid' })
       }
       setPayOpen(null)
       reload()
@@ -276,6 +310,16 @@ function InvoicesTab({ data, reload }: { data: Data; reload: () => void }) {
     } finally {
       setSaving(false)
     }
+  }
+
+  /** Deletes a payment; a 'paid' invoice it no longer fully covers goes back to 'sent'. */
+  async function deletePayment(pm: Payment) {
+    await paymentsApi.remove(pm.id)
+    const invoice = pm.invoice_id ? data.inv.find((i) => i.id === pm.invoice_id) : undefined
+    if (invoice?.status === 'paid' && round2((paid.get(invoice.id) ?? 0) - Number(pm.amount)) < invoiceTotal(invoice) - 0.005) {
+      await invoicesApi.update(invoice.id, { status: 'sent' })
+    }
+    reload()
   }
 
   return (
@@ -291,11 +335,11 @@ function InvoicesTab({ data, reload }: { data: Data; reload: () => void }) {
                   <span className="font-mono text-xs text-slate-500">{i.number}</span>
                   <span className="min-w-0 flex-1 truncate">{i.description}<span className="block text-xs text-slate-500">Issued {formatDate(i.issue_date)} · due {formatDate(i.due_date)}</span></span>
                   <span className="tabular text-right">{formatZAR(total)}<span className="block text-xs text-slate-500">paid {formatZAR(got)}</span></span>
-                  <select className="rounded border border-slate-200 px-1.5 py-1 text-xs" value={i.status} onChange={async (e) => { await invoicesApi.update(i.id, { status: e.target.value as InvoiceStatus }); reload() }}>
+                  <select className="rounded border border-slate-200 px-1.5 py-1 text-xs" value={i.status} onChange={(e) => { const status = e.target.value as InvoiceStatus; act(async () => { await invoicesApi.update(i.id, { status }); reload() }) }}>
                     {INVOICE_STATUSES.map((s) => <option key={s} value={s}>{labelize(s)}</option>)}
                   </select>
                   {got < total - 0.005 && i.status !== 'cancelled' && <Button size="sm" onClick={() => openPayment(i)}>Record payment</Button>}
-                  <button className="text-slate-400 hover:text-red-600" onClick={async () => { if (window.confirm('Delete invoice?')) { await invoicesApi.remove(i.id); reload() } }} aria-label="Delete"><Trash2 size={14} /></button>
+                  <button className="text-slate-400 hover:text-red-600" onClick={() => { if (window.confirm('Delete invoice?')) act(async () => { await invoicesApi.remove(i.id); reload() }) }} aria-label="Delete"><Trash2 size={14} /></button>
                 </li>
               )
             })}
@@ -309,7 +353,7 @@ function InvoicesTab({ data, reload }: { data: Data; reload: () => void }) {
               <li key={pm.id} className="flex items-center gap-3 px-4 py-2.5 text-sm">
                 <span className="flex-1">{formatDate(pm.date)} <span className="text-xs text-slate-500">· {labelize(pm.method)} {pm.reference ? `· ${pm.reference}` : ''} {pm.invoice_id ? `· ${data.inv.find((i) => i.id === pm.invoice_id)?.number ?? ''}` : ''}</span></span>
                 <span className="tabular font-medium">{formatZAR(pm.amount)}</span>
-                <button className="text-slate-400 hover:text-red-600" onClick={async () => { if (window.confirm('Delete payment?')) { await paymentsApi.remove(pm.id); reload() } }} aria-label="Delete"><Trash2 size={14} /></button>
+                <button className="text-slate-400 hover:text-red-600" onClick={() => { if (window.confirm('Delete payment?')) act(() => deletePayment(pm)) }} aria-label="Delete"><Trash2 size={14} /></button>
               </li>
             ))}
           </ul>
@@ -336,7 +380,10 @@ function InvoicesTab({ data, reload }: { data: Data; reload: () => void }) {
       <Modal open={!!payOpen} onClose={() => setPayOpen(null)} title="Record payment" footer={<><Button variant="ghost" onClick={() => setPayOpen(null)}>Cancel</Button><Button variant="dark" onClick={savePayment} loading={saving}>Save</Button></>}>
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label="Invoice" className="sm:col-span-2">
-            <select className="input" value={pay.invoice_id ?? ''} onChange={(e) => setPay({ ...pay, invoice_id: e.target.value || null })}>
+            <select className="input" value={pay.invoice_id ?? ''} onChange={(e) => {
+              const invoice = data.inv.find((i) => i.id === e.target.value)
+              setPay({ ...pay, invoice_id: invoice?.id ?? null, ...(invoice ? { amount: outstandingOn(invoice), reference: !pay.reference || data.inv.some((i) => i.number === pay.reference) ? invoice.number : pay.reference } : {}) })
+            }}>
               <option value="">— Not against an invoice —</option>
               {data.inv.map((i) => <option key={i.id} value={i.id}>{i.number} · {formatZAR(invoiceTotal(i))}</option>)}
             </select>
@@ -356,22 +403,27 @@ function InvoicesTab({ data, reload }: { data: Data; reload: () => void }) {
   )
 }
 
-function VariationsTab({ projectId, rows, reload }: { projectId: string; rows: Variation[]; reload: () => void }) {
+function VariationsTab({ projectId, rows, reload, act }: { projectId: string; rows: Variation[]; reload: () => void; act: Act }) {
   const [desc, setDesc] = useState('')
   const [amount, setAmount] = useState('')
   const [date, setDate] = useState(todayYmd())
   const [saving, setSaving] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
   const approved = rows.filter((v) => v.approved).reduce((s, v) => s + v.amount_excl, 0)
   const pending = rows.filter((v) => !v.approved).reduce((s, v) => s + v.amount_excl, 0)
 
   async function add() {
-    if (!desc.trim()) return
+    if (!desc.trim()) return setErr('Describe the variation.')
+    if (!date) return setErr('Enter the variation date.')
+    setErr(null)
     setSaving(true)
     try {
       await variationsApi.create({ project_id: projectId, description: desc.trim(), amount_excl: Number(amount || 0), date, approved: false })
       setDesc('')
       setAmount('')
       reload()
+    } catch (e) {
+      setErr(errMsg(e))
     } finally {
       setSaving(false)
     }
@@ -384,6 +436,7 @@ function VariationsTab({ projectId, rows, reload }: { projectId: string; rows: V
         <input className="input" type="number" step="0.01" placeholder="Amount excl. VAT" value={amount} onChange={(e) => setAmount(e.target.value)} />
         <input className="input" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
         <Button variant="dark" onClick={add} loading={saving}><Plus size={14} /> Add</Button>
+        {err && <p className="text-sm text-red-600 sm:col-span-4">{err}</p>}
       </div>
       {rows.length === 0 ? <EmptyState title="No variations">Changes to the contract scope go here. Approved ones add to the revised contract value.</EmptyState> : (
         <ul className="divide-y divide-slate-100">
@@ -392,12 +445,12 @@ function VariationsTab({ projectId, rows, reload }: { projectId: string; rows: V
               <span className="flex-1">{v.description}<span className="block text-xs text-slate-500">{formatDate(v.date)}</span></span>
               <span className={`tabular font-medium ${v.amount_excl < 0 ? 'text-red-600' : ''}`}>{formatZAR(v.amount_excl)}</span>
               <button
-                onClick={async () => { await variationsApi.update(v.id, { approved: !v.approved }); reload() }}
+                onClick={() => act(async () => { await variationsApi.update(v.id, { approved: !v.approved }); reload() })}
                 className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ${v.approved ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
               >
                 {v.approved && <Check size={12} />} {v.approved ? 'Approved' : 'Approve'}
               </button>
-              <button className="text-slate-400 hover:text-red-600" onClick={async () => { if (window.confirm('Delete variation?')) { await variationsApi.remove(v.id); reload() } }} aria-label="Delete"><Trash2 size={14} /></button>
+              <button className="text-slate-400 hover:text-red-600" onClick={() => { if (window.confirm('Delete variation?')) act(async () => { await variationsApi.remove(v.id); reload() }) }} aria-label="Delete"><Trash2 size={14} /></button>
             </li>
           ))}
         </ul>
@@ -458,9 +511,11 @@ function ScheduleTab({ data, reload }: { data: Data; reload: () => void }) {
       <Card title="Programme">
         <p className="text-sm text-slate-600">Start {formatDate(p.start_date)} → end {formatDate(p.end_date)}</p>
         {p.start_date && p.end_date && (() => {
-          const s = new Date(p.start_date).getTime()
-          const e = new Date(p.end_date).getTime()
-          const pct = Math.max(0, Math.min(100, ((Date.now() - s) / (e - s)) * 100))
+          // parseISO reads YYYY-MM-DD as local midnight (new Date() would read it as UTC).
+          const s = parseISO(p.start_date).getTime()
+          const e = parseISO(p.end_date).getTime()
+          const now = Date.now()
+          const pct = e > s ? Math.max(0, Math.min(100, ((now - s) / (e - s)) * 100)) : now >= s ? 100 : 0
           return (
             <div className="mt-2">
               <ProgressBar value={pct} max={100} tone="accent" />

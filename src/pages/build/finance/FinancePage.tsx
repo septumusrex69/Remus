@@ -23,12 +23,26 @@ import { Button, Card, EmptyState, ErrorBanner, PageHeader, Spinner, StatTile, T
 import { EXPENSE_CATEGORIES } from '../../../types'
 import { paths } from '../paths'
 
+const YMD = /^\d{4}-\d{2}-\d{2}$/
+
+function isValidRange(from: string, to: string): boolean {
+  return YMD.test(from) && YMD.test(to) && !Number.isNaN(parseISO(from).getTime()) && !Number.isNaN(parseISO(to).getTime()) && from <= to
+}
+
 const PIE_COLORS = ['#f59e0b', '#0f172a', '#64748b', '#d97706', '#94a3b8', '#b45309', '#334155', '#cbd5e1']
 
 export function FinancePage() {
   const [period, setPeriod] = useState<PeriodKey>('this_fy')
-  const [custom, setCustom] = useState(() => periodRange('this_month'))
+  // What's typed in the custom date inputs, and the last valid range taken from them. An empty or
+  // inverted range is ignored (the page keeps showing the last good one) with a hint.
+  const [customInput, setCustomInput] = useState(() => periodRange('this_month'))
+  const [custom, setCustom] = useState(customInput)
+  const customValid = isValidRange(customInput.from, customInput.to)
   const range = period === 'custom' ? custom : periodRange(period)
+  function editCustom(next: { from: string; to: string }) {
+    setCustomInput(next)
+    if (isValidRange(next.from, next.to)) setCustom(next)
+  }
 
   const { data, error, loading } = useLoad(async () => {
     const [exp, pay, projects, fin, invoices, allPayments, dir, linked] = await Promise.all([
@@ -96,9 +110,14 @@ export function FinancePage() {
         </select>
         {period === 'custom' && (
           <>
-            <input type="date" className="input w-auto" value={custom.from} onChange={(e) => setCustom({ ...custom, from: e.target.value })} />
+            <input type="date" className="input w-auto" value={customInput.from} onChange={(e) => editCustom({ ...customInput, from: e.target.value })} />
             <span className="text-slate-400">to</span>
-            <input type="date" className="input w-auto" value={custom.to} onChange={(e) => setCustom({ ...custom, to: e.target.value })} />
+            <input type="date" className="input w-auto" value={customInput.to} onChange={(e) => editCustom({ ...customInput, to: e.target.value })} />
+            {!customValid && (
+              <span className="text-xs text-orange-700">
+                {customInput.from && customInput.to ? 'The end date is before the start date' : 'Pick both dates'} — showing {formatDate(custom.from)} – {formatDate(custom.to)}.
+              </span>
+            )}
           </>
         )}
       </div>
