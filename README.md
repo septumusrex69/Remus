@@ -113,3 +113,15 @@ src/pages/build/          The whole construction section, liftable into Raptor
   `companies` and `contacts` from the script so Raptor's narrower policies stay in force.
 - `diary_events` uses Raptor's relationship column names (`owner_id`, `company_id`,
   `contact_id`), so a merged calendar can union diary events with Raptor's `tasks`.
+
+## Hosting
+
+- **Supabase:** project "Remus" (`gakebvnwzxhxccgtvfuw`, eu-west-3) in the Team Raptor org.
+  The schema in `supabase/migrations/0001_init.sql` has been applied to it.
+- **Vercel:** project `remus` in the Team Raptor team, linked to this repo. Every push to
+  `main` deploys to production; other branches get preview deployments.
+  `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` are set there. `ANTHROPIC_API_KEY` and the
+  `SMTP_*` variables are optional and not set yet.
+- **Sign-ups:** turn off public sign-ups in Supabase (Authentication → Sign In / Providers →
+  "Allow new users to sign up") and add staff from the dashboard instead, because every
+  signed-in user can see all company data.
