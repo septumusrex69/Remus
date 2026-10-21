@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { loadClientDirectory, projects as projectsApi, type ClientDirectory } from '../../../lib/api'
+import { clientAddress, loadClientDirectory, projects as projectsApi, type ClientDirectory } from '../../../lib/api'
 import { labelize } from '../../../lib/format'
 import { Button, Field, Modal } from '../../../components/ui'
 import { PROJECT_STATUSES, type Project, type ProjectStatus } from '../../../types'
@@ -58,9 +58,15 @@ export function ProjectFormModal({ open, onClose, onSaved, editing }: { open: bo
           </select>
         </Field>
         <Field label="Client" className="sm:col-span-2">
-          <ClientPicker dir={dir} value={{ company_id: form.company_id ?? null, contact_id: form.contact_id ?? null }} onChange={(v) => setForm((f) => ({ ...f, ...v }))} onCreated={() => loadClientDirectory().then(setDir)} />
+          <ClientPicker dir={dir} value={{ company_id: form.company_id ?? null, contact_id: form.contact_id ?? null }} onChange={(v, address) =>
+            setForm((f) => {
+              const site = (f.site_address ?? '').trim()
+              const fromPrevious = site === '' || site === (clientAddress(dir, { company_id: f.company_id ?? null, contact_id: f.contact_id ?? null }) ?? '')
+              return { ...f, ...v, ...(fromPrevious && address ? { site_address: address } : {}) }
+            })
+          } onCreated={() => loadClientDirectory().then(setDir)} />
         </Field>
-        <Field label="Site address" className="sm:col-span-2"><input className="input" value={form.site_address ?? ''} onChange={(e) => set('site_address', e.target.value)} /></Field>
+        <Field label="Site address" className="sm:col-span-2" hint={form.site_address && form.site_address.trim() === clientAddress(dir, { company_id: form.company_id ?? null, contact_id: form.contact_id ?? null }) ? "From the client's address. Change it if the site is elsewhere." : undefined}><input className="input" value={form.site_address ?? ''} onChange={(e) => set('site_address', e.target.value)} /></Field>
         <Field label="Start date"><input type="date" className="input" value={form.start_date ?? ''} onChange={(e) => set('start_date', e.target.value)} /></Field>
         <Field label="End date"><input type="date" className="input" value={form.end_date ?? ''} onChange={(e) => set('end_date', e.target.value)} /></Field>
         <Field label="Contract value (excl. VAT)"><input type="number" step="0.01" className="input" value={form.contract_value ?? 0} onChange={(e) => set('contract_value', Number(e.target.value))} /></Field>

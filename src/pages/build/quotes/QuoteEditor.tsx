@@ -20,6 +20,7 @@ import {
   convertQuoteToProject,
   duplicateQuote,
   listQuoteItems,
+  clientAddress,
   loadClientDirectory,
   openQuotePdf,
   quoteAttachments,
@@ -298,6 +299,8 @@ export function QuoteEditor() {
 
   function convert() {
     if (quote?.status === 'declined' && !window.confirm('This quote was declined. Convert it to a project anyway? It will be marked accepted.')) return
+    const hasValue = lines.some((l) => l.description.trim() && Number(l.quantity) * Number(l.unit_price) > 0)
+    if (!hasValue && !window.confirm('This quote has no priced line items, so the project will start with a contract value and budget of R 0. Convert anyway?')) return
     void run('convert', async () => navigate(paths.project((await convertQuoteToProject(quote!.id)).id)))
   }
 
@@ -396,11 +399,20 @@ export function QuoteEditor() {
                 <ClientPicker
                   dir={dir}
                   value={{ company_id: quote.company_id, contact_id: quote.contact_id }}
-                  onChange={(v) => patchQuote(v)}
+                  onChange={(v, address) => {
+                    // Fill the site from the client's address unless someone typed a different one.
+                    const site = (quote.site_address ?? '').trim()
+                    const fromPrevious = site === '' || site === (clientAddress(dir, quote) ?? '')
+                    patchQuote(fromPrevious && address ? { ...v, site_address: address } : v)
+                  }}
                   onCreated={() => loadClientDirectory().then(setDir)}
                 />
               </div>
-              <Field label="Site address" className="sm:col-span-2">
+              <Field
+                label="Site address"
+                className="sm:col-span-2"
+                hint={quote.site_address && quote.site_address.trim() === clientAddress(dir, quote) ? "From the client's address. Change it if the site is elsewhere." : undefined}
+              >
                 <input className="input" value={quote.site_address ?? ''} onChange={(e) => patchQuote({ site_address: e.target.value })} />
               </Field>
               <Field label="Issue date">

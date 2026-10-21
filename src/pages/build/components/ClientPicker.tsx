@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import { Plus } from 'lucide-react'
-import { companies, contactName, contacts, type ClientDirectory } from '../../../lib/api'
+import { clientAddress, companies, contactName, contacts, type ClientDirectory } from '../../../lib/api'
 import { Button, Field, Modal } from '../../../components/ui'
 import type { ClientRef } from '../../../types'
 
 /**
  * Picks a client: a company (optionally with a contact person at it) or a private individual
  * (a contact with no company). Value shape matches Raptor's company_id/contact_id pair.
+ * onChange also passes the client's address, so forms can prefill the site address.
  */
 export function ClientPicker({
   dir,
@@ -16,9 +17,10 @@ export function ClientPicker({
 }: {
   dir: ClientDirectory | null
   value: ClientRef
-  onChange: (v: ClientRef) => void
+  onChange: (v: ClientRef, address: string | null) => void
   onCreated?: () => void
 }) {
+  const pick = (v: ClientRef) => onChange(v, clientAddress(dir, v))
   const [creating, setCreating] = useState(false)
   const companyContacts = dir?.contacts.filter((c) => value.company_id && c.company_id === value.company_id) ?? []
   const individuals = dir?.contacts.filter((c) => !c.company_id) ?? []
@@ -32,9 +34,9 @@ export function ClientPicker({
           value={selectValue}
           onChange={(e) => {
             const v = e.target.value
-            if (!v) onChange({ company_id: null, contact_id: null })
-            else if (v.startsWith('co:')) onChange({ company_id: v.slice(3), contact_id: null })
-            else onChange({ company_id: null, contact_id: v.slice(3) })
+            if (!v) pick({ company_id: null, contact_id: null })
+            else if (v.startsWith('co:')) pick({ company_id: v.slice(3), contact_id: null })
+            else pick({ company_id: null, contact_id: v.slice(3) })
           }}
         >
           <option value="">— Select client —</option>
@@ -58,7 +60,7 @@ export function ClientPicker({
         </Button>
       </div>
       {value.company_id && companyContacts.length > 0 && (
-        <select className="input" value={value.contact_id ?? ''} onChange={(e) => onChange({ ...value, contact_id: e.target.value || null })}>
+        <select className="input" value={value.contact_id ?? ''} onChange={(e) => pick({ ...value, contact_id: e.target.value || null })}>
           <option value="">— Contact person (optional) —</option>
           {companyContacts.map((c) => (
             <option key={c.id} value={c.id}>{contactName(c)}</option>
@@ -68,17 +70,18 @@ export function ClientPicker({
       <NewClientModal
         open={creating}
         onClose={() => setCreating(false)}
-        onSaved={(ref) => {
+        onSaved={(ref, address) => {
           setCreating(false)
           onCreated?.()
-          onChange(ref)
+          // The directory hasn't reloaded yet, so pass on the address that was just typed.
+          onChange(ref, address)
         }}
       />
     </div>
   )
 }
 
-export function NewClientModal({ open, onClose, onSaved }: { open: boolean; onClose: () => void; onSaved: (ref: ClientRef) => void }) {
+export function NewClientModal({ open, onClose, onSaved }: { open: boolean; onClose: () => void; onSaved: (ref: ClientRef, address: string | null) => void }) {
   const [kind, setKind] = useState<'company' | 'individual'>('individual')
   const [name, setName] = useState('')
   const [first, setFirst] = useState('')
@@ -102,7 +105,7 @@ export function NewClientModal({ open, onClose, onSaved }: { open: boolean; onCl
     // Don't lose a company that was already saved: hand it back without the contact person.
     const partial = createdCompanyId
     reset()
-    if (partial) onSaved({ company_id: partial, contact_id: null })
+    if (partial) onSaved({ company_id: partial, contact_id: null }, address.trim() || null)
     else onClose()
   }
 
@@ -128,11 +131,11 @@ export function NewClientModal({ open, onClose, onSaved }: { open: boolean; onCl
             throw new Error(`The company was saved, but the contact person could not be added: ${e instanceof Error ? e.message : String(e)}. Save again to retry, or Cancel to keep just the company.`)
           }
         }
-        onSaved({ company_id: companyId, contact_id: contactId })
+        onSaved({ company_id: companyId, contact_id: contactId }, address.trim() || null)
       } else {
         if (!first.trim()) throw new Error('First name is required')
         const ct = await contacts.create({ first_name: first.trim(), last_name: last.trim(), email: email || null, mobile: phone || null, address: address || null })
-        onSaved({ company_id: null, contact_id: ct.id })
+        onSaved({ company_id: null, contact_id: ct.id }, address.trim() || null)
       }
       reset()
     } catch (e) {

@@ -38,6 +38,8 @@ export function EventFormModal({
   const [error, setError] = useState<string | null>(null)
   const defaultsRef = useRef(defaults)
   defaultsRef.current = defaults
+  const projectsRef = useRef(projects)
+  projectsRef.current = projects
 
   useEffect(() => {
     if (!open) return
@@ -49,7 +51,8 @@ export function EventFormModal({
     setStart(toLocalInput(s))
     setEnd(e?.end_at ? toLocalInput(e.end_at) : toLocalInput(new Date(parseISO(s).getTime() + 3_600_000).toISOString()))
     setProjectId(e?.project_id ?? null)
-    setLocation(e?.location ?? '')
+    // A new event for a project (e.g. from its Schedule tab) defaults to the project's site.
+    setLocation(e?.location ?? (!editing && e?.project_id ? projectsRef.current.find((x) => x.id === e.project_id)?.site_address ?? '' : ''))
     setOwner(e?.owner_id ?? '')
     setNotes(e?.notes ?? '')
     setError(null)
@@ -57,9 +60,11 @@ export function EventFormModal({
 
   // Picking a project fills in its site as the location.
   function pickProject(id: string | null) {
+    const previous = projects.find((x) => x.id === projectId)?.site_address ?? ''
     setProjectId(id)
     const p = projects.find((x) => x.id === id)
-    if (p?.site_address && !location) setLocation(p.site_address)
+    // Replace the location only if it was empty or still the previous project's site.
+    if (p?.site_address && (!location.trim() || location === previous)) setLocation(p.site_address)
   }
 
   async function save() {

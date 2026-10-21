@@ -21,6 +21,7 @@ import { useBuild } from '../../pages/build/BuildContext'
 import { paths } from '../../pages/build/paths'
 import { preloadPages } from '../../pages/build/routes'
 import { Spinner } from '../ui'
+import { ErrorBoundary } from '../ErrorBoundary'
 
 const NAV = [
   { to: paths.dashboard(), label: 'Dashboard', icon: LayoutDashboard, end: true },
@@ -158,9 +159,11 @@ export function AppLayout() {
       )}
 
       <main className="mx-auto max-w-7xl px-4 py-5 pb-24 sm:px-6 lg:px-8 lg:py-8">
-        <Suspense fallback={<Spinner page />}>
-          <Outlet />
-        </Suspense>
+        <ErrorBoundary resetKey={location.pathname}>
+          <Suspense fallback={<Spinner page />}>
+            <Outlet />
+          </Suspense>
+        </ErrorBoundary>
       </main>
 
       {/* Site managers live on their phones: slip capture is one thumb away everywhere. */}

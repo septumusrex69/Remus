@@ -198,6 +198,14 @@ export async function loadClientDirectory(): Promise<ClientDirectory> {
   }
 }
 
+/** The client's own address (the company's, else the contact person's), used to prefill a site address. */
+export function clientAddress(dir: ClientDirectory | null, ref: { company_id: ID | null; contact_id: ID | null }): string | null {
+  if (!dir) return null
+  const company = ref.company_id ? dir.companyById.get(ref.company_id) : null
+  const contact = ref.contact_id ? dir.contactById.get(ref.contact_id) : null
+  return company?.address?.trim() || contact?.address?.trim() || null
+}
+
 /** Display name for a record's client: the company, else the private individual. */
 export function clientLabel(dir: ClientDirectory | null, ref: { company_id: ID | null; contact_id: ID | null }): string {
   if (!dir) return ''
