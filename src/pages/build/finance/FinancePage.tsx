@@ -29,7 +29,7 @@ function isValidRange(from: string, to: string): boolean {
   return YMD.test(from) && YMD.test(to) && !Number.isNaN(parseISO(from).getTime()) && !Number.isNaN(parseISO(to).getTime()) && from <= to
 }
 
-const PIE_COLORS = ['#f59e0b', '#0f172a', '#64748b', '#d97706', '#94a3b8', '#b45309', '#334155', '#cbd5e1']
+const PIE_COLORS = ['#ef6723', '#3b3b3b', '#64748b', '#f8a172', '#94a3b8', '#b14214', '#334155', '#cbd5e1']
 
 export function FinancePage() {
   const [period, setPeriod] = useState<PeriodKey>('this_fy')
@@ -141,7 +141,7 @@ export function FinancePage() {
                     <YAxis tickFormatter={formatZARShort} tick={{ fontSize: 11, fill: '#64748b' }} tickLine={false} axisLine={false} width={60} />
                     <Tooltip formatter={(v) => formatZAR(Number(v))} />
                     <Legend wrapperStyle={{ fontSize: 12 }} />
-                    <Bar dataKey="Income" fill="#f59e0b" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="Income" fill="#ef6723" radius={[4, 4, 0, 0]} />
                     <Bar dataKey="Expenses" fill="#334155" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
@@ -189,7 +189,7 @@ export function FinancePage() {
               <tbody>
                 {calc.perProject.map(({ p, f, inPeriodSpend, inPeriodReceived }) => (
                   <tr key={p.id} className="hover:bg-slate-50">
-                    <td className={td}><Link to={paths.project(p.id)} className="font-medium text-slate-800 hover:text-amber-700">{p.name}</Link><span className="block text-xs text-slate-500">{labelize(p.status)}</span></td>
+                    <td className={td}><Link to={paths.project(p.id)} className="font-medium text-slate-800 hover:text-brand-700">{p.name}</Link><span className="block text-xs text-slate-500">{labelize(p.status)}</span></td>
                     <td className={`${td} tabular text-right`}>{formatZAR(f?.revised_contract ?? 0)}</td>
                     <td className={`${td} tabular text-right`}>{formatZAR(f?.expenses_total ?? 0)}</td>
                     <td className={`${td} tabular text-right font-medium ${(f?.gross_profit ?? 0) < 0 ? 'text-red-600' : 'text-emerald-700'}`}>{formatZAR(f?.gross_profit ?? 0)}</td>
@@ -227,7 +227,7 @@ export function FinancePage() {
                   {calc.outstanding.map((o) => (
                     <tr key={o.invoice.id}>
                       <td className={td}>
-                        {o.invoice.project_id ? <Link className="font-mono text-xs hover:text-amber-700" to={paths.project(o.invoice.project_id, 'invoices')}>{o.invoice.number}</Link> : <span className="font-mono text-xs">{o.invoice.number}</span>}
+                        {o.invoice.project_id ? <Link className="font-mono text-xs hover:text-brand-700" to={paths.project(o.invoice.project_id, 'invoices')}>{o.invoice.number}</Link> : <span className="font-mono text-xs">{o.invoice.number}</span>}
                       </td>
                       <td className={td}>{clientLabel(data.dir, o.invoice)}</td>
                       <td className={td}>{formatDate(o.invoice.due_date)}</td>

@@ -18,7 +18,7 @@ export function ProjectSelect({
   const open = projects.filter((p) => p.status !== 'cancelled')
   return (
     <select
-      className={`input ${highlight ? 'border-amber-400 bg-amber-50 ring-2 ring-amber-300/40' : ''} ${className ?? ''}`}
+      className={`input ${highlight ? 'border-brand-400 bg-brand-50 ring-2 ring-brand-300/40' : ''} ${className ?? ''}`}
       value={value ?? ''}
       onChange={(e) => onChange(e.target.value || null)}
     >

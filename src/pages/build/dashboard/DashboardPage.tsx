@@ -69,7 +69,7 @@ export function DashboardPage() {
         subtitle={`${active.length} active project${active.length === 1 ? '' : 's'}`}
         actions={
           <>
-            <Link to={paths.capture()} className="hidden items-center gap-1.5 rounded-lg bg-amber-500 px-3.5 py-2 text-sm font-semibold text-slate-950 hover:bg-amber-400 sm:inline-flex">
+            <Link to={paths.capture()} className="hidden items-center gap-1.5 rounded-lg bg-brand-500 px-3.5 py-2 text-sm font-semibold text-slate-950 hover:bg-brand-400 sm:inline-flex">
               <Camera size={16} /> Snap slip
             </Link>
             <Link to={`${paths.quotes()}?new=1`} className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-3.5 py-2 text-sm font-medium text-white hover:bg-slate-800">
@@ -81,8 +81,8 @@ export function DashboardPage() {
       <ErrorBanner error={error} />
 
       {needsLinking > 0 && (
-        <Link to={paths.bank()} className="mb-4 flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 hover:bg-amber-100">
-          <Banknote size={18} className="shrink-0 text-amber-600" />
+        <Link to={paths.bank()} className="mb-4 flex items-center gap-3 rounded-xl border border-brand-200 bg-brand-50 px-4 py-3 text-sm text-brand-900 hover:bg-brand-100">
+          <Banknote size={18} className="shrink-0 text-brand-600" />
           <span className="flex-1">
             <strong>{needsLinking}</strong> bank transaction{needsLinking === 1 ? '' : 's'} need{needsLinking === 1 ? 's' : ''} linking to an expense or payment.
           </span>
@@ -116,7 +116,7 @@ export function DashboardPage() {
                   <YAxis tickFormatter={formatZARShort} tick={{ fontSize: 11, fill: '#64748b' }} tickLine={false} axisLine={false} width={60} />
                   <Tooltip formatter={(v) => formatZAR(Number(v))} labelFormatter={(_l, p) => p?.[0]?.payload?.full ?? ''} />
                   <Bar dataKey="profit" radius={[4, 4, 0, 0]}>
-                    {profitData.map((d) => <Cell key={d.full} fill={d.profit >= 0 ? '#f59e0b' : '#ef4444'} />)}
+                    {profitData.map((d) => <Cell key={d.full} fill={d.profit >= 0 ? '#059669' : '#dc2626'} />)}
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>

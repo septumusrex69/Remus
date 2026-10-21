@@ -129,7 +129,7 @@ export function ExpenseFormModal({
               <Field label="Amount excl. VAT">
                 <input type="number" inputMode="decimal" step="0.01" className="input" value={form.amount_excl ?? 0} onChange={(e) => set('amount_excl', Number(e.target.value))} />
               </Field>
-              <Field label="VAT" hint={<button className="text-amber-700 underline" onClick={() => set('vat', round2((Number(form.amount_excl ?? 0) * vatRate) / 100))}>Calculate at {vatRate}%</button>}>
+              <Field label="VAT" hint={<button className="text-brand-700 underline" onClick={() => set('vat', round2((Number(form.amount_excl ?? 0) * vatRate) / 100))}>Calculate at {vatRate}%</button>}>
                 <input type="number" inputMode="decimal" step="0.01" className="input" value={form.vat ?? 0} onChange={(e) => set('vat', Number(e.target.value))} />
               </Field>
             </div>

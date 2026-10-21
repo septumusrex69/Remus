@@ -1,6 +1,6 @@
 # Remus
 
-Management app for a small South African construction company: quotes, clients, projects, job
+Management app for Urban Haus Construction (Urban Haus Group, urbanhausgroup.co.za), a South African construction company: quotes, clients, projects, job
 costing, slip capture, bank reconciliation, site diary and finance. Amounts are in rand (ZAR) with
 VAT at 15% by default (configurable in Settings).
 

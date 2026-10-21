@@ -27,7 +27,7 @@ type View = 'month' | 'week' | 'agenda'
 type Tab = 'calendar' | 'site'
 
 const TYPE_COLORS: Record<EventType, string> = {
-  site_visit: 'bg-amber-100 text-amber-900 border-amber-300',
+  site_visit: 'bg-brand-100 text-brand-900 border-brand-300',
   meeting: 'bg-sky-50 text-sky-800 border-sky-200',
   inspection: 'bg-violet-50 text-violet-800 border-violet-200',
   delivery: 'bg-emerald-50 text-emerald-800 border-emerald-200',
@@ -132,9 +132,9 @@ export function DiaryPage() {
                     <div
                       key={d.toISOString()}
                       onClick={() => setCreating({ start_at: new Date(d.getFullYear(), d.getMonth(), d.getDate(), 8).toISOString() })}
-                      className={`min-h-20 cursor-pointer border-r border-b border-slate-100 p-1 hover:bg-amber-50/40 sm:min-h-28 ${isSameMonth(d, cursor) ? '' : 'bg-slate-50/60 text-slate-400'}`}
+                      className={`min-h-20 cursor-pointer border-r border-b border-slate-100 p-1 hover:bg-brand-50/40 sm:min-h-28 ${isSameMonth(d, cursor) ? '' : 'bg-slate-50/60 text-slate-400'}`}
                     >
-                      <div className={`mb-1 text-right text-xs ${isSameDay(d, new Date()) ? 'font-bold text-amber-600' : ''}`}>{format(d, 'd')}</div>
+                      <div className={`mb-1 text-right text-xs ${isSameDay(d, new Date()) ? 'font-bold text-brand-600' : ''}`}>{format(d, 'd')}</div>
                       <div className="space-y-0.5">
                         {evs.slice(0, 3).map(chip)}
                         {evs.length > 3 && <p className="text-[10px] text-slate-500">+{evs.length - 3} more</p>}
@@ -147,7 +147,7 @@ export function DiaryPage() {
           ) : view === 'week' ? (
             <div className="grid gap-2 sm:grid-cols-7">
               {eachDayOfInterval({ start: range.from, end: addDays(range.to, -1) }).map((d) => (
-                <div key={d.toISOString()} className={`rounded-xl border bg-white p-2 ${isSameDay(d, new Date()) ? 'border-amber-400' : 'border-slate-200'}`}>
+                <div key={d.toISOString()} className={`rounded-xl border bg-white p-2 ${isSameDay(d, new Date()) ? 'border-brand-400' : 'border-slate-200'}`}>
                   <button className="mb-2 w-full text-left text-xs font-semibold text-slate-700" onClick={() => setCreating({ start_at: new Date(d.getFullYear(), d.getMonth(), d.getDate(), 8).toISOString() })}>
                     {format(d, 'EEE d MMM')}
                   </button>
@@ -165,7 +165,7 @@ export function DiaryPage() {
                     .filter((d) => eventsOn(d).length)
                     .map((d) => (
                       <li key={d.toISOString()} className="px-4 py-3">
-                        <p className={`mb-1.5 text-xs font-semibold uppercase ${isSameDay(d, new Date()) ? 'text-amber-600' : 'text-slate-500'}`}>{format(d, 'EEEE d MMMM')}</p>
+                        <p className={`mb-1.5 text-xs font-semibold uppercase ${isSameDay(d, new Date()) ? 'text-brand-600' : 'text-slate-500'}`}>{format(d, 'EEEE d MMMM')}</p>
                         <ul className="space-y-1.5">
                           {eventsOn(d).map((e) => (
                             <li key={e.id}>

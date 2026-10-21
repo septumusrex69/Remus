@@ -174,7 +174,7 @@ function Overview({ data }: { data: Data }) {
             <dt className="text-slate-500">Start</dt><dd>{formatDate(p.start_date)}</dd>
             <dt className="text-slate-500">End</dt><dd>{formatDate(p.end_date)}</dd>
             <dt className="text-slate-500">Quote</dt>
-            <dd>{data.quote ? <Link className="text-amber-700 hover:underline" to={paths.quote(data.quote.id)}>{data.quote.number}</Link> : '—'}</dd>
+            <dd>{data.quote ? <Link className="text-brand-700 hover:underline" to={paths.quote(data.quote.id)}>{data.quote.number}</Link> : '—'}</dd>
             <dt className="text-slate-500">Contract value</dt><dd className="tabular">{formatZAR(p.contract_value)}</dd>
           </dl>
           {p.notes && <p className="mt-3 whitespace-pre-line text-sm text-slate-600">{p.notes}</p>}
@@ -190,7 +190,7 @@ function Overview({ data }: { data: Data }) {
                   <XAxis type="number" tickFormatter={formatZARShort} tick={{ fontSize: 11, fill: '#64748b' }} />
                   <YAxis type="category" dataKey="name" width={90} tick={{ fontSize: 12, fill: '#475569' }} />
                   <Tooltip formatter={(v) => formatZAR(Number(v))} />
-                  <Bar dataKey="value" fill="#f59e0b" radius={[0, 4, 4, 0]} />
+                  <Bar dataKey="value" fill="#ef6723" radius={[0, 4, 4, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -211,7 +211,7 @@ function ExpensesTab({ projectId, rows, projects, linked, reload, act }: { proje
       padded={false}
       actions={
         <>
-          <Link to={`${paths.capture()}?project=${projectId}`} className="inline-flex items-center gap-1 rounded-lg bg-amber-500 px-2.5 py-1.5 text-xs font-semibold text-slate-950"><Camera size={13} /> Snap slip</Link>
+          <Link to={`${paths.capture()}?project=${projectId}`} className="inline-flex items-center gap-1 rounded-lg bg-brand-500 px-2.5 py-1.5 text-xs font-semibold text-slate-950"><Camera size={13} /> Snap slip</Link>
           <Button size="sm" onClick={() => setAdding(true)}><Plus size={13} /> Add</Button>
         </>
       }

@@ -245,7 +245,7 @@ export function BankPage() {
       />
       <ErrorBanner error={error ?? actionError} />
       {notice && <div className="mb-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">{notice}</div>}
-      {warning && <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">{warning}</div>}
+      {warning && <div className="mb-3 rounded-lg border border-brand-200 bg-brand-50 px-3 py-2 text-sm text-brand-800">{warning}</div>}
 
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <select className="input w-auto" value={accountId} onChange={(e) => setAccountId(e.target.value)}>
@@ -259,7 +259,7 @@ export function BankPage() {
         value={tab}
         onChange={setTab}
         tabs={[
-          { id: 'needs', label: <>Needs linking {needs.length > 0 && <Badge tone="bg-amber-100 text-amber-800" className="ml-1">{needs.length}</Badge>}</> },
+          { id: 'needs', label: <>Needs linking {needs.length > 0 && <Badge tone="bg-brand-100 text-brand-800" className="ml-1">{needs.length}</Badge>}</> },
           { id: 'matched', label: `Matched (${matched.length})` },
           { id: 'ignored', label: `Ignored (${ignored.length})` },
           { id: 'slips', label: `Slips not on statement (${slipsNotOnStatement.length})` },
@@ -293,7 +293,7 @@ export function BankPage() {
                     <Button size="sm" variant="ghost" onClick={() => setIgnoreFor(t)}><Ban size={13} /> Ignore</Button>
                   </>,
                   best ? (
-                    <div className={`mt-2 flex items-start gap-1.5 rounded-lg px-2.5 py-1.5 text-xs ${best.score >= 50 ? 'bg-amber-50 text-amber-900' : 'bg-slate-50 text-slate-600'}`}>
+                    <div className={`mt-2 flex items-start gap-1.5 rounded-lg px-2.5 py-1.5 text-xs ${best.score >= 50 ? 'bg-brand-50 text-brand-900' : 'bg-slate-50 text-slate-600'}`}>
                       <Sparkles size={13} className="mt-0.5 shrink-0" />
                       <span>
                         <strong>{best.score >= 50 ? 'Likely' : 'Possible'}:</strong> {describeCandidate(best)} <span className="opacity-70">({best.score}% · {best.reasons.join(', ')})</span>
@@ -574,7 +574,7 @@ function LinkModal({
         <ul className="divide-y divide-slate-100 rounded-lg border border-slate-200">
           {items.map((x) => (
             <li key={`${x.c.kind}:${x.c.id}`}>
-              <button className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm hover:bg-amber-50" onClick={() => onPick(x.c)}>
+              <button className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm hover:bg-brand-50" onClick={() => onPick(x.c)}>
                 <span className="min-w-0 truncate">{x.label}</span>
                 <span className="tabular shrink-0 font-medium">{formatZAR(x.amount)}</span>
               </button>

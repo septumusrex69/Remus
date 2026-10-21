@@ -63,11 +63,11 @@ export function ConnectorCard() {
       </p>
 
       {created ? (
-        <div className="mt-4 space-y-3 rounded-lg border border-amber-200 bg-amber-50 p-3">
-          <p className="text-sm font-medium text-amber-900">Copy this now. It won't be shown again.</p>
+        <div className="mt-4 space-y-3 rounded-lg border border-brand-200 bg-brand-50 p-3">
+          <p className="text-sm font-medium text-brand-900">Copy this now. It won't be shown again.</p>
           <CopyRow label="Claude.ai connector URL" value={`${base}?key=${created}`} />
           <CopyRow label="Claude Code" value={`claude mcp add --transport http remus ${base} --header "Authorization: Bearer ${created}"`} />
-          <p className="text-xs text-amber-900">
+          <p className="text-xs text-brand-900">
             In Claude: Settings → Connectors → Add custom connector, name it "Remus" and paste the connector URL. Treat the URL like a password.
           </p>
           <Button size="sm" variant="ghost" onClick={() => setCreated(null)}>Done</Button>

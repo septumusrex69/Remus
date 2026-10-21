@@ -198,7 +198,7 @@ export function ImportStatementModal({
             </select>
           </Field>
 
-          <label className="flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-200 px-4 py-6 text-center text-sm text-slate-500 hover:border-amber-300">
+          <label className="flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-200 px-4 py-6 text-center text-sm text-slate-500 hover:border-brand-300">
             <FileUp size={24} className="mb-2 text-slate-400" />
             {file ? <span className="font-medium text-slate-700">{file.name}</span> : <span>Choose a CSV or OFX statement export (FNB, ABSA, Standard Bank, Nedbank, Capitec…)</span>}
             {/* Cleared after each pick so choosing the same file again (after fixing it) fires onChange. */}
@@ -250,7 +250,7 @@ export function ImportStatementModal({
                 {headerSelect('Balance', 'balance', true)}
                 {headerSelect('Reference', 'reference', true)}
               </div>
-              {missing && <p className="mt-2 text-xs text-amber-700">{missing}</p>}
+              {missing && <p className="mt-2 text-xs text-brand-700">{missing}</p>}
             </div>
           )}
 
@@ -282,7 +282,7 @@ export function ImportStatementModal({
               )}
             </div>
           )}
-          {!account && <p className="text-xs text-amber-700">Choose the account this statement belongs to.</p>}
+          {!account && <p className="text-xs text-brand-700">Choose the account this statement belongs to.</p>}
           {error && <p className="text-sm text-red-600">{error}</p>}
         </div>
       )}

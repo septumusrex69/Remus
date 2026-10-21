@@ -120,7 +120,7 @@ export function SendQuoteModal({
             </>
           )}
         </div>
-        {warning && <p className="text-sm text-amber-700">{warning}</p>}
+        {warning && <p className="text-sm text-brand-700">{warning}</p>}
         {error && <p className="text-sm text-red-600">{error}</p>}
       </div>
     </Modal>

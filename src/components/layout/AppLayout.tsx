@@ -32,12 +32,14 @@ const NAV = [
   { to: paths.settings(), label: 'Settings', icon: Settings },
 ]
 
-export function Logo({ className }: { className?: string }) {
+/** Urban Haus Construction logo: `onDark` uses the white-lettered version. */
+export function Logo({ className, onDark }: { className?: string; onDark?: boolean }) {
   return (
-    <div className={clsx('flex items-center gap-2', className)}>
-      <img src="/favicon.svg" alt="" className="h-7 w-7" />
-      <span className="text-lg font-semibold tracking-tight">Remus</span>
-    </div>
+    <img
+      src={onDark ? '/brand/urban-haus-logo-white.png' : '/brand/urban-haus-logo.png'}
+      alt="Urban Haus Construction"
+      className={clsx('h-auto w-auto object-contain', className)}
+    />
   )
 }
 
@@ -47,14 +49,14 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <div className="flex h-full flex-col bg-slate-900 text-slate-300">
       <div className="px-5 pt-5 pb-4 text-white">
-        <Logo />
-        {settings?.name && <p className="mt-1 truncate text-xs text-slate-400">{settings.name}</p>}
+        <Logo onDark className="max-h-16 max-w-[11rem]" />
+        <p className="mt-1.5 truncate text-xs text-slate-400">Remus{settings?.name && settings.name !== 'My Construction Co' ? ` · ${settings.name}` : ''}</p>
       </div>
       <div className="px-3 pb-3">
         <Link
           to={paths.capture()}
           onClick={onNavigate}
-          className="flex items-center justify-center gap-2 rounded-lg bg-amber-500 px-3 py-2.5 text-sm font-semibold text-slate-950 hover:bg-amber-400"
+          className="flex items-center justify-center gap-2 rounded-lg bg-brand-500 px-3 py-2.5 text-sm font-semibold text-slate-950 hover:bg-brand-400"
         >
           <Camera size={16} /> Snap slip
         </Link>
@@ -75,10 +77,10 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
           >
             {({ isActive }) => (
               <>
-                <item.icon size={17} className={isActive ? 'text-amber-400' : 'text-slate-400'} />
+                <item.icon size={17} className={isActive ? 'text-brand-400' : 'text-slate-400'} />
                 <span className="flex-1">{item.label}</span>
                 {item.badge === 'bank' && needsLinking > 0 && (
-                  <span className="rounded-full bg-amber-500 px-1.5 py-0.5 text-[11px] font-semibold text-slate-950" title="Bank lines needing linking">
+                  <span className="rounded-full bg-brand-500 px-1.5 py-0.5 text-[11px] font-semibold text-slate-950" title="Bank lines needing linking">
                     {needsLinking}
                   </span>
                 )}
@@ -132,7 +134,7 @@ export function AppLayout() {
         <button onClick={() => setOpen(true)} className="-ml-1 rounded-md p-1.5 text-slate-600 hover:bg-slate-100" aria-label="Open menu">
           <Menu size={20} />
         </button>
-        <Logo className="text-slate-900" />
+        <Logo className="h-9" />
         <span className="w-8" />
       </header>
 
@@ -158,7 +160,7 @@ export function AppLayout() {
       {!isCapture && (
         <Link
           to={paths.capture()}
-          className="no-print fixed right-4 bottom-4 z-30 flex items-center gap-2 rounded-full bg-amber-500 px-5 py-3.5 text-sm font-semibold text-slate-950 shadow-lg shadow-amber-500/30 lg:hidden"
+          className="no-print fixed right-4 bottom-4 z-30 flex items-center gap-2 rounded-full bg-brand-500 px-5 py-3.5 text-sm font-semibold text-slate-950 shadow-lg shadow-brand-500/30 lg:hidden"
           aria-label="Snap slip"
         >
           <Camera size={18} /> Snap slip

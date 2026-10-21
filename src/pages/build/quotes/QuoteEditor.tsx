@@ -324,7 +324,7 @@ export function QuoteEditor() {
           <span className="flex flex-wrap items-center gap-2">
             <StatusBadge status={quote.status} />
             {quote.sent_at && <span className="text-xs">Sent {formatDateTime(quote.sent_at)} to {quote.sent_to}</span>}
-            {dirty ? <span className="text-xs text-amber-700">Unsaved changes</span> : savedAt ? <span className="text-xs text-emerald-700">Saved</span> : null}
+            {dirty ? <span className="text-xs text-brand-700">Unsaved changes</span> : savedAt ? <span className="text-xs text-emerald-700">Saved</span> : null}
           </span>
         }
         actions={
@@ -430,7 +430,7 @@ export function QuoteEditor() {
             {lines.length === 0 && (
               <div className="p-6 text-center text-sm text-slate-500">
                 No lines yet.{' '}
-                <button className="font-medium text-amber-700 underline" onClick={() => addLine(null)}>Add a line</button> or add a section.
+                <button className="font-medium text-brand-700 underline" onClick={() => addLine(null)}>Add a line</button> or add a section.
               </div>
             )}
             {groups.map((g) => {
@@ -438,7 +438,7 @@ export function QuoteEditor() {
               return (
                 <div key={g.section ?? '__none'} className="border-b border-slate-100 last:border-0">
                   <div className="flex items-center justify-between bg-slate-50 px-4 py-2">
-                    <button className="text-sm font-semibold text-slate-800 hover:text-amber-700" onClick={() => renameSection(g.section)} title="Rename section">
+                    <button className="text-sm font-semibold text-slate-800 hover:text-brand-700" onClick={() => renameSection(g.section)} title="Rename section">
                       {g.section ?? 'General'}
                     </button>
                     <div className="flex items-center gap-2">
@@ -478,7 +478,7 @@ export function QuoteEditor() {
                     </div>
                   ))}
                   <div className="px-4 py-2">
-                    <button className="inline-flex items-center gap-1 text-xs font-medium text-amber-700 hover:text-amber-800" onClick={() => addLine(g.section)}>
+                    <button className="inline-flex items-center gap-1 text-xs font-medium text-brand-700 hover:text-brand-800" onClick={() => addLine(g.section)}>
                       <Plus size={13} /> Add line
                     </button>
                   </div>
@@ -492,7 +492,7 @@ export function QuoteEditor() {
               <Field label="Notes (shown on quote)">
                 <textarea className="input min-h-20" value={quote.notes ?? ''} onChange={(e) => patchQuote({ notes: e.target.value })} />
               </Field>
-              <Field label="Terms" hint={!quote.terms && settings?.quote_terms ? <button className="text-amber-700 underline" onClick={() => patchQuote({ terms: settings.quote_terms })}>Use default terms from settings</button> : undefined}>
+              <Field label="Terms" hint={!quote.terms && settings?.quote_terms ? <button className="text-brand-700 underline" onClick={() => patchQuote({ terms: settings.quote_terms })}>Use default terms from settings</button> : undefined}>
                 <textarea className="input min-h-28" value={quote.terms ?? ''} onChange={(e) => patchQuote({ terms: e.target.value })} />
               </Field>
             </div>

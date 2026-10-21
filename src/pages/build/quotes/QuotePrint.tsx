@@ -34,9 +34,9 @@ export function QuotePrint() {
   }, [id])
 
   useEffect(() => {
-    document.title = data?.quote ? `Quote ${data.quote.number ?? ''} – ${settings?.name ?? 'Remus'}` : 'Remus'
+    document.title = data?.quote ? `Quote ${data.quote.number ?? ''} – ${settings?.name ?? 'Urban Haus'}` : 'Urban Haus · Remus'
     return () => {
-      document.title = 'Remus'
+      document.title = 'Urban Haus · Remus'
     }
   }, [data?.quote, settings?.name])
 
@@ -72,13 +72,10 @@ export function QuotePrint() {
 
       <article className="print-page mx-auto max-w-[210mm] bg-white px-6 py-8 text-[13px] leading-relaxed text-slate-800 shadow-sm sm:px-12 sm:py-12">
         {/* Letterhead */}
-        <header className="flex flex-col justify-between gap-6 border-b-4 border-amber-500 pb-6 sm:flex-row">
+        <header className="flex flex-col justify-between gap-6 border-b-4 border-brand-500 pb-6 sm:flex-row">
           <div>
-            {settings?.logo_url ? (
-              <img src={settings.logo_url} alt={settings.name} className="mb-2 max-h-16" />
-            ) : (
-              <p className="text-2xl font-bold text-slate-900">{settings?.name}</p>
-            )}
+            {/* The company's uploaded logo, else the Urban Haus logo that ships with the app. */}
+            <img src={settings?.logo_url || '/brand/urban-haus-logo.png'} alt={settings?.name ?? 'Urban Haus Construction'} className="mb-2 max-h-20" />
             <div className="whitespace-pre-line text-xs text-slate-500">
               {settings?.address}
               {settings?.phone && `\nTel: ${settings.phone}`}

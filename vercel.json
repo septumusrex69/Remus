@@ -1,6 +1,6 @@
 {
   "regions": ["cdg1"],
   "rewrites": [
-    { "source": "/((?!api/|assets/|favicon\\.svg).*)", "destination": "/index.html" }
+    { "source": "/((?!api/|assets/|brand/|favicon\\.svg).*)", "destination": "/index.html" }
   ]
 }

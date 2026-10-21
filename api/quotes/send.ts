@@ -151,7 +151,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     ? ''
     : `
 <table style="border-collapse:collapse;margin-top:16px;font-size:14px;min-width:320px">
-  <tr><td colspan="2" style="padding:6px 0;font-weight:600;border-bottom:2px solid #f59e0b">Quote ${esc(quote.number ?? '')} · ${esc(quote.title)}</td></tr>
+  <tr><td colspan="2" style="padding:6px 0;font-weight:600;border-bottom:2px solid #ef6723">Quote ${esc(quote.number ?? '')} · ${esc(quote.title)}</td></tr>
   ${quote.site_address ? `<tr><td style="padding:4px 12px 4px 0;color:#64748b">Site</td><td>${esc(quote.site_address)}</td></tr>` : ''}
   ${[...sections].map(([name, amt]) => `<tr><td style="padding:4px 12px 4px 0;color:#64748b">${esc(name)}</td><td style="text-align:right">${zar(round2(amt))}</td></tr>`).join('')}
   ${Number(quote.discount) ? `<tr><td style="padding:4px 12px 4px 0;color:#64748b">Discount</td><td style="text-align:right">-${zar(Number(quote.discount))}</td></tr>` : ''}

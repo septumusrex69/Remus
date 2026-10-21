@@ -2,13 +2,20 @@
 
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-  /* Accent: amber (site-safety yellow). Base: Tailwind slate. */
-  --color-accent-50: #fffbeb;
-  --color-accent-100: #fef3c7;
-  --color-accent-400: #fbbf24;
-  --color-accent-500: #f59e0b;
-  --color-accent-600: #d97706;
-  --color-accent-700: #b45309;
+  /* Accent: Urban Haus orange (#EF6723, from the logo). Base: Tailwind slate. */
+  --color-brand-50: #fef4ee;
+  --color-brand-100: #fde4d5;
+  --color-brand-200: #fbc6a7;
+  --color-brand-300: #f8a172;
+  --color-brand-400: #f48443;
+  --color-brand-500: #ef6723;
+  --color-brand-600: #d55316;
+  --color-brand-700: #b14214;
+  --color-brand-800: #8d3616;
+  --color-brand-900: #722f15;
+  --color-brand-950: #3e1508;
+  /* The logo's charcoal. */
+  --color-charcoal: #3b3b3b;
 }
 
 html,
@@ -32,7 +39,7 @@ body {
    w-32…) on the same element still win. */
 @layer components {
 .input {
-  @apply w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none placeholder:text-slate-400 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 disabled:bg-slate-50 disabled:text-slate-500;
+  @apply w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none placeholder:text-slate-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 disabled:bg-slate-50 disabled:text-slate-500;
 }
 .label {
   @apply mb-1 block text-xs font-medium text-slate-600;

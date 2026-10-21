@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
-import { ArrowRight, HardHat, Lock, Mail } from 'lucide-react'
+import { ArrowRight, Lock, Mail } from 'lucide-react'
 import { useAuth } from '../../store/AuthContext'
 import { isSupabaseConfigured, supabase } from '../../lib/supabase'
 
@@ -39,30 +39,23 @@ export function LoginPage() {
   return (
     <div className="flex min-h-dvh">
       <div className="relative hidden w-1/2 flex-col justify-between overflow-hidden bg-slate-900 p-10 text-white lg:flex">
-        <div className="flex items-center gap-2">
-          <img src="/favicon.svg" alt="" className="h-8 w-8" />
-          <span className="text-xl font-semibold">Remus</span>
-        </div>
+        <img src="/brand/urban-haus-logo-white.png" alt="Urban Haus Construction" className="h-24 w-auto self-start object-contain" />
         <div>
-          <HardHat size={40} className="mb-4 text-amber-400" />
           <h2 className="text-3xl font-semibold leading-tight">Quotes, projects, site diary and costs — in one place.</h2>
           <p className="mt-3 max-w-md text-slate-400">Know your margin on every job, from the first quote to the final payment.</p>
         </div>
-        <p className="text-xs text-slate-500">Remus</p>
-        <div className="pointer-events-none absolute -right-24 -bottom-24 h-80 w-80 rounded-full bg-amber-500/10" />
+        <p className="text-xs text-slate-500">Construction · Renovations · Maintenance · Electrical</p>
+        <div className="pointer-events-none absolute -right-24 -bottom-24 h-80 w-80 rounded-full bg-brand-500/10" />
       </div>
 
       <div className="flex flex-1 items-center justify-center px-4 py-10">
         <div className="w-full max-w-sm">
-          <div className="mb-8 flex items-center gap-2 lg:hidden">
-            <img src="/favicon.svg" alt="" className="h-8 w-8" />
-            <span className="text-xl font-semibold">Remus</span>
-          </div>
-          <h1 className="text-2xl font-semibold text-slate-900">Sign in to Remus</h1>
+          <img src="/brand/urban-haus-logo.png" alt="Urban Haus Construction" className="mb-8 h-20 w-auto object-contain lg:hidden" />
+          <h1 className="text-2xl font-semibold text-slate-900">Sign in</h1>
           <p className="mt-1 text-sm text-slate-500">Use the email and password your administrator set up.</p>
 
           {!isSupabaseConfigured && (
-            <div className="mt-5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+            <div className="mt-5 rounded-lg border border-brand-200 bg-brand-50 px-3 py-2 text-sm text-brand-800">
               Supabase isn't configured yet. Copy <code>.env.example</code> to <code>.env.local</code> and add your project URL and key.
             </div>
           )}

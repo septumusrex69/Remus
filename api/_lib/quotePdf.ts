@@ -57,7 +57,7 @@ const A4 = { w: 595.28, h: 841.89 }
 const MARGIN = 48
 const INK = rgb(0.06, 0.09, 0.16)
 const MUTED = rgb(0.39, 0.45, 0.55)
-const ACCENT = rgb(0.96, 0.62, 0.04)
+const ACCENT = rgb(0.937, 0.404, 0.137) // Urban Haus orange #EF6723
 const RULE = rgb(0.89, 0.91, 0.94)
 
 export async function buildQuotePdf(db: SupabaseClient, quoteId: string): Promise<QuotePdf> {
@@ -160,20 +160,21 @@ export async function buildQuotePdf(db: SupabaseClient, quoteId: string): Promis
 
   // ---------- Letterhead ----------
   let logo: PDFImage | null = null
-  if (settings.logo_url) {
-    try {
-      const r = await fetch(settings.logo_url)
-      const buf = new Uint8Array(await r.arrayBuffer())
-      const type = r.headers.get('content-type') ?? ''
-      if (type.includes('png') || settings.logo_url.toLowerCase().endsWith('.png')) logo = await pdf.embedPng(buf)
-      else if (type.includes('jpeg') || type.includes('jpg') || /\.jpe?g$/i.test(settings.logo_url)) logo = await pdf.embedJpg(buf)
-    } catch {
-      logo = null // an unreachable or unsupported logo falls back to the company name
-    }
+  // The company's uploaded logo, else the Urban Haus logo that ships with the app (public/brand/).
+  const logoUrl = settings.logo_url || `${(process.env.APP_URL || 'https://remus-xi.vercel.app').replace(/\/$/, '')}/brand/urban-haus-logo.png`
+  try {
+    const r = await fetch(logoUrl)
+    const buf = new Uint8Array(await r.arrayBuffer())
+    const type = r.headers.get('content-type') ?? ''
+    if (!r.ok) throw new Error(`logo HTTP ${r.status}`)
+    if (type.includes('png') || logoUrl.toLowerCase().endsWith('.png')) logo = await pdf.embedPng(buf)
+    else if (type.includes('jpeg') || type.includes('jpg') || /\.jpe?g$/i.test(logoUrl)) logo = await pdf.embedJpg(buf)
+  } catch {
+    logo = null // an unreachable or unsupported logo falls back to the company name
   }
   const top = y
   if (logo) {
-    const s = Math.min(48 / logo.height, 180 / logo.width)
+    const s = Math.min(64 / logo.height, 200 / logo.width)
     page.drawImage(logo, { x: MARGIN, y: y - logo.height * s, width: logo.width * s, height: logo.height * s })
     y -= logo.height * s + 8
   } else {

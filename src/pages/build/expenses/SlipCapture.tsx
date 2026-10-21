@@ -222,7 +222,7 @@ export function SlipCapture() {
       return n
     })
   }
-  const hl = (k: keyof FormState) => (suggested.has(k) ? 'border-amber-400 bg-amber-50 ring-2 ring-amber-300/40' : '')
+  const hl = (k: keyof FormState) => (suggested.has(k) ? 'border-brand-400 bg-brand-50 ring-2 ring-brand-300/40' : '')
   const totalNum = Number(form.total_incl || 0)
   const vatNum = form.vat === '' ? splitInclusive(totalNum, vatRate).vat : Number(form.vat)
 
@@ -248,7 +248,7 @@ export function SlipCapture() {
         <div className="mx-auto flex max-w-md flex-col gap-3">
           <button
             onClick={() => cameraRef.current?.click()}
-            className="flex flex-col items-center justify-center gap-3 rounded-2xl bg-amber-500 px-6 py-12 text-slate-950 shadow-lg shadow-amber-500/20 active:scale-[0.99]"
+            className="flex flex-col items-center justify-center gap-3 rounded-2xl bg-brand-500 px-6 py-12 text-slate-950 shadow-lg shadow-brand-500/20 active:scale-[0.99]"
           >
             <Camera size={44} />
             <span className="text-xl font-semibold">Snap slip</span>
@@ -290,7 +290,7 @@ export function SlipCapture() {
         <Card>
           {busy ? (
             <div className="flex flex-col items-center justify-center gap-3 py-16 text-sm text-slate-500">
-              <Loader2 className="animate-spin text-amber-500" size={28} />
+              <Loader2 className="animate-spin text-brand-500" size={28} />
               {current.stage === 'uploading' ? 'Uploading slip…' : 'Reading slip…'}
             </div>
           ) : current.stage === 'error' ? (
@@ -304,8 +304,8 @@ export function SlipCapture() {
           ) : (
             <div className="space-y-3">
               {current.suggestion ? (
-                <div className="flex gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-                  <Sparkles size={16} className="mt-0.5 shrink-0 text-amber-600" />
+                <div className="flex gap-2 rounded-lg border border-brand-200 bg-brand-50 px-3 py-2 text-sm text-brand-900">
+                  <Sparkles size={16} className="mt-0.5 shrink-0 text-brand-600" />
                   <span>
                     <strong>Suggested:</strong> {labelize(current.suggestion.category)}
                     {current.suggestion.project_id ? ` → ${projects?.find((p) => p.id === current.suggestion!.project_id)?.name ?? 'project'}` : ' → overhead'}{' '}

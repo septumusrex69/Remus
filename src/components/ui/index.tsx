@@ -8,7 +8,7 @@ import { labelize } from '../../lib/format'
 
 type Variant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'dark'
 const VARIANTS: Record<Variant, string> = {
-  primary: 'bg-amber-500 text-slate-950 hover:bg-amber-400 shadow-sm',
+  primary: 'bg-brand-500 text-slate-950 hover:bg-brand-400 shadow-sm',
   dark: 'bg-slate-900 text-white hover:bg-slate-800 shadow-sm',
   secondary: 'bg-white text-slate-700 border border-slate-300 hover:bg-slate-50 shadow-sm',
   ghost: 'text-slate-600 hover:bg-slate-100',
@@ -83,7 +83,7 @@ export function StatTile({ label, value, hint, tone = 'default', icon }: { label
           'tabular mt-1.5 text-xl font-semibold sm:text-2xl',
           tone === 'good' && 'text-emerald-700',
           tone === 'bad' && 'text-red-600',
-          tone === 'accent' && 'text-amber-600',
+          tone === 'accent' && 'text-brand-600',
           tone === 'default' && 'text-slate-900',
         )}
       >
@@ -127,14 +127,14 @@ const STATUS_TONES: Record<string, string> = {
   expired: 'bg-orange-50 text-orange-700',
   lead: 'bg-violet-50 text-violet-700',
   planned: 'bg-sky-50 text-sky-700',
-  active: 'bg-amber-100 text-amber-800',
+  active: 'bg-brand-100 text-brand-800',
   on_hold: 'bg-orange-50 text-orange-700',
   completed: 'bg-emerald-50 text-emerald-700',
   cancelled: 'bg-slate-100 text-slate-500',
   paid: 'bg-emerald-50 text-emerald-700',
   overdue: 'bg-red-50 text-red-700',
   unmatched: 'bg-red-50 text-red-700',
-  suggested: 'bg-amber-100 text-amber-800',
+  suggested: 'bg-brand-100 text-brand-800',
   matched: 'bg-emerald-50 text-emerald-700',
   ignored: 'bg-slate-100 text-slate-500',
 }
@@ -206,7 +206,7 @@ export function Tabs<T extends string>({ tabs, value, onChange }: { tabs: { id: 
             onClick={() => onChange(t.id)}
             className={clsx(
               '-mb-px border-b-2 px-3 py-2 text-sm font-medium whitespace-nowrap',
-              value === t.id ? 'border-amber-500 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-700',
+              value === t.id ? 'border-brand-500 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-700',
             )}
           >
             {t.label}
@@ -223,7 +223,7 @@ export function ProgressBar({ value, max, tone }: { value: number; max: number; 
   return (
     <div className="h-2.5 w-full overflow-hidden rounded-full bg-slate-100">
       <div
-        className={clsx('h-full rounded-full', over ? 'bg-red-500' : tone === 'accent' ? 'bg-amber-500' : pct > 85 ? 'bg-orange-500' : 'bg-emerald-500')}
+        className={clsx('h-full rounded-full', over ? 'bg-red-500' : tone === 'accent' ? 'bg-brand-500' : pct > 85 ? 'bg-orange-500' : 'bg-emerald-500')}
         style={{ width: `${over ? 100 : pct}%` }}
       />
     </div>

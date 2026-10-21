@@ -66,7 +66,7 @@ export function ClientsList() {
             {rows.map((r) => (
               <li key={`${r.kind}:${r.id}`}>
                 <Link to={r.kind === 'company' ? paths.company(r.id) : paths.contact(r.id)} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50">
-                  <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${r.kind === 'company' ? 'bg-slate-900 text-amber-400' : 'bg-amber-100 text-amber-700'}`}>
+                  <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${r.kind === 'company' ? 'bg-slate-900 text-brand-400' : 'bg-brand-100 text-brand-700'}`}>
                     {r.kind === 'company' ? <Building2 size={16} /> : <User size={16} />}
                   </span>
                   <span className="min-w-0 flex-1">

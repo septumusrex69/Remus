@@ -124,11 +124,11 @@ export function QuoteAttachmentsPanel({
         }}
         onDragLeave={() => setOver(false)}
         onDrop={onDrop}
-        className={`m-4 flex flex-col items-center justify-center rounded-xl border-2 border-dashed px-4 py-6 text-center text-sm ${over ? 'border-amber-400 bg-amber-50' : 'border-slate-200 text-slate-500'}`}
+        className={`m-4 flex flex-col items-center justify-center rounded-xl border-2 border-dashed px-4 py-6 text-center text-sm ${over ? 'border-brand-400 bg-brand-50' : 'border-slate-200 text-slate-500'}`}
       >
         <ImagePlus size={24} className="mb-2 text-slate-400" />
         <p>Drag images or PDFs here, or</p>
-        <button className="mt-1 inline-flex items-center gap-1 font-medium text-amber-700 hover:text-amber-800" onClick={() => inputRef.current?.click()}>
+        <button className="mt-1 inline-flex items-center gap-1 font-medium text-brand-700 hover:text-brand-800" onClick={() => inputRef.current?.click()}>
           <Upload size={14} /> choose files
         </button>
         <input
@@ -145,7 +145,7 @@ export function QuoteAttachmentsPanel({
         {uploading > 0 && <p className="mt-2 text-xs text-slate-500">Uploading {uploading}…</p>}
       </div>
       {error && <p className="mx-4 mb-3 text-sm text-red-600">{error}</p>}
-      {warning && <p className="mx-4 mb-3 text-sm text-amber-700">{warning}</p>}
+      {warning && <p className="mx-4 mb-3 text-sm text-brand-700">{warning}</p>}
       {attachments.length > 0 && (
         <ul className="divide-y divide-slate-100 border-t border-slate-100">
           {attachments.map((a, i) => {
@@ -164,7 +164,7 @@ export function QuoteAttachmentsPanel({
                 <div className="min-w-0 flex-1 space-y-1.5">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="truncate text-sm font-medium text-slate-800">{a.file_name}</span>
-                    {a.kind === 'client_pdf' && <Badge tone="bg-amber-100 text-amber-800">Client version</Badge>}
+                    {a.kind === 'client_pdf' && <Badge tone="bg-brand-100 text-brand-800">Client version</Badge>}
                   </div>
                   <input
                     className="input py-1 text-xs"
@@ -185,12 +185,12 @@ export function QuoteAttachmentsPanel({
                       </label>
                     )}
                     {isPdf && (
-                      <button className="inline-flex items-center gap-1 text-amber-700 hover:text-amber-800" onClick={() => setKind(a, a.kind === 'client_pdf' ? 'document' : 'client_pdf')}>
+                      <button className="inline-flex items-center gap-1 text-brand-700 hover:text-brand-800" onClick={() => setKind(a, a.kind === 'client_pdf' ? 'document' : 'client_pdf')}>
                         <Star size={12} /> {a.kind === 'client_pdf' ? 'Unmark client version' : 'Use as client version'}
                       </button>
                     )}
                   </div>
-                  {heic && <p className="text-xs text-amber-700">HEIC photos can't be shown on the printed quote. Convert it to JPG and upload that instead.</p>}
+                  {heic && <p className="text-xs text-brand-700">HEIC photos can't be shown on the printed quote. Convert it to JPG and upload that instead.</p>}
                 </div>
                 <div className="flex gap-1 self-end sm:self-center">
                   <button className="rounded p-1.5 text-slate-400 hover:bg-slate-100" onClick={() => move(i, -1)} aria-label="Move up"><ArrowUp size={14} /></button>
