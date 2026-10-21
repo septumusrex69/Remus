@@ -440,21 +440,47 @@ export async function extractReceipt(path: string): Promise<ExtractResponse> {
 
 // ---------- Quote sending ----------
 
+/** Turns a fetch that never got an answer ("Load failed", "Failed to fetch") into a plain message. */
+async function callApi(input: string, init: RequestInit, what: string): Promise<Response> {
+  try {
+    return await fetch(input, init)
+  } catch {
+    throw new Error(`Couldn't reach the server to ${what}. Check your connection and try again.`)
+  }
+}
+
 export async function sendQuote(quoteId: ID, payload: { to: string[]; cc?: string[]; subject: string; message: string; quoteUrl?: string }) {
-  const res = await fetch('/api/quotes/send', {
+  const res = await callApi('/api/quotes/send', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...(await authHeader()) },
     body: JSON.stringify({ quoteId, ...payload }),
-  })
+  }, 'send the quote')
   const body = (await res.json().catch(() => null)) as { ok?: boolean; error?: string; configured?: boolean; warning?: string } | null
-  if (!res.ok || !body?.ok) throw new Error(body?.error ?? `Sending failed (HTTP ${res.status}).`)
+  if (!res.ok || !body?.ok) throw new Error(body?.error ?? `Sending failed (HTTP ${res.status}). Try again, or download the PDF and email it yourself.`)
   return body
+}
+
+/** Whether the server can send email at all (so the Send dialog can say so before anyone tries). */
+export async function emailConfigured(): Promise<boolean | null> {
+  try {
+    const res = await fetch('/api/quotes/send?check=1')
+    const body = (await res.json().catch(() => null)) as { configured?: boolean } | null
+    return typeof body?.configured === 'boolean' ? body.configured : null
+  } catch {
+    return null // unknown: let them try, and show the error then
+  }
 }
 
 /** Opens the server-built PDF of a quote in a new tab (the endpoint needs the session token, so fetch it first). */
 export async function openQuotePdf(quoteId: ID): Promise<void> {
   const win = window.open('', '_blank')
-  const res = await fetch(`/api/quotes/pdf?id=${encodeURIComponent(quoteId)}`, { headers: await authHeader() })
+  let res: Response
+  try {
+    res = await callApi(`/api/quotes/pdf?id=${encodeURIComponent(quoteId)}`, { headers: await authHeader() }, 'build the PDF')
+  } catch (e) {
+    win?.close()
+    throw e
+  }
   if (!res.ok) {
     win?.close()
     const body = (await res.json().catch(() => null)) as { error?: string } | null

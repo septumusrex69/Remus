@@ -4,8 +4,11 @@ import { requireCaller, supabaseEnv } from '../_lib/auth.js'
 import { buildQuotePdf } from '../_lib/quotePdf.js'
 
 /**
- * Emails a quote to the client over SMTP (SMTP_HOST/PORT/USER/PASS/FROM, as Raptor's
- * api/email/send.ts uses nodemailer, but with one company mailbox instead of per-user inboxes).
+ * Emails a quote to the client, through Resend's API (RESEND_API_KEY + EMAIL_FROM) or over SMTP
+ * (SMTP_HOST/PORT/USER/PASS/FROM, nodemailer as in Raptor's api/email/send.ts, with one company
+ * mailbox instead of per-user inboxes). Resend wins when both are set.
+ *
+ * GET ?check=1 → { configured } so the app can say up front whether sending will work.
  *
  * POST { quoteId, to: string[], cc?: string[], subject, message }
  *
@@ -36,7 +39,20 @@ function zar(n: number): string {
   return `${n < 0 ? '-' : ''}R ${int.replace(/\B(?=(\d{3})+(?!\d))/g, ' ')}.${frac}`
 }
 
+type Mailer = 'resend' | 'smtp' | null
+
+function mailer(): Mailer {
+  const env = process.env
+  if (env.RESEND_API_KEY && (env.EMAIL_FROM || env.SMTP_FROM)) return 'resend'
+  if (env.SMTP_HOST && (env.SMTP_FROM || env.EMAIL_FROM)) return 'smtp'
+  return null
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (req.method === 'GET' && req.query.check) {
+    res.status(200).json({ configured: mailer() !== null })
+    return
+  }
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'Method not allowed' })
     return
@@ -51,11 +67,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return
   }
 
-  const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM } = process.env
-  if (!SMTP_HOST || !SMTP_FROM) {
-    res.status(503).json({ configured: false, error: 'Email sending is not set up. Add SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS and SMTP_FROM to the server environment, or print the quote to PDF and email it yourself.' })
+  const via = mailer()
+  if (!via) {
+    res.status(503).json({ configured: false, error: "Email sending isn't set up yet. Download the PDF and email it yourself for now." })
     return
   }
+  const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, RESEND_API_KEY } = process.env
+  const FROM = (process.env.EMAIL_FROM || process.env.SMTP_FROM)!
 
   const body = (req.body ?? {}) as { quoteId?: unknown; to?: unknown; cc?: unknown; subject?: unknown; message?: unknown }
   const to = Array.isArray(body.to) ? body.to.filter((x): x is string => typeof x === 'string') : []
@@ -163,27 +181,48 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const html = `<div style="font-family:Arial,Helvetica,sans-serif;color:#0f172a;line-height:1.5">${esc(message).replace(/\n/g, '<br>')}${summary}</div>`
   const text = `${message}${clientPdf ? '' : `\n\nQuote ${quote.number ?? ''}: ${quote.title}\nTotal excl. VAT: ${zar(totalExcl)}\nVAT: ${zar(vat)}\nTotal: ${zar(totalIncl)}`}`
 
-  const port = Number(SMTP_PORT || 465)
-  const transporter = nodemailer.createTransport({
-    host: SMTP_HOST,
-    port,
-    secure: port === 465,
-    auth: SMTP_USER ? { user: SMTP_USER, pass: SMTP_PASS ?? '' } : undefined,
-  })
   try {
-    await transporter.sendMail({
-      from: SMTP_FROM,
-      to,
-      cc: cc.length ? cc : undefined,
-      replyTo: settings.email ?? undefined,
-      subject,
-      html,
-      text,
-      attachments: files,
-    })
+    if (via === 'resend') {
+      const r = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          from: FROM,
+          to,
+          cc: cc.length ? cc : undefined,
+          reply_to: settings.email ?? undefined,
+          subject,
+          html,
+          text,
+          attachments: files.map((f) => ({ filename: f.filename, content: f.content.toString('base64'), content_type: f.contentType })),
+        }),
+      })
+      if (!r.ok) {
+        const detail = (await r.json().catch(() => null)) as { message?: string } | null
+        throw new Error(detail?.message ?? `Resend answered HTTP ${r.status}`)
+      }
+    } else {
+      const port = Number(SMTP_PORT || 465)
+      const transporter = nodemailer.createTransport({
+        host: SMTP_HOST,
+        port,
+        secure: port === 465,
+        auth: SMTP_USER ? { user: SMTP_USER, pass: SMTP_PASS ?? '' } : undefined,
+      })
+      await transporter.sendMail({
+        from: FROM,
+        to,
+        cc: cc.length ? cc : undefined,
+        replyTo: settings.email ?? undefined,
+        subject,
+        html,
+        text,
+        attachments: files,
+      })
+    }
   } catch (e) {
     console.error('Quote email failed', e)
-    res.status(502).json({ error: `The mail server rejected the message: ${e instanceof Error ? e.message : String(e)}` })
+    res.status(502).json({ error: `The email could not be sent: ${e instanceof Error ? e.message : String(e)}` })
     return
   }
 

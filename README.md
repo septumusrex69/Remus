@@ -57,7 +57,8 @@ reports that email isn't set up.
 | `VITE_SUPABASE_URL` | browser + functions | yes |
 | `VITE_SUPABASE_ANON_KEY` | browser + functions | yes (anon or publishable key; `VITE_SUPABASE_PUBLISHABLE_KEY` is accepted as an alias) |
 | `ANTHROPIC_API_KEY` | functions only | no: enables AI slip reading |
-| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` | functions only | no: enables "Send to client" (Resend works: `smtp.resend.com`, port 465, user `resend`, an API key as the password) |
+| `RESEND_API_KEY`, `EMAIL_FROM` | functions only | no: enables "Send to client" through Resend (simplest; `EMAIL_FROM` like `Urban Haus <quotes@urbanhausgroup.co.za>` on a domain verified in Resend) |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` | functions only | no: or send over SMTP instead (used only when Resend isn't set) |
 | `SUPABASE_SERVICE_ROLE_KEY` | functions only | no: enables in-app invites and the Claude connector |
 | `APP_URL` | functions only | no: production address for invite and connector links (default `https://remus-xi.vercel.app`) |
 

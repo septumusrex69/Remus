@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { FileText, Paperclip } from 'lucide-react'
-import { sendQuote, quotes as quotesApi } from '../../../lib/api'
+import { FileDown, FileText, Paperclip } from 'lucide-react'
+import { emailConfigured, openQuotePdf, sendQuote, quotes as quotesApi } from '../../../lib/api'
 import { formatZAR } from '../../../lib/format'
 import type { QuoteTotals } from '../../../lib/quoteMath'
 import { Button, Field, Modal } from '../../../components/ui'
@@ -42,6 +42,17 @@ export function SendQuoteModal({
   const [sending, setSending] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [warning, setWarning] = useState<string | null>(null)
+  /** null while checking or if the check itself failed (then sending is still allowed). */
+  const [configured, setConfigured] = useState<boolean | null>(null)
+
+  useEffect(() => {
+    if (!open) return
+    let active = true
+    emailConfigured().then((c) => active && setConfigured(c))
+    return () => {
+      active = false
+    }
+  }, [open])
 
   useEffect(() => {
     if (!open) return
@@ -63,7 +74,7 @@ export function SendQuoteModal({
     setSending(true)
     setError(null)
     try {
-      if (!(await beforeSend())) throw new Error('Could not save the quote before sending.')
+      if (!(await beforeSend())) throw new Error('Could not save the quote before sending. Check the error on the quote and try again.')
       const res = (await sendQuote(quote.id, { to: toList, cc: splitEmails(cc), subject, message })) as { warning?: string }
       const fresh = await quotesApi.get(quote.id)
       if (res.warning) {
@@ -86,11 +97,24 @@ export function SendQuoteModal({
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>Cancel</Button>
-          <Button variant="primary" onClick={send} loading={sending}>Send</Button>
+          <Button variant="primary" onClick={send} loading={sending} disabled={configured === false}>Send</Button>
         </>
       }
     >
       <div className="space-y-3">
+        {configured === false && (
+          <div className="rounded-lg border border-brand-200 bg-brand-50 p-3 text-sm text-brand-900">
+            <p className="font-medium">Email sending isn't set up yet.</p>
+            <p className="mt-0.5">Download the quote as a PDF and email it from your own mailbox for now.</p>
+            <Button
+              size="sm"
+              className="mt-2"
+              onClick={() => beforeSend().then((ok) => (ok ? openQuotePdf(quote.id) : undefined)).catch((e) => setError(e instanceof Error ? e.message : String(e)))}
+            >
+              <FileDown size={14} /> Download PDF
+            </Button>
+          </div>
+        )}
         <Field label="To" hint="Separate several addresses with commas.">
           <input className="input" value={to} onChange={(e) => setTo(e.target.value)} placeholder="client@example.com" />
         </Field>
