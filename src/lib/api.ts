@@ -580,6 +580,8 @@ export async function importBankStatement(
 
 /** Deletes a statement; its transactions go with it (statement_id is ON DELETE CASCADE). */
 export async function deleteBankStatement(s: BankStatement): Promise<void> {
+  // Delete the lines explicitly too, so this works whether or not the FK cascades (migration 0003).
+  unwrap(await supabase.from('bank_transactions').delete().eq('statement_id', s.id))
   await bankStatements.remove(s.id)
   // Removing the stored file is tidy-up only; a leftover file harms nothing.
   if (s.file_path) await supabase.storage.from(RECEIPTS_BUCKET).remove([s.file_path])
