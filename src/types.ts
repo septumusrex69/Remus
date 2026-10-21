@@ -1,0 +1,393 @@
+/**
+ * Row types for Remus. Field names are the database column names (snake_case), so the data
+ * layer in lib/api.ts needs no mapping. Shared tables (profiles, companies, contacts) use the
+ * same column names as Raptor's schema.
+ */
+
+export type ID = string
+
+// ---------- Shared with Raptor ----------
+
+export type UserRole =
+  | 'Administrator'
+  | 'Sales Manager'
+  | 'Sales Representative'
+  | 'Liaison Manager'
+  | 'Liaison'
+  | 'Pre-legal Team Leader'
+  | 'Pre-legal Agent'
+  | 'Read Only'
+
+export interface Profile {
+  id: ID
+  name: string
+  email: string
+  role: UserRole
+  team_id: ID | null
+  status: 'Active' | 'Inactive'
+  phone: string | null
+  avatar_color: string
+  created_at: string
+}
+
+export interface Company {
+  id: ID
+  name: string
+  industry: string | null
+  phone: string | null
+  email: string | null
+  website: string | null
+  province: string | null
+  city: string | null
+  address: string | null
+  account_owner_id: ID
+  vat_no: string | null
+  reg_no: string | null
+  notes: string | null
+  created_at: string
+}
+
+export interface Contact {
+  id: ID
+  first_name: string
+  last_name: string
+  job_title: string | null
+  company_id: ID | null
+  email: string | null
+  phone: string | null
+  mobile: string | null
+  owner_id: ID
+  notes: string | null
+  address: string | null
+  id_number: string | null
+  created_at: string
+}
+
+/** A client is a company (business) or a contact with no company (private individual). */
+export interface ClientRef {
+  company_id: ID | null
+  contact_id: ID | null
+}
+
+// ---------- Remus ----------
+
+export interface CompanySettings {
+  id: true
+  name: string
+  reg_no: string | null
+  vat_no: string | null
+  address: string | null
+  phone: string | null
+  email: string | null
+  logo_url: string | null
+  vat_rate: number
+  quote_terms: string | null
+  bank_details: string | null
+  quote_prefix: string
+  next_quote_number: number
+  invoice_prefix: string
+  next_invoice_number: number
+}
+
+export const QUOTE_STATUSES = ['draft', 'sent', 'accepted', 'declined', 'expired'] as const
+export type QuoteStatus = (typeof QUOTE_STATUSES)[number]
+
+export const UNITS = ['m²', 'm³', 'm', 'each', 'hours', 'sum'] as const
+export type Unit = (typeof UNITS)[number]
+
+export interface Quote extends ClientRef {
+  id: ID
+  number: string | null
+  project_id: ID | null
+  title: string
+  site_address: string | null
+  status: QuoteStatus
+  issue_date: string
+  valid_until: string | null
+  notes: string | null
+  terms: string | null
+  discount: number
+  vat_rate: number
+  sent_at: string | null
+  sent_to: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface QuoteItem {
+  id: ID
+  quote_id: ID
+  sort_order: number
+  section: string | null
+  description: string
+  unit: Unit
+  quantity: number
+  unit_cost: number
+  markup_pct: number
+  unit_price: number
+}
+
+export interface QuoteTotalsRow {
+  quote_id: ID
+  subtotal: number
+  estimated_cost: number
+  discount: number
+  total_excl: number
+  vat: number
+  total_incl: number
+}
+
+export const ATTACHMENT_KINDS = ['render', 'photo', 'document', 'client_pdf'] as const
+export type AttachmentKind = (typeof ATTACHMENT_KINDS)[number]
+
+export interface QuoteAttachment {
+  id: ID
+  quote_id: ID
+  file_path: string
+  file_name: string
+  mime_type: string | null
+  kind: AttachmentKind
+  caption: string | null
+  sort_order: number
+  show_on_quote: boolean
+  created_at: string
+}
+
+export const PROJECT_STATUSES = ['lead', 'planned', 'active', 'on_hold', 'completed', 'cancelled'] as const
+export type ProjectStatus = (typeof PROJECT_STATUSES)[number]
+
+export interface Project extends ClientRef {
+  id: ID
+  name: string
+  code: string | null
+  quote_id: ID | null
+  site_address: string | null
+  status: ProjectStatus
+  start_date: string | null
+  end_date: string | null
+  contract_value: number
+  budget: number
+  notes: string | null
+  created_at: string
+}
+
+export const EXPENSE_CATEGORIES = [
+  'materials',
+  'labour',
+  'subcontractor',
+  'plant_hire',
+  'transport',
+  'permits',
+  'overheads',
+  'other',
+] as const
+export type ExpenseCategory = (typeof EXPENSE_CATEGORIES)[number]
+
+export type ExpenseSource = 'manual' | 'receipt' | 'bank'
+
+export interface Expense {
+  id: ID
+  project_id: ID | null
+  date: string
+  category: ExpenseCategory
+  supplier: string | null
+  description: string | null
+  amount_excl: number
+  vat: number
+  receipt_url: string | null
+  receipt_path: string | null
+  receipt_number: string | null
+  ai_extracted: ReceiptExtraction | null
+  ai_suggestion: ReceiptSuggestion | null
+  source: ExpenseSource
+  paid: boolean
+  created_at: string
+}
+
+export const INVOICE_STATUSES = ['draft', 'sent', 'paid', 'overdue', 'cancelled'] as const
+export type InvoiceStatus = (typeof INVOICE_STATUSES)[number]
+
+export interface Invoice extends ClientRef {
+  id: ID
+  project_id: ID | null
+  number: string | null
+  issue_date: string
+  due_date: string | null
+  description: string | null
+  amount_excl: number
+  vat: number
+  status: InvoiceStatus
+  created_at: string
+}
+
+export const PAYMENT_METHODS = ['eft', 'cash', 'card', 'cheque', 'other'] as const
+export type PaymentMethod = (typeof PAYMENT_METHODS)[number]
+
+export interface Payment {
+  id: ID
+  invoice_id: ID | null
+  project_id: ID | null
+  date: string
+  amount: number
+  method: PaymentMethod | null
+  reference: string | null
+  created_at: string
+}
+
+export interface Variation {
+  id: ID
+  project_id: ID
+  description: string
+  amount_excl: number
+  approved: boolean
+  date: string
+  created_at: string
+}
+
+export const EVENT_TYPES = ['site_visit', 'meeting', 'inspection', 'delivery', 'quote_appointment', 'other'] as const
+export type EventType = (typeof EVENT_TYPES)[number]
+
+export interface DiaryEvent extends ClientRef {
+  id: ID
+  title: string
+  start_at: string
+  end_at: string | null
+  all_day: boolean
+  project_id: ID | null
+  location: string | null
+  type: EventType
+  notes: string | null
+  owner_id: ID | null
+  created_at: string
+}
+
+export interface SiteDiaryEntry {
+  id: ID
+  project_id: ID
+  date: string
+  weather: string | null
+  workers_on_site: number | null
+  work_done: string | null
+  materials_delivered: string | null
+  delays: string | null
+  safety_notes: string | null
+  created_at: string
+}
+
+export interface ProjectFinancials {
+  project_id: ID
+  contract_value: number
+  approved_variations: number
+  revised_contract: number
+  budget: number
+  expenses_total: number
+  expenses_materials: number
+  expenses_labour: number
+  expenses_subcontractor: number
+  expenses_plant_hire: number
+  expenses_transport: number
+  expenses_permits: number
+  expenses_overheads: number
+  expenses_other: number
+  invoiced: number
+  invoiced_incl: number
+  received: number
+  gross_profit: number
+  margin_pct: number | null
+  budget_remaining: number
+}
+
+// ---------- Bank reconciliation ----------
+
+export const BANKS = ['fnb', 'absa', 'standard_bank', 'nedbank', 'capitec', 'investec', 'other'] as const
+export type Bank = (typeof BANKS)[number]
+
+/** How columns of a bank CSV map onto a transaction. Saved per bank account. */
+export interface CsvMapping {
+  date: string
+  description: string
+  /** Either one signed amount column... */
+  amount?: string
+  /** ...or separate debit/credit columns. */
+  debit?: string
+  credit?: string
+  balance?: string
+  reference?: string
+  /** Day-first (dd/mm/yyyy) is the SA default. */
+  dateFormat: 'auto' | 'dmy' | 'mdy' | 'ymd'
+  /** Some banks export debits as positive numbers in a single column. */
+  invertSign?: boolean
+}
+
+export interface BankAccount {
+  id: ID
+  name: string
+  bank: Bank | null
+  account_number_last4: string | null
+  csv_mapping: CsvMapping | null
+  feed_provider: string
+  created_at: string
+}
+
+export interface BankStatement {
+  id: ID
+  bank_account_id: ID
+  period_start: string | null
+  period_end: string | null
+  file_path: string | null
+  file_name: string | null
+  imported_count: number
+  duplicate_count: number
+  imported_at: string
+}
+
+export type BankTxStatus = 'unmatched' | 'suggested' | 'matched' | 'ignored'
+
+export interface BankTransaction {
+  id: ID
+  bank_account_id: ID
+  statement_id: ID | null
+  date: string
+  description: string
+  amount: number
+  balance: number | null
+  reference: string | null
+  external_id: string
+  status: BankTxStatus
+  matched_expense_id: ID | null
+  matched_payment_id: ID | null
+  match_score: number | null
+  ignore_reason: string | null
+  created_at: string
+}
+
+// ---------- AI slip reading (api/receipts/extract.ts) ----------
+
+export interface ReceiptLineItem {
+  description: string
+  quantity: number | null
+  amount: number | null
+}
+
+export interface ReceiptExtraction {
+  supplier: string | null
+  date: string | null
+  slip_number: string | null
+  total_incl: number | null
+  vat: number | null
+  amount_excl: number | null
+  payment_method: string | null
+  card_last4: string | null
+  line_items: ReceiptLineItem[]
+}
+
+export interface ReceiptSuggestion {
+  project_id: string | null
+  category: ExpenseCategory
+  confidence: 'low' | 'medium' | 'high'
+  reason: string
+}
+
+export type ExtractResponse =
+  | { configured: true; extraction: ReceiptExtraction; suggestion: ReceiptSuggestion | null }
+  | { configured: false; message: string }
