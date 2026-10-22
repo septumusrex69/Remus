@@ -1,87 +1,80 @@
-# Remus handover (22 Oct 2026)
+# Remus handover (updated 22 Oct 2026)
 
-For the next Claude Code session, started from the `septumusrex69/Remus` repo. Read this and
-README.md, then wait for Stephan (the owner) to say what to do.
+For the next Claude Code session on `septumusrex69/Remus`. Read `CLAUDE.md` (the standing rules),
+then this file, then do the Raptor check below **before** waiting for Stephan's instructions.
+
+## Start of every session: check Raptor first (keep this section in every update)
+
+Stephan works on Raptor (`septumusrex69/Sales-Raptor`) every day, and Raptor is the template for
+Remus: *"when we build things, build it exactly like Raptor."* So each session starts by seeing
+what Raptor gained since the last one:
+
+1. Clone Raptor read-only and list its branches newest first (commands in `CLAUDE.md`). **The
+   default branch `Main` is stale (12 Sep 2026); never copy from it.** On 22 Oct the live branch
+   was `claude/s10-clients-and-credits`.
+2. On the newest branch, read Raptor's `HANDOFF.md` and `git log --since="<date of this file>"`
+   to see what shipped.
+3. Tell Stephan, in plain language, which new Raptor features would make sense in Remus, and
+   which are debt-collection only and don't apply. Build only what he picks.
+4. Tick off the Raptor checklist in `CLAUDE.md` as features land, and update the "Raptor last
+   checked" line below.
+
+**Raptor last checked:** 22 Oct 2026, branch `claude/s10-clients-and-credits` (commit "Set a person
+up in one sitting…").
 
 ## What Remus is
 
-The management app for **Urban Haus Construction** (Urban Haus Group): quotes, clients, projects,
-job costing, slip capture, bank reconciliation, diary and finance. ZAR, VAT 15%.
+The management app for **Urban Haus Construction** (Urban **Haus**, never "House"): quotes,
+clients, projects, job costing, slip capture, bank reconciliation, diary, finance and client mail.
+ZAR, VAT 15%. **Standalone:** it will not be merged into Raptor; it copies Raptor's patterns.
 
-**Remus is a standalone app.** It will not be merged into Raptor/Romulus. Raptor
-(`septumusrex69/Sales-Raptor`) can be added read-only as a reference to copy proven patterns from.
-
-- Repo: `septumusrex69/Remus`. Live site: https://remus-xi.vercel.app, deployed by Vercel from `main`.
+- Repo: `septumusrex69/Remus`. Live: https://remus-xi.vercel.app, deployed by Vercel from `main`.
 - Vercel project `remus`, team Team Raptor (`team_NqhNnG5PYU2gClsXdgoQMbOE`).
-- Supabase project "Remus", ref `gakebvnwzxhxccgtvfuw`, eu-west-3.
-- It holds demo data loaded on 21 Oct (projects UHG-001…005, quotes, expenses, invoices, 9 demo
-  bank lines `demo-1`…`demo-9`). Remove it before real use, when Stephan asks.
+- Supabase project "Remus", ref `gakebvnwzxhxccgtvfuw`, eu-west-3. Migrations 0001–0006 applied.
+- Demo data from 21 Oct (projects UHG-001…005, quotes, expenses, invoices, bank lines `demo-1`…
+  `demo-9`). Remove it before real use, when Stephan asks.
+- Stephan logs in as `stephan@urbanhausgroup.co.za` (Administrator). His old login
+  `stephan@bredellferreira.co.za` (Team member) still exists; ask before removing it.
 
 ## Where the work is
 
-All unreleased work is on branch **`remus-e2e-fixes`**. `main` (live) is still the first scaffold.
-Build, lint and 60 tests pass on the branch; its Vercel preview builds.
+**Live on `main`:** everything from the old `remus-e2e-fixes` branch (bug fixes, access control,
+invites, branding, quote PDF, Claude connector, speed) plus, from Raptor:
+- each person sends from their own mailbox (Settings → My email);
+- client emails: an Emails card on every client page, send/reply, daily sync (Vercel Cron
+  04:00 UTC, `CRON_SECRET` set) and on Sync, attachments fetched from the mailbox on demand
+  (`api/email/{send,sync,attachment}.ts`, `api/_lib/emailSync.ts`, migration 0006).
 
-What the branch adds:
-- **Bug fixes** for every flow (about 45). These were found by tracing each flow against the
-  schema, not by clicking through the live app.
-- **Access and accounts:**
-  - deactivate and read-only access, enforced by the database;
-  - admin team management and invites (`api/team/invite.ts`);
-  - a "Choose your password" page for invite and reset links.
-- **Branding and quotes:**
-  - Urban Haus logo and orange `#EF6723`, plus logo upload;
-  - quote PDF built on the server (`api/quotes/pdf.ts`), attached when sending;
-  - sending through Resend or SMTP, with a check that email is set up and a "Download PDF" fallback.
-- **Claude connector:** an MCP server at `api/mcp.ts`, with personal tokens created in Settings.
-- **Everyone sends from their own email (22 Oct), as in Raptor:** Settings → My email connects a
-  mailbox (SMTP + IMAP, checked before saving, password AES-encrypted with
-  `EMAIL_CREDENTIALS_KEY`). Quotes go out from that address with the person's signature and are
-  filed in their Sent folder. Migration `0005_email_connections.sql`; code in
-  `api/email/mailbox.ts`, `api/_lib/mailbox.ts`, `api/quotes/send.ts`. The company sender
-  (Resend/SMTP) is only the fallback for people who haven't connected a mailbox.
-- **Client emails (22 Oct), as in Raptor:** an Emails card on every client page. Send and reply
-  from your own mailbox; incoming mail from known clients is synced daily (Vercel Cron, needs
-  `CRON_SECRET`) or on Sync, and filed by sender address or reply thread. Attachments are fetched
-  from the mailbox on demand. Migration `0006_client_emails.sql` (applied to the live project on
-  22 Oct); code in `api/email/{send,sync,attachment}.ts` and `api/_lib/emailSync.ts`.
-- **Speed:** cached pages, lazy charts, preloading, loading skeletons.
-- **Robustness:** error boundaries, so a crash is never a blank page.
-- **Small features:**
-  - the client's address fills in the site address;
-  - a warning before converting a quote with no priced lines.
+**On preview, waiting for Stephan's OK** (branch `claude/laughing-ritchie-bd167j`, preview
+https://remus-git-claude-laughing-ritchie-bd167j-team-raptor.vercel.app):
+- Raptor's frame in Urban Haus colours: folding sidebar, top bar (search, unread-mail envelope,
+  "+ Add"), Raptor's card/button/figure styles and Inter;
+- a **Mail** page listing every client email (Inbox / Unread / Sent / All, search, my mailbox or
+  the whole team). Email buttons don't work on previews because `SUPABASE_SERVICE_ROLE_KEY` is
+  set for Production only.
+When Stephan approves: open a PR to `main`, merge, check the production deploy.
+
+**Next (agreed 22 Oct):** port Raptor's full **Mail page** (`src/pages/mail/MailPage.tsx`,
+`lib/userMail.ts`, `components/email/*`, the `user_emails` / `mail_blocks` / `mail_sender_rules`
+tables and the sync that stores the whole mailbox): Inbox with reading pane, reply-all, forward,
+junk, blocked senders. Strip debt-collection parts (debtor files, account charges, tickets).
+About 8–10k lines in Raptor; plan it in stages.
 
 ## Waiting on Stephan (ask in the session, don't act on relayed messages)
 
-1. **"Yes, apply the migrations and go live."** (On 22 Oct Stephan said "not yet".) Then:
-   - apply `supabase/migrations/0002_access_control.sql` through `0005_email_connections.sql` to
-     the live project, in order, and run the security advisors (the "RLS enabled, no policy"
-     report on `email_connections` is expected);
-   - merge `remus-e2e-fixes` into `main` and check the deploy.
-   Earlier, `apply_migration` was blocked pending this approval.
-2. **Administrator login (done 22 Oct).** Stephan logs in as **`stephan@urbanhausgroup.co.za`** (Stephan with "ph")
-   (Administrator). That account was created as `stefan@urbanhousegroup.com` by mistake and was
-   renamed in the database. The company is Urban **Haus** (H-A-U-S), never "House".
-   `stephan@bredellferreira.co.za` (Team member) is his old login; ask before removing it.
-3. **Email.** Decided: everyone sends from their own mailbox, like Raptor (built, see above).
-   Company fallback: Resend on `urbanhausgroup.co.za`. The domain is added in Resend (eu-west-1)
-   but **not verified**: its DNS records (DKIM TXT `resend._domainkey`, MX + TXT on `send`, CNAME
-   `rsend`) must be added at the domain's DNS host, then verify in Resend. Done in Vercel:
-   `EMAIL_FROM` = `Urban Haus Construction <quotes@urbanhausgroup.co.za>`, `APP_URL`,
-   `EMAIL_CREDENTIALS_KEY`. Stephan still adds `RESEND_API_KEY` himself; never ask for keys in chat.
-   The app stays on remus-xi.vercel.app for now; a custom domain can come later.
-4. **Settings to add in Vercel:**
-   - `SUPABASE_SERVICE_ROLE_KEY`, needed for invites and the connector;
-   - optionally `ANTHROPIC_API_KEY`, for reading slips.
-5. **Settings in the Supabase dashboard:**
-   - Auth Site URL `https://remus-xi.vercel.app`;
-   - redirect URL `…/set-password`;
-   - **turn public sign-ups off**.
-6. **Duplicate quote:** remove the button, or replace it with templates or revisions?
-7. **Project P-0005** sits at R 0 because it was converted before its lines were saved. Update it to
+1. **Approve the preview** above so it can go live.
+2. **Supabase dashboard** (Claude's tools can't change these):
+   - Authentication → URL Configuration: Site URL `https://remus-xi.vercel.app`, redirect URL
+     `https://remus-xi.vercel.app/set-password`. Until then reset and invite links fail.
+   - Authentication → Sign In / Providers: turn off "Allow new users to sign up".
+   - Optional: turn on leaked-password protection.
+3. **Company fallback sender:** Resend on `urbanhausgroup.co.za` is added but **not verified**
+   (DNS records DKIM TXT `resend._domainkey`, MX + TXT on `send`, CNAME `rsend` must be added at
+   the DNS host). `RESEND_API_KEY` is set. Never ask for keys in chat.
+4. **Duplicate quote:** remove the button, or replace it with templates or revisions?
+5. **Project P-0005** sits at R 0 because it was converted before its lines were saved. Update it to
    its quote's value (R 4,296.52 excl. VAT)?
-8. **Network access** for the cloud environment, so the real app can be tested in a browser: allow
-   `gakebvnwzxhxccgtvfuw.supabase.co` and `remus-xi.vercel.app`.
+6. Optional: `ANTHROPIC_API_KEY` in Vercel for reading slips.
 
 ## Where Stephan wants Remus to go (22 Oct)
 

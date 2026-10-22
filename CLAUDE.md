@@ -51,6 +51,9 @@ How to apply it:
 
 ## Working rules
 
+- **Update `HANDOVER.md` before you finish, every session**, and keep its "Start of every session:
+  check Raptor first" section and the "Raptor last checked" date current. Stephan works on Raptor
+  daily, so each session starts by checking what Raptor gained.
 - Show the owner changes on a Vercel **preview link** before they go live; live deploys from `main`.
 - The owner is not a developer: explain outcomes in plain language, no code talk.
 - Never send a DROP statement through the Supabase MCP (it waits for a confirmation that never comes).
