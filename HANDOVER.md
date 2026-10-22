@@ -59,12 +59,10 @@ What the branch adds:
      report on `email_connections` is expected);
    - merge `remus-e2e-fixes` into `main` and check the deploy.
    Earlier, `apply_migration` was blocked pending this approval.
-2. **Administrator login.**
-   - `stephan@bredellferreira.co.za` is the account Stephan uses. It is a "Sales Representative",
-     which shows as Team member.
-   - `stefan@urbanhousegroup.com`, spelled with an "f", is an unused Administrator account
-     created by another session.
-   - Which to keep as Administrator, and should the other be removed?
+2. **Administrator login (done 22 Oct).** Stephan logs in as **`stefan@urbanhausgroup.co.za`**
+   (Administrator). That account was created as `stefan@urbanhousegroup.com` by mistake and was
+   renamed in the database. The company is Urban **Haus** (H-A-U-S), never "House".
+   `stephan@bredellferreira.co.za` (Team member) is his old login; ask before removing it.
 3. **Email.** Decided: everyone sends from their own mailbox, like Raptor (built, see above).
    Company fallback: Resend on `urbanhausgroup.co.za`. The domain is added in Resend (eu-west-1)
    but **not verified**: its DNS records (DKIM TXT `resend._domainkey`, MX + TXT on `send`, CNAME
