@@ -17,6 +17,7 @@ const pages = {
   BankPage: () => import('./bank/BankPage'),
   FinancePage: () => import('./finance/FinancePage'),
   SettingsPage: () => import('./settings/SettingsPage'),
+  MailPage: () => import('./mail/MailPage'),
 }
 
 const DashboardPage = lazy(() => pages.DashboardPage().then((x) => ({ default: x.DashboardPage })))
@@ -32,6 +33,7 @@ const SlipCapture = lazy(() => pages.SlipCapture().then((x) => ({ default: x.Sli
 const DiaryPage = lazy(() => pages.DiaryPage().then((x) => ({ default: x.DiaryPage })))
 const BankPage = lazy(() => pages.BankPage().then((x) => ({ default: x.BankPage })))
 const FinancePage = lazy(() => pages.FinancePage().then((x) => ({ default: x.FinancePage })))
+const MailPage = lazy(() => pages.MailPage().then((x) => ({ default: x.MailPage })))
 const SettingsPage = lazy(() => pages.SettingsPage().then((x) => ({ default: x.SettingsPage })))
 
 /**
@@ -39,7 +41,7 @@ const SettingsPage = lazy(() => pages.SettingsPage().then((x) => ({ default: x.S
  * each one doesn't wait on a download. Charts load with them (dashboard, project, finance).
  */
 export function preloadPages() {
-  for (const load of [pages.DashboardPage, pages.ProjectsList, pages.ProjectDetail, pages.QuotesList, pages.QuoteEditor, pages.ExpensesPage, pages.SlipCapture, pages.BankPage, pages.DiaryPage, pages.ClientsList]) {
+  for (const load of [pages.DashboardPage, pages.MailPage, pages.ProjectsList, pages.ProjectDetail, pages.QuotesList, pages.QuoteEditor, pages.ExpensesPage, pages.SlipCapture, pages.BankPage, pages.DiaryPage, pages.ClientsList]) {
     load().catch(() => {}) // offline or a new deploy: the page simply loads on click instead
   }
   import('./components/charts').catch(() => {})
@@ -66,6 +68,7 @@ export const buildRoutes = (
     <Route path="diary" element={<DiaryPage />} />
     <Route path="bank" element={<BankPage />} />
     <Route path="finance" element={<FinancePage />} />
+    <Route path="mail" element={<MailPage />} />
     <Route path="settings" element={<SettingsPage />} />
   </>
 )

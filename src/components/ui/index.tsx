@@ -8,11 +8,12 @@ import { labelize } from '../../lib/format'
 
 type Variant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'dark'
 const VARIANTS: Record<Variant, string> = {
-  primary: 'bg-brand-500 text-slate-950 hover:bg-brand-400 shadow-sm',
-  dark: 'bg-slate-900 text-white hover:bg-slate-800 shadow-sm',
-  secondary: 'bg-white text-slate-700 border border-slate-300 hover:bg-slate-50 shadow-sm',
-  ghost: 'text-slate-600 hover:bg-slate-100',
-  danger: 'bg-white text-red-600 border border-red-200 hover:bg-red-50',
+  // Raptor's buttons, with Urban Haus orange where Raptor uses its brand colour.
+  primary: 'bg-brand-500 text-white hover:bg-brand-600 shadow-sm',
+  dark: 'bg-ink-950 text-white hover:bg-ink-900 shadow-sm',
+  secondary: 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50',
+  ghost: 'text-slate-500 hover:bg-slate-100',
+  danger: 'bg-red-50 text-red-600 hover:bg-red-100',
 }
 
 export function Button({
@@ -45,16 +46,23 @@ export function Button({
 
 // ---------- Layout bits ----------
 
-export function Card({ title, actions, children, className, padded = true }: { title?: ReactNode; actions?: ReactNode; children: ReactNode; className?: string; padded?: boolean }) {
+/**
+ * Raptor's card: soft border, large radius, a 15px title with an optional grey subtitle and no rule
+ * under it. A list card (`padded={false}`) keeps a hairline under the header so rows don't run into it.
+ */
+export function Card({ title, subtitle, actions, children, className, padded = true }: { title?: ReactNode; subtitle?: ReactNode; actions?: ReactNode; children: ReactNode; className?: string; padded?: boolean }) {
   return (
-    <section className={clsx('rounded-xl border border-slate-200 bg-white shadow-sm', className)}>
+    <section className={clsx('card overflow-hidden', className)}>
       {(title || actions) && (
-        <header className="flex items-center justify-between gap-2 border-b border-slate-100 px-4 py-3">
-          <h2 className="text-sm font-semibold text-slate-800">{title}</h2>
-          {actions && <div className="flex items-center gap-2">{actions}</div>}
+        <header className={clsx('flex items-start justify-between gap-3 px-5 pt-4', padded ? 'pb-1' : 'border-b border-slate-100 pb-3')}>
+          <div className="min-w-0">
+            <h2 className="text-[15px] font-semibold text-slate-800">{title}</h2>
+            {subtitle && <p className="mt-0.5 text-xs text-slate-400">{subtitle}</p>}
+          </div>
+          {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
         </header>
       )}
-      <div className={clsx(padded && 'p-4')}>{children}</div>
+      <div className={clsx(padded && 'p-5', padded && (title || actions) && 'pt-3')}>{children}</div>
     </section>
   )
 }
@@ -63,8 +71,8 @@ export function PageHeader({ title, subtitle, actions }: { title: ReactNode; sub
   return (
     <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
       <div className="min-w-0">
-        <h1 className="truncate text-xl font-semibold text-slate-900 sm:text-2xl">{title}</h1>
-        {subtitle && <p className="mt-0.5 text-sm text-slate-500">{subtitle}</p>}
+        <h2 className="truncate text-xl font-bold tracking-tight text-slate-900 sm:text-[22px]">{title}</h2>
+        {subtitle && <p className="mt-0.5 text-sm text-slate-400">{subtitle}</p>}
       </div>
       {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
     </div>
@@ -73,18 +81,18 @@ export function PageHeader({ title, subtitle, actions }: { title: ReactNode; sub
 
 export function StatTile({ label, value, hint, tone = 'default', icon }: { label: string; value: ReactNode; hint?: ReactNode; tone?: 'default' | 'good' | 'bad' | 'accent'; icon?: ReactNode }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-      <div className="flex items-center justify-between text-xs font-medium uppercase tracking-wide text-slate-500">
+    <div className="card p-5">
+      <div className="flex items-center justify-between gap-2 text-xs font-medium text-slate-400">
         <span>{label}</span>
         {icon && <span className="text-slate-400">{icon}</span>}
       </div>
       <div
         className={clsx(
-          'tabular mt-1.5 text-xl font-semibold sm:text-2xl',
+          'tabular mt-1 text-xl font-bold sm:text-2xl',
           tone === 'good' && 'text-emerald-700',
           tone === 'bad' && 'text-red-600',
           tone === 'accent' && 'text-brand-600',
-          tone === 'default' && 'text-slate-900',
+          tone === 'default' && 'text-slate-800',
         )}
       >
         {value}
@@ -119,7 +127,7 @@ export function Spinner({ label = 'Loading…', page }: { label?: string; page?:
           </div>
         </>
       )}
-      <div className={clsx('space-y-2 p-4', page && 'rounded-xl border border-slate-200 bg-white')}>
+      <div className={clsx('space-y-2 p-4', page && 'card')}>
         {[0, 1, 2, 3, 4].map((i) => <div key={i} className="h-5 rounded bg-slate-100" style={{ width: `${92 - i * 9}%` }} />)}
       </div>
       <span className="sr-only">{label}</span>

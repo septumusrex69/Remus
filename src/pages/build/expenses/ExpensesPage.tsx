@@ -45,7 +45,7 @@ export function ExpensesPage() {
         title="Expenses"
         actions={
           <>
-            <Link to={paths.capture()} className="inline-flex items-center gap-1.5 rounded-lg bg-brand-500 px-3.5 py-2 text-sm font-semibold text-slate-950 hover:bg-brand-400"><Camera size={16} /> Snap slip</Link>
+            <Link to={paths.capture()} className="inline-flex items-center gap-1.5 rounded-lg bg-brand-500 px-3.5 py-2 text-sm font-semibold text-white hover:bg-brand-600"><Camera size={16} /> Snap slip</Link>
             <Button onClick={() => setAdding(true)}><Plus size={16} /> Add</Button>
             <Button onClick={() => data && exportExpensesCsv(rows, data.projects, data.linked, `expenses-${range.from}-to-${range.to}.csv`)} disabled={!rows.length}><Download size={16} /> CSV</Button>
           </>

@@ -248,7 +248,7 @@ export function SlipCapture() {
         <div className="mx-auto flex max-w-md flex-col gap-3">
           <button
             onClick={() => cameraRef.current?.click()}
-            className="flex flex-col items-center justify-center gap-3 rounded-2xl bg-brand-500 px-6 py-12 text-slate-950 shadow-lg shadow-brand-500/20 active:scale-[0.99]"
+            className="flex flex-col items-center justify-center gap-3 rounded-2xl bg-brand-500 px-6 py-12 text-white shadow-lg shadow-brand-500/20 active:scale-[0.99]"
           >
             <Camera size={44} />
             <span className="text-xl font-semibold">Snap slip</span>

@@ -69,7 +69,7 @@ export function DashboardPage() {
         subtitle={`${active.length} active project${active.length === 1 ? '' : 's'}`}
         actions={
           <>
-            <Link to={paths.capture()} className="hidden items-center gap-1.5 rounded-lg bg-brand-500 px-3.5 py-2 text-sm font-semibold text-slate-950 hover:bg-brand-400 sm:inline-flex">
+            <Link to={paths.capture()} className="hidden items-center gap-1.5 rounded-lg bg-brand-500 px-3.5 py-2 text-sm font-semibold text-white hover:bg-brand-600 sm:inline-flex">
               <Camera size={16} /> Snap slip
             </Link>
             <Link to={`${paths.quotes()}?new=1`} className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-3.5 py-2 text-sm font-medium text-white hover:bg-slate-800">

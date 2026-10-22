@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { Mail, Plus, RefreshCw } from 'lucide-react'
 import { contactName, listClientEmails, listProfiles, mailboxStatus, syncMailbox } from '../../../lib/api'
 import { emailDayLabel, emailTimeLabel, parseEmailActivity, replySubject } from '../../../lib/emailActivity'
@@ -29,6 +29,8 @@ export function ClientEmails({ company, contact, people }: { company: Company | 
   }, [company?.id, contact?.id, contactIds.join(',')], 'client-emails')
 
   const [draft, setDraft] = useState<Draft | null>(null)
+  // The envelope in the top bar links here with ?email=<id>: open that message and scroll to it.
+  const [params] = useSearchParams()
   const [syncing, setSyncing] = useState(false)
   const [syncNote, setSyncNote] = useState<string | null>(null)
   const [syncError, setSyncError] = useState<string | null>(null)
@@ -101,6 +103,7 @@ export function ClientEmails({ company, contact, people }: { company: Company | 
             activities={emails}
             profiles={data?.profiles}
             onReply={connected ? reply : undefined}
+            focusId={params.get('email')}
             onChanged={(id, patch) => setData((d) => d && { ...d, emails: d.emails.map((a) => (a.id === id ? { ...a, ...patch } : a)) })}
           />
         </div>

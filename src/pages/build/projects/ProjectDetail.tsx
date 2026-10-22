@@ -203,7 +203,7 @@ function ExpensesTab({ projectId, rows, projects, linked, reload, act }: { proje
       padded={false}
       actions={
         <>
-          <Link to={`${paths.capture()}?project=${projectId}`} className="inline-flex items-center gap-1 rounded-lg bg-brand-500 px-2.5 py-1.5 text-xs font-semibold text-slate-950"><Camera size={13} /> Snap slip</Link>
+          <Link to={`${paths.capture()}?project=${projectId}`} className="inline-flex items-center gap-1 rounded-lg bg-brand-500 px-2.5 py-1.5 text-xs font-semibold text-white"><Camera size={13} /> Snap slip</Link>
           <Button size="sm" onClick={() => setAdding(true)}><Plus size={13} /> Add</Button>
         </>
       }

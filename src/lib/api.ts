@@ -713,6 +713,8 @@ export async function listLinkedPaymentIds(): Promise<Set<ID>> {
 
 // ---------- Client emails (ported from Raptor: synced into activities, sent from your own mailbox) ----------
 
+const EMAIL_COLUMNS = 'id, type, user_id, company_id, contact_id, subject, notes, activity_date, created_at, email_message_id, is_read, attachment_names'
+
 /** Emails logged against a client: a company's own and its people's, or one private contact's. */
 export async function listClientEmails(ref: { companyId?: ID; contactIds: ID[] }): Promise<Activity[]> {
   const ors: string[] = []
@@ -722,7 +724,7 @@ export async function listClientEmails(ref: { companyId?: ID; contactIds: ID[] }
   return unwrap<Activity[]>(
     await supabase
       .from('activities')
-      .select('id, type, user_id, company_id, contact_id, subject, notes, activity_date, created_at, email_message_id, is_read, attachment_names')
+      .select(EMAIL_COLUMNS)
       .eq('type', 'Email')
       .or(ors.join(','))
       .order('activity_date', { ascending: false })
@@ -730,8 +732,34 @@ export async function listClientEmails(ref: { companyId?: ID; contactIds: ID[] }
   )
 }
 
+/** Fired after any email is marked read or unread, so the unread counts recount (lib/unreadMail). */
+export const MAIL_CHANGED = 'remus:mail-changed'
+
 export async function setEmailRead(id: ID, isRead: boolean): Promise<void> {
   unwrap(await supabase.from('activities').update({ is_read: isRead }).eq('id', id).select('id').single())
+  window.dispatchEvent(new Event(MAIL_CHANGED))
+}
+
+/** The person's own unread received client mail, newest first (the Mail badge and the envelope). */
+export async function listUnreadEmails(userId: ID): Promise<Activity[]> {
+  return unwrap<Activity[]>(
+    await supabase
+      .from('activities')
+      .select(EMAIL_COLUMNS)
+      .eq('type', 'Email')
+      .eq('user_id', userId)
+      .eq('is_read', false)
+      .like('subject', 'Email received%')
+      .order('activity_date', { ascending: false })
+      .limit(100),
+  )
+}
+
+/** Every client email in one list, for the Mail page. `mine` limits it to the person's own mailbox. */
+export async function listAllEmails(opts: { userId?: ID; limit?: number } = {}): Promise<Activity[]> {
+  let q = supabase.from('activities').select(EMAIL_COLUMNS).eq('type', 'Email')
+  if (opts.userId) q = q.eq('user_id', opts.userId)
+  return unwrap<Activity[]>(await q.order('activity_date', { ascending: false }).limit(opts.limit ?? 500))
 }
 
 /** Files new mail from known clients now, instead of waiting for the daily sync. */
