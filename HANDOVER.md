@@ -59,7 +59,7 @@ What the branch adds:
      report on `email_connections` is expected);
    - merge `remus-e2e-fixes` into `main` and check the deploy.
    Earlier, `apply_migration` was blocked pending this approval.
-2. **Administrator login (done 22 Oct).** Stephan logs in as **`stefan@urbanhausgroup.co.za`**
+2. **Administrator login (done 22 Oct).** Stephan logs in as **`stephan@urbanhausgroup.co.za`** (Stephan with "ph")
    (Administrator). That account was created as `stefan@urbanhousegroup.com` by mistake and was
    renamed in the database. The company is Urban **Haus** (H-A-U-S), never "House".
    `stephan@bredellferreira.co.za` (Team member) is his old login; ask before removing it.
