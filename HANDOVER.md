@@ -40,6 +40,11 @@ What the branch adds:
   filed in their Sent folder. Migration `0005_email_connections.sql`; code in
   `api/email/mailbox.ts`, `api/_lib/mailbox.ts`, `api/quotes/send.ts`. The company sender
   (Resend/SMTP) is only the fallback for people who haven't connected a mailbox.
+- **Client emails (22 Oct), as in Raptor:** an Emails card on every client page. Send and reply
+  from your own mailbox; incoming mail from known clients is synced daily (Vercel Cron, needs
+  `CRON_SECRET`) or on Sync, and filed by sender address or reply thread. Attachments are fetched
+  from the mailbox on demand. Migration `0006_client_emails.sql` (applied to the live project on
+  22 Oct); code in `api/email/{send,sync,attachment}.ts` and `api/_lib/emailSync.ts`.
 - **Speed:** cached pages, lazy charts, preloading, loading skeletons.
 - **Robustness:** error boundaries, so a crash is never a blank page.
 - **Small features:**

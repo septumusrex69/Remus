@@ -7,7 +7,7 @@ import { adminClient, getConnection, imapClient, smtpTransport } from '../_lib/m
  * The caller's own mailbox (adapted from Raptor's api/email/connect, status and disconnect, in one
  * function to stay well inside Vercel's function count).
  *
- * GET    → { connected, email }            never returns the password
+ * GET    → { connected, email, lastSyncedAt }   never returns the password
  * POST   { email, password, smtpHost, smtpPort, imapHost, imapPort }
  *        → logs in over IMAP and SMTP first, and only saves when both work
  * DELETE → forgets the mailbox
@@ -23,7 +23,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (req.method === 'GET') {
     const conn = await getConnection(admin, userId)
-    return res.status(200).json({ connected: !!conn, email: conn?.email ?? null })
+    return res.status(200).json({ connected: !!conn, email: conn?.email ?? null, lastSyncedAt: conn?.last_synced_at ?? null })
   }
 
   if (req.method === 'DELETE') {
@@ -73,6 +73,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     user_id: userId,
     ...conn,
     encrypted_password: encrypt(password),
+    // A different mailbox (or the same one reconnected) starts its sync afresh.
+    last_seen_uid: null,
+    last_seen_uid_junk: null,
     updated_at: new Date().toISOString(),
   })
   if (error) return res.status(500).json({ error: error.message })

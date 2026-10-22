@@ -35,6 +35,8 @@ npm run dev
    - `0004_connector_tokens.sql`: personal access tokens for the Claude connector.
    - `0005_email_connections.sql`: each person's own mailbox (encrypted password; RLS on with no
      policies, so only the server can read it).
+   - `0006_client_emails.sql`: sync watermarks on the mailbox, and Raptor's `activities` table,
+     where clients' sent and received emails are filed.
 3. In Authentication → URL Configuration set the Site URL to the app's address and add
    `<app>/set-password` to the redirect URLs (invite and password-reset links land there).
 4. Create the first user under Authentication → Users. The first person becomes Administrator
@@ -64,11 +66,12 @@ reports that email isn't set up.
 | `RESEND_API_KEY`, `EMAIL_FROM` | functions only | no: company sender for people who haven't connected their own mailbox. Enables "Send to client" through Resend (simplest; `EMAIL_FROM` like `Urban Haus <quotes@urbanhausgroup.co.za>` on a domain verified in Resend) |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` | functions only | no: or send over SMTP instead (used only when Resend isn't set) |
 | `SUPABASE_SERVICE_ROLE_KEY` | functions only | no: enables in-app invites, the Claude connector and "My email" |
+| `CRON_SECRET` | functions only | for the daily mailbox sync: any long random string. Vercel Cron sends it to `api/email/sync`; without it the daily sync is refused (Sync buttons still work) |
 | `APP_URL` | functions only | no: production address for invite and connector links (default `https://remus-xi.vercel.app`) |
 
 Most functions verify the caller's Supabase session and then query *as that user*, so RLS applies.
 Only `api/team/invite.ts` (Supabase's admin invite API), `api/mcp.ts` (which acts for the owner
-of a personal access token) and the mailbox code (`api/email/mailbox.ts`, and `api/quotes/send.ts`
+of a personal access token) and the mailbox code (`api/email/*`, and `api/quotes/send.ts`
 reading the sender's own mailbox) use the service-role key, and each only ever touches the
 caller's own rows or checks the person's role and status itself.
 
@@ -79,6 +82,17 @@ IMAP to file a copy in their Sent folder; presets for company-domain hosting, Go
 Microsoft 365). Quotes then go out from their own address with their signature. Someone who
 hasn't connected a mailbox sends from the company sender (`RESEND_API_KEY` + `EMAIL_FROM`, or
 `SMTP_*`) if one is set, and otherwise gets "Download PDF".
+
+**Client emails** (also from Raptor). Every client page has an **Emails** card:
+
+- **Send and reply** from your own mailbox, with your signature (`api/email/send.ts`). Quotes sent
+  from your own mailbox appear there too.
+- **Incoming mail** is read from Inbox and Junk once a day by Vercel Cron, and on **Sync**
+  (`api/email/sync.ts`, logic in `api/_lib/emailSync.ts`). A message is filed on a client when
+  the sender's address matches a contact or company, or when it replies to an email sent from
+  Remus. The rest of the mailbox is ignored. The first sync looks at the latest 25 messages.
+- **Attachments** are listed by name and downloaded from the mailbox when opened
+  (`api/email/attachment.ts`), never copied into Storage.
 
 ## Features
 
@@ -93,7 +107,7 @@ hasn't connected a mailbox sends from the company sender (`RESEND_API_KEY` + `EM
   letterhead and A4 print CSS (browser Print → Save as PDF). **Send to client** emails the client
   version PDF, or the uploaded files plus a summary in the email body.
 - **Clients**: companies and private individuals (Raptor `companies` + `contacts`), each with
-  their quotes, projects and invoices.
+  their quotes, projects, invoices and emails.
 - **Projects**: status, profit and budget-used bar. Detail tabs: Overview (financials, expenses by
   category), Expenses, Invoices & payments, Variations, Site diary, Schedule.
 - **Expenses / Snap slip**: a large camera button on phones (and multi-file upload on desktop).
@@ -143,8 +157,9 @@ credentials and a signed agreement, so it can't be added from code alone. The se
 
 ```
 api/                      Vercel functions: receipts/extract.ts, quotes/send.ts, quotes/pdf.ts,
-                          team/invite.ts, mcp.ts; _lib/ (auth, quotePdf, mcpTools)
-supabase/migrations/      0001_init.sql … 0004_connector_tokens.sql
+                          team/invite.ts, mcp.ts, email/ (mailbox, send, sync, attachment);
+                          _lib/ (auth, quotePdf, mcpTools, mailbox, emailSync)
+supabase/migrations/      0001_init.sql … 0006_client_emails.sql
 src/lib/                  api.ts (typed data access), reconcile.ts, bankCsv.ts, quoteMath.ts, …
 src/types.ts              Row types (column names = database names)
 src/store/AuthContext.tsx Same shape as Raptor's

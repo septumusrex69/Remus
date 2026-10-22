@@ -1,7 +1,9 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { ImapFlow, type ListResponse } from 'imapflow'
 import nodemailer from 'nodemailer'
+import MailComposer from 'nodemailer/lib/mail-composer/index.js'
 import { decrypt } from './crypto.js'
+import { SIGNATURE_CID, composeBody, fetchSignatureImage, signatureHtml } from './signature.js'
 
 /**
  * Each person's own mailbox, as in Raptor (api/email/* and api/_lib/emailSync.ts there).
@@ -18,6 +20,7 @@ export interface MailboxConnection {
   imap_host: string
   imap_port: number
   encrypted_password: string
+  last_synced_at?: string | null
 }
 
 /** Service-role client, or null when SUPABASE_SERVICE_ROLE_KEY isn't set. */
@@ -55,7 +58,7 @@ export function imapClient(c: { email: string; imap_host: string; imap_port: num
   })
 }
 
-function findFolder(mailboxes: ListResponse[], specialUse: string, commonNames: string[]): string | undefined {
+export function findFolder(mailboxes: ListResponse[], specialUse: string, commonNames: string[]): string | undefined {
   const bySpecialUse = mailboxes.find((m) => m.specialUse === specialUse)
   if (bySpecialUse) return bySpecialUse.path
   const byName = mailboxes.find((m) => commonNames.includes(m.name.toLowerCase()) || commonNames.includes(m.path.toLowerCase()))
@@ -77,4 +80,98 @@ export async function appendToSent(conn: MailboxConnection, rawMessage: Buffer):
   } finally {
     await client.logout().catch(() => {})
   }
+}
+
+const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!)
+
+export type SenderProfile = {
+  name?: string | null
+  email_signature?: string | null
+  email_signature_image_url?: string | null
+  email_signature_image_width?: number | null
+  email_signature_image_align?: 'left' | 'center' | 'right' | null
+} | null
+
+/**
+ * Sends from the person's own mailbox, as in Raptor's api/email/send.ts: their name and address
+ * on the From line, their signature (image embedded, not linked), and a copy in their Sent folder.
+ * Used by quotes and by client emails. Returns the message's Message-ID, so a reply can be filed
+ * on the same client.
+ */
+export async function sendFromOwnMailbox(
+  conn: MailboxConnection,
+  me: SenderProfile,
+  msg: {
+    to: string[]
+    cc: string[]
+    subject: string
+    html: string
+    text: string
+    attachments: { filename: string; content: Buffer; contentType?: string }[]
+    /** Message-ID being answered: threads the reply under it in the client's mail app. */
+    inReplyTo?: string | null
+  },
+): Promise<string | null> {
+  const imageUrl = me?.email_signature_image_url ?? null
+  const image = imageUrl ? { width: me?.email_signature_image_width ?? 160, align: me?.email_signature_image_align ?? 'left' } : null
+  const embedded = imageUrl ? await fetchSignatureImage(imageUrl) : null
+  const imageSrc = imageUrl ? (embedded ? `cid:${SIGNATURE_CID}` : imageUrl) : null
+  const signature = signatureHtml(me?.email_signature ? esc(me.email_signature) : null, image, imageSrc)
+
+  const name = me?.name?.trim()
+  const mail = {
+    from: name ? { name, address: conn.email } : conn.email,
+    to: msg.to,
+    cc: msg.cc.length ? msg.cc : undefined,
+    subject: msg.subject,
+    html: composeBody(msg.html, signature),
+    text: me?.email_signature ? `${msg.text}\n\n${me.email_signature}` : msg.text,
+    attachments: [
+      ...msg.attachments,
+      ...(embedded ? [{ filename: 'signature', content: embedded.content, contentType: embedded.contentType, cid: SIGNATURE_CID }] : []),
+    ],
+    ...(msg.inReplyTo ? { inReplyTo: msg.inReplyTo, references: msg.inReplyTo } : {}),
+  }
+  const info = await smtpTransport(conn, decrypt(conn.encrypted_password)).sendMail(mail)
+  const messageId = (info.messageId as string | undefined) ?? null
+
+  // Best effort: the message has already gone, so failing to file the copy is never a send error.
+  // The copy carries the same Message-ID, so it is the same message in the person's mail app.
+  try {
+    const raw = await new MailComposer({ ...mail, messageId: messageId ?? undefined }).compile().build()
+    await appendToSent(conn, raw)
+  } catch (e) {
+    console.error('Email sent, but not filed in Sent', e)
+  }
+  return messageId
+}
+
+/** Room for a long business email, while refusing to store a runaway newsletter or quoted chain. */
+export const EMAIL_NOTES_MAX_LENGTH = 20000
+
+/**
+ * Records a sent email on the client's Emails card (an `activities` row, as in Raptor).
+ * Best effort: the email has already gone, so a failure is logged, never thrown.
+ */
+export async function logEmailActivity(
+  db: SupabaseClient,
+  e: { userId: string; companyId: string | null; contactId: string | null; subject: string; notes: string; messageId: string | null },
+): Promise<string | null> {
+  if (!e.companyId && !e.contactId) return null
+  const { data, error } = await db
+    .from('activities')
+    .insert({
+      type: 'Email',
+      user_id: e.userId,
+      company_id: e.companyId,
+      contact_id: e.contactId,
+      subject: `Email sent: ${e.subject}`,
+      notes: e.notes.slice(0, EMAIL_NOTES_MAX_LENGTH),
+      email_message_id: e.messageId,
+      is_read: true,
+    })
+    .select('id')
+    .maybeSingle()
+  if (error) console.error('Email sent, but not logged on the client', error.message)
+  return (data?.id as string | undefined) ?? null
 }

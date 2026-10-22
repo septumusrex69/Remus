@@ -1,11 +1,9 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import nodemailer from 'nodemailer'
-import MailComposer from 'nodemailer/lib/mail-composer/index.js'
 import { requireCaller, supabaseEnv } from '../_lib/auth.js'
-import { credentialsKeyProblem, decrypt } from '../_lib/crypto.js'
-import { adminClient, appendToSent, getConnection, smtpTransport, type MailboxConnection } from '../_lib/mailbox.js'
+import { credentialsKeyProblem } from '../_lib/crypto.js'
+import { adminClient, getConnection, logEmailActivity, sendFromOwnMailbox, type MailboxConnection } from '../_lib/mailbox.js'
 import { buildQuotePdf } from '../_lib/quotePdf.js'
-import { SIGNATURE_CID, composeBody, fetchSignatureImage, signatureHtml } from '../_lib/signature.js'
 
 /**
  * Emails a quote to the client.
@@ -128,7 +126,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     db.from('quote_attachments').select('*').eq('quote_id', body.quoteId).order('sort_order'),
   ])
   const quote = quoteRes.data as
-    | { id: string; number: string | null; title: string; site_address: string | null; status: string; valid_until: string | null; discount: number; vat_rate: number }
+    | { id: string; number: string | null; title: string; site_address: string | null; status: string; valid_until: string | null; discount: number; vat_rate: number; company_id: string | null; contact_id: string | null }
     | null
   if (!quote) {
     res.status(404).json({ error: 'Quote not found.' })
@@ -202,9 +200,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const html = `<div style="font-family:Arial,Helvetica,sans-serif;color:#0f172a;line-height:1.5">${esc(message).replace(/\n/g, '<br>')}${summary}</div>`
   const text = `${message}${clientPdf ? '' : `\n\nQuote ${quote.number ?? ''}: ${quote.title}\nTotal excl. VAT: ${zar(totalExcl)}\nVAT: ${zar(vat)}\nTotal: ${zar(totalIncl)}`}`
 
+  let messageId: string | null = null
   try {
     if (own) {
-      await sendFromOwnMailbox(own, me, { to, cc, subject, html, text, attachments: files })
+      messageId = await sendFromOwnMailbox(own, me, { to, cc, subject, html, text, attachments: files })
     } else if (via === 'resend') {
       const r = await fetch('https://api.resend.com/emails', {
         method: 'POST',
@@ -249,6 +248,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return
   }
 
+  // On the client's Emails card too. With the Message-ID recorded, the client's reply to the quote
+  // is filed on the same client when the person's mailbox syncs.
+  await logEmailActivity(db, {
+    userId: caller.user.id,
+    companyId: quote.company_id,
+    contactId: quote.contact_id,
+    subject,
+    notes: `${message}${files.length ? `\n\nAttached: ${files.map((f) => f.filename).join(', ')}` : ''}`.trim(),
+    messageId,
+  })
+
   // The email has already gone, so a failure here is reported as a warning rather than an error:
   // a 500 would invite a retry and the client would get the quote twice.
   const now = new Date().toISOString()
@@ -279,51 +289,4 @@ async function ownMailbox(userId: string): Promise<MailboxConnection | null> {
   const admin = adminClient()
   if (!admin || credentialsKeyProblem()) return null
   return getConnection(admin, userId)
-}
-
-type Profile = {
-  name?: string | null
-  email_signature?: string | null
-  email_signature_image_url?: string | null
-  email_signature_image_width?: number | null
-  email_signature_image_align?: 'left' | 'center' | 'right' | null
-} | null
-
-/**
- * Sends from the person's own mailbox, as in Raptor's api/email/send.ts: their name and address
- * on the From line, their signature (image embedded, not linked), and a copy in their Sent folder.
- */
-async function sendFromOwnMailbox(
-  conn: MailboxConnection,
-  me: Profile,
-  msg: { to: string[]; cc: string[]; subject: string; html: string; text: string; attachments: { filename: string; content: Buffer; contentType?: string }[] },
-) {
-  const imageUrl = me?.email_signature_image_url ?? null
-  const image = imageUrl ? { width: me?.email_signature_image_width ?? 160, align: me?.email_signature_image_align ?? 'left' } : null
-  const embedded = imageUrl ? await fetchSignatureImage(imageUrl) : null
-  const imageSrc = imageUrl ? (embedded ? `cid:${SIGNATURE_CID}` : imageUrl) : null
-  const signature = signatureHtml(me?.email_signature ? esc(me.email_signature) : null, image, imageSrc)
-
-  const name = me?.name?.trim()
-  const mail = {
-    from: name ? { name, address: conn.email } : conn.email,
-    to: msg.to,
-    cc: msg.cc.length ? msg.cc : undefined,
-    subject: msg.subject,
-    html: composeBody(msg.html, signature),
-    text: me?.email_signature ? `${msg.text}\n\n${me.email_signature}` : msg.text,
-    attachments: [
-      ...msg.attachments,
-      ...(embedded ? [{ filename: 'signature', content: embedded.content, contentType: embedded.contentType, cid: SIGNATURE_CID }] : []),
-    ],
-  }
-  await smtpTransport(conn, decrypt(conn.encrypted_password)).sendMail(mail)
-
-  // Best effort: the message has already gone, so failing to file the copy is never a send error.
-  try {
-    const raw = await new MailComposer(mail).compile().build()
-    await appendToSent(conn, raw)
-  } catch (e) {
-    console.error('Quote sent, but not filed in Sent', e)
-  }
 }
