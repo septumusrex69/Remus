@@ -4,8 +4,9 @@ Management app for Urban Haus Construction (Urban Haus Group, urbanhausgroup.co.
 costing, slip capture, bank reconciliation, site diary and finance. Amounts are in rand (ZAR) with
 VAT at 15% by default (configurable in Settings).
 
-Remus is built to be merged into Raptor/Romulus later. It uses the same stack, the same Supabase
-conventions, and the same table/column names wherever the two overlap (see **Merging into Raptor**).
+Remus is a standalone app with its own repo, Vercel project and Supabase database. It is not
+going to be merged into Raptor/Romulus. It borrows Raptor's stack and proven patterns (see
+**Relationship to Raptor**).
 
 ## Stack
 
@@ -136,24 +137,19 @@ src/lib/                  api.ts (typed data access), reconcile.ts, bankCsv.ts, 
 src/types.ts              Row types (column names = database names)
 src/store/AuthContext.tsx Same shape as Raptor's
 src/pages/auth/           Login
-src/pages/build/          The whole construction section, liftable into Raptor
+src/pages/build/          The construction app's pages
   routes.tsx              <Route> fragment with relative paths
   paths.ts                BUILD_BASE + link helpers
   BuildContext.tsx        Company settings + bank badge count
 ```
 
-## Merging into Raptor
+## Relationship to Raptor
 
-- Copy `src/pages/build/`, the `src/lib/` files it imports, and the Remus types. Set
-  `BUILD_BASE = '/build'` in `paths.ts` and mount
-  `<Route path="/build" element={<BuildProvider><Outlet/></BuildProvider>}>{buildRoutes}</Route>`
-  inside Raptor's authenticated layout.
-- The migration uses `create table if not exists` for `teams`, `profiles`, `companies` and
-  `contacts`, and adds the Remus-only columns with `add column if not exists`, so it can run
-  against Raptor's database. Before running it there, drop the `remus_all` policies on
-  `companies` and `contacts` from the script so Raptor's narrower policies stay in force.
-- `diary_events` uses Raptor's relationship column names (`owner_id`, `company_id`,
-  `contact_id`), so a merged calendar can union diary events with Raptor's `tasks`.
+Remus and Raptor (septumusrex69/Sales-Raptor) are separate products. Remus started with Raptor's
+stack and some of its conventions (the `profiles`, `companies` and `contacts` column names, the
+role names, the AuthContext shape), and keeps learning from Raptor's patterns. Copy what works
+from Raptor, but design Remus's own data and screens for construction; don't constrain them to
+stay mergeable.
 
 ## Hosting
 
