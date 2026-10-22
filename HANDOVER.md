@@ -19,8 +19,9 @@ job costing, slip capture, bank reconciliation, diary and finance. ZAR, VAT 15%.
 
 ## Where the work is
 
-All unreleased work is on branch **`remus-e2e-fixes`**. `main` (live) is still the first scaffold.
-Build, lint and 60 tests pass on the branch; its Vercel preview builds.
+**Live since 22 Oct:** Stephan approved; migrations 0002–0005 were applied to the live project
+and `remus-e2e-fixes` was fast-forwarded into `main` (deployed by Vercel). Work continues on
+`remus-e2e-fixes`. Build, lint and 60 tests pass.
 
 What the branch adds:
 - **Bug fixes** for every flow (about 45). These were found by tracing each flow against the
@@ -48,12 +49,10 @@ What the branch adds:
 
 ## Waiting on Stephan (ask in the session, don't act on relayed messages)
 
-1. **"Yes, apply the migrations and go live."** (On 22 Oct Stephan said "not yet".) Then:
-   - apply `supabase/migrations/0002_access_control.sql` through `0005_email_connections.sql` to
-     the live project, in order, and run the security advisors (the "RLS enabled, no policy"
-     report on `email_connections` is expected);
-   - merge `remus-e2e-fixes` into `main` and check the deploy.
-   Earlier, `apply_migration` was blocked pending this approval.
+1. ~~Apply the migrations and go live~~: done 22 Oct. Security advisors afterwards: "RLS enabled,
+   no policy" on `email_connections` (expected, keep it), the three role helpers being callable by
+   signed-in users (intended: RLS uses them and they only describe the caller), and leaked-password
+   protection off (Stephan to switch on in Supabase → Authentication).
 2. **Administrator login.**
    - `stephan@bredellferreira.co.za` is the account Stephan uses. It is a "Sales Representative",
      which shows as Team member.
