@@ -22,8 +22,8 @@ npm run dev
 ```
 
 1. Create a Supabase project.
-2. Run `supabase/migrations/0001_init.sql` in the SQL editor (or `supabase db push`). It is safe to
-   re-run. It creates the tables, views, RLS policies, the signup trigger, quote/invoice numbering
+2. Run `supabase/migrations/0001_init.sql`, then `0002_email.sql`, in the SQL editor (or
+   `supabase db push`). Both are safe to re-run. It creates the tables, views, RLS policies, the signup trigger, quote/invoice numbering
    and two private Storage buckets (`receipts`, `quote-files`).
 3. Create users under Authentication → Users (email + password). The first person to sign up
    becomes Administrator. Everyone signed in can read and write all company data.
@@ -48,9 +48,13 @@ slip reading falls back to manual entry and "Send to client" reports that email 
 | `VITE_SUPABASE_ANON_KEY` | browser + functions | yes (anon or publishable key; `VITE_SUPABASE_PUBLISHABLE_KEY` is accepted as an alias) |
 | `ANTHROPIC_API_KEY` | functions only | no: enables AI slip reading |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` | functions only | no: enables "Send to client" |
+| `SUPABASE_SERVICE_ROLE_KEY` | functions only | for email: reads the mailbox logins table |
+| `EMAIL_CREDENTIALS_KEY` | functions only | for email: 32-byte base64 key (`openssl rand -base64 32`) that encrypts mailbox passwords; same value as Raptor's if the databases will be shared |
+| `CRON_SECRET` | functions only | for email: lets Vercel Cron run the daily mailbox sync |
 
-The functions verify the caller's Supabase session and then query *as that user*, so RLS applies
-and no service-role key is needed.
+The functions verify the caller's Supabase session and then query *as that user*, so RLS applies.
+The exception is `api/email/*`: mailbox logins are in `email_connections`, which has no RLS
+policies at all, so those functions use the service-role key.
 
 ## Features
 
@@ -65,7 +69,15 @@ and no service-role key is needed.
   letterhead and A4 print CSS (browser Print → Save as PDF). **Send to client** emails the client
   version PDF, or the uploaded files plus a summary in the email body.
 - **Clients**: companies and private individuals (Raptor `companies` + `contacts`), each with
-  their quotes, projects and invoices.
+  their quotes, projects, invoices and **emails**.
+- **Email** (ported from Raptor): each person connects their own mailbox under Settings → My
+  mailbox (SMTP + IMAP; the login is verified, then the password is stored AES-GCM encrypted).
+  From a client's page you can email them through your own mailbox, with your signature; a copy
+  is filed in your mailbox's Sent folder. Incoming mail is synced daily by Vercel Cron (and on
+  "Sync now") from Inbox and Junk: a message is filed on a client when the sender's address
+  matches a contact or company, or when it replies to an email sent from Remus. Everything else
+  in the mailbox is ignored. Attachments are listed by name and downloaded from the mailbox on
+  demand, not copied into Storage.
 - **Projects**: status, profit and budget-used bar. Detail tabs: Overview (financials, expenses by
   category), Expenses, Invoices & payments, Variations, Site diary, Schedule.
 - **Expenses / Snap slip**: a large camera button on phones (and multi-file upload on desktop).
@@ -84,13 +96,13 @@ and no service-role key is needed.
   net cash, profit per project, expenses by category, monthly income vs expenses, outstanding
   invoices with ageing, and a CSV export of expenses.
 - **Settings**: letterhead details, VAT rate, quote/invoice numbering, default terms, bank
-  details, your profile, and the team list.
+  details, your profile and email signature, your mailbox, and the team list.
 
 ## Layout
 
 ```
-api/                      Vercel functions (receipts/extract.ts, quotes/send.ts, _lib/auth.ts)
-supabase/migrations/      0001_init.sql
+api/                      Vercel functions (receipts/extract.ts, quotes/send.ts, email/*, _lib/)
+supabase/migrations/      0001_init.sql, 0002_email.sql
 src/lib/                  api.ts (typed data access), reconcile.ts, bankCsv.ts, quoteMath.ts, …
 src/types.ts              Row types (column names = database names)
 src/store/AuthContext.tsx Same shape as Raptor's
@@ -111,6 +123,10 @@ src/pages/build/          The whole construction section, liftable into Raptor
   `contacts`, and adds the Remus-only columns with `add column if not exists`, so it can run
   against Raptor's database. Before running it there, drop the `remus_all` policies on
   `companies` and `contacts` from the script so Raptor's narrower policies stay in force.
+- `0002_email.sql` creates `email_connections` and `activities` with `if not exists`, so Raptor's
+  existing tables are left alone. Drop its `remus_all` policy on `activities` there. The
+  `api/email/*` functions and `api/_lib/emailSync.ts` came from Raptor; when merging, keep
+  Raptor's versions (they also handle leads, deals and notifications).
 - `diary_events` uses Raptor's relationship column names (`owner_id`, `company_id`,
   `contact_id`), so a merged calendar can union diary events with Raptor's `tasks`.
 

@@ -28,6 +28,7 @@ export interface Profile {
   phone: string | null
   avatar_color: string
   created_at: string
+  email_signature: string | null
 }
 
 export interface Company {
@@ -61,6 +62,31 @@ export interface Contact {
   address: string | null
   id_number: string | null
   created_at: string
+}
+
+/**
+ * Raptor's activity row. Remus only logs emails in it (type 'Email'); the subject carries an
+ * "Email sent: " / "Email received: " prefix, parsed by lib/emailActivity.ts.
+ */
+export interface Activity {
+  id: ID
+  type: string
+  user_id: ID
+  company_id: ID | null
+  contact_id: ID | null
+  subject: string
+  notes: string | null
+  activity_date: string
+  created_at: string
+  email_message_id: string | null
+  is_read: boolean
+  attachment_names: string[] | null
+}
+
+export interface EmailStatus {
+  connected: boolean
+  email: string | null
+  lastSyncedAt: string | null
 }
 
 /** A client is a company (business) or a contact with no company (private individual). */

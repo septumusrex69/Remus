@@ -17,6 +17,7 @@ import { useLoad } from '../../../hooks/useLoad'
 import { Button, Card, EmptyState, ErrorBanner, Field, PageHeader, Spinner, StatusBadge } from '../../../components/ui'
 import type { Company, Contact } from '../../../types'
 import { paths } from '../paths'
+import { ClientEmails } from './ClientEmails'
 
 /** One page for both client kinds: /clients/company/:id and /clients/contact/:id. */
 export function ClientDetail({ kind }: { kind: 'company' | 'contact' }) {
@@ -135,6 +136,7 @@ export function ClientDetail({ kind }: { kind: 'company' | 'contact' }) {
             <div className="rounded-xl border border-slate-200 bg-white p-4"><p className="text-xs text-slate-500">Invoiced (incl. VAT)</p><p className="tabular text-lg font-semibold">{formatZAR(invoiced)}</p></div>
             <div className="rounded-xl border border-slate-200 bg-white p-4"><p className="text-xs text-slate-500">Received</p><p className="tabular text-lg font-semibold">{formatZAR(received)}</p></div>
           </div>
+          <ClientEmails company={data.company} contact={data.contact} people={data.people} />
           <Card title="Projects" padded={false}>
             {data.projects.length === 0 ? <EmptyState title="No projects" /> : (
               <ul className="divide-y divide-slate-100">

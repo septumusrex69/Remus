@@ -2,5 +2,8 @@
   "regions": ["cdg1"],
   "rewrites": [
     { "source": "/((?!api/|assets/|favicon\\.svg).*)", "destination": "/index.html" }
+  ],
+  "crons": [
+    { "path": "/api/email/sync-all", "schedule": "0 5 * * *" }
   ]
 }

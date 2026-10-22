@@ -6,6 +6,7 @@ import { useAuth } from '../../../store/AuthContext'
 import { Badge, Button, Card, ErrorBanner, Field, PageHeader } from '../../../components/ui'
 import type { CompanySettings } from '../../../types'
 import { useBuild } from '../BuildContext'
+import { MailboxCard } from './MailboxCard'
 
 export function SettingsPage() {
   const { settings, reloadSettings } = useBuild()
@@ -15,13 +16,14 @@ export function SettingsPage() {
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const team = useLoad(() => listProfiles())
-  const [me, setMe] = useState({ name: '', phone: '' })
+  const [me, setMe] = useState({ name: '', phone: '', signature: '' })
+  const [meSaved, setMeSaved] = useState(false)
 
   useEffect(() => {
     if (settings) setForm(settings)
   }, [settings])
   useEffect(() => {
-    if (currentUser) setMe({ name: currentUser.name, phone: currentUser.phone ?? '' })
+    if (currentUser) setMe({ name: currentUser.name, phone: currentUser.phone ?? '', signature: currentUser.email_signature ?? '' })
   }, [currentUser])
 
   const set = <K extends keyof CompanySettings>(k: K, v: CompanySettings[K]) => {
@@ -61,8 +63,9 @@ export function SettingsPage() {
   async function saveMe() {
     if (!currentUser) return
     try {
-      await updateOwnProfile(currentUser.id, { name: me.name, phone: me.phone || null })
+      await updateOwnProfile(currentUser.id, { name: me.name, phone: me.phone || null, email_signature: me.signature.trim() || null })
       team.reload()
+      setMeSaved(true)
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
     }
@@ -107,9 +110,13 @@ export function SettingsPage() {
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label="Name"><input className="input" value={me.name} onChange={(e) => setMe({ ...me, name: e.target.value })} /></Field>
             <Field label="Phone"><input className="input" value={me.phone} onChange={(e) => setMe({ ...me, phone: e.target.value })} /></Field>
+            <Field label="Email signature" className="sm:col-span-2" hint="Added under every email you send from Remus.">
+              <textarea className="input min-h-24" value={me.signature} onChange={(e) => { setMe({ ...me, signature: e.target.value }); setMeSaved(false) }} placeholder={'Kind regards\nYour Name\n082 000 0000'} />
+            </Field>
           </div>
-          <Button className="mt-3" size="sm" onClick={saveMe}>Save profile</Button>
+          <Button className="mt-3" size="sm" onClick={saveMe}>{meSaved ? 'Saved' : 'Save profile'}</Button>
         </Card>
+        <MailboxCard />
         <Card title="Team" padded={false}>
           <ul className="divide-y divide-slate-100">
             {(team.data ?? []).map((p) => (

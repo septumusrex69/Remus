@@ -7,6 +7,7 @@
 import { supabase, QUOTE_FILES_BUCKET, RECEIPTS_BUCKET } from './supabase'
 import { quoteTotals } from './quoteMath'
 import type {
+  Activity,
   BankAccount,
   BankStatement,
   BankTransaction,
@@ -14,6 +15,7 @@ import type {
   CompanySettings,
   Contact,
   DiaryEvent,
+  EmailStatus,
   Expense,
   ExtractResponse,
   ID,
@@ -112,7 +114,7 @@ export async function listProfiles(): Promise<Profile[]> {
   return unwrap<Profile[]>(await supabase.from('profiles').select('*').order('name'))
 }
 
-export async function updateOwnProfile(id: ID, values: Pick<Partial<Profile>, 'name' | 'phone'>): Promise<void> {
+export async function updateOwnProfile(id: ID, values: Pick<Partial<Profile>, 'name' | 'phone' | 'email_signature'>): Promise<void> {
   unwrap(await supabase.from('profiles').update(values).eq('id', id))
 }
 
@@ -447,4 +449,70 @@ export async function listLinkedPaymentIds(): Promise<Set<ID>> {
     await supabase.from('bank_transactions').select('matched_payment_id').eq('status', 'matched').not('matched_payment_id', 'is', null),
   )
   return new Set(rows.map((r) => r.matched_payment_id!).filter(Boolean))
+}
+
+// ---------- Email (ported from Raptor: per-person mailbox, synced into activities) ----------
+
+/** Emails logged against a client: a company's own and its people's, or one private contact's. */
+export async function listClientEmails(ref: { companyId?: ID; contactIds: ID[] }): Promise<Activity[]> {
+  const ors: string[] = []
+  if (ref.companyId) ors.push(`company_id.eq.${ref.companyId}`)
+  if (ref.contactIds.length) ors.push(`contact_id.in.(${ref.contactIds.join(',')})`)
+  if (ors.length === 0) return []
+  return unwrap<Activity[]>(
+    await supabase
+      .from('activities')
+      .select('id, type, user_id, company_id, contact_id, subject, notes, activity_date, created_at, email_message_id, is_read, attachment_names')
+      .eq('type', 'Email')
+      .or(ors.join(','))
+      .order('activity_date', { ascending: false })
+      .limit(500),
+  )
+}
+
+export async function setEmailRead(id: ID, isRead: boolean): Promise<void> {
+  unwrap(await supabase.from('activities').update({ is_read: isRead }).eq('id', id))
+}
+
+/** POSTs (or GETs) one of the api/email/* routes and throws the server's own message on failure. */
+async function emailApi<T>(route: string, body?: unknown): Promise<T> {
+  const res = await fetch(`/api/email/${route}`, {
+    method: body === undefined ? 'GET' : 'POST',
+    headers: { ...(body === undefined ? {} : { 'Content-Type': 'application/json' }), ...(await authHeader()) },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  })
+  const json = (await res.json().catch(() => null)) as (T & { error?: string }) | null
+  if (!res.ok || !json) throw new Error(json?.error ?? `Email request failed (HTTP ${res.status}).`)
+  return json
+}
+
+export const emailStatus = () => emailApi<EmailStatus>('status')
+
+export const connectEmail = (values: { email: string; password: string; smtpHost: string; smtpPort: number; imapHost: string; imapPort: number }) =>
+  emailApi<{ ok: true }>('connect', values)
+
+export const disconnectEmail = () => emailApi<{ ok: true }>('disconnect', {})
+
+export const syncEmail = () => emailApi<{ ok: true; logged: number }>('sync', {})
+
+export const sendEmail = (values: { to: string; subject: string; body: string; companyId?: ID | null; contactId?: ID | null; inReplyTo?: string | null }) =>
+  emailApi<{ ok: true; messageId: string | null; activityId: ID | null; logError: string | null }>('send', values)
+
+/** Pulls an attachment out of the mailbox through the server and hands it to the browser to save. */
+export async function downloadEmailAttachment(activityId: ID, filename: string): Promise<void> {
+  const res = await fetch('/api/email/attachment', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...(await authHeader()) },
+    body: JSON.stringify({ activityId, filename }),
+  })
+  if (!res.ok) {
+    const body = (await res.json().catch(() => null)) as { error?: string } | null
+    throw new Error(body?.error ?? 'Could not download that attachment.')
+  }
+  const url = URL.createObjectURL(await res.blob())
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename
+  link.click()
+  URL.revokeObjectURL(url)
 }
