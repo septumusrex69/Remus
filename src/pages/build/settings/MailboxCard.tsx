@@ -1,13 +1,15 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { Link2, Mail, Unlink } from 'lucide-react'
-import { connectMailbox, disconnectMailbox, mailboxStatus, updateOwnProfile } from '../../../lib/api'
+import { Link2, Mail, RefreshCw, Unlink } from 'lucide-react'
+import { connectMailbox, disconnectMailbox, mailboxStatus, syncMailbox, updateOwnProfile } from '../../../lib/api'
+import { formatDateTime } from '../../../lib/format'
 import { useAuth } from '../../../store/AuthContext'
 import { useLoad } from '../../../hooks/useLoad'
 import { Button, Card, ErrorBanner, Field } from '../../../components/ui'
 
 /**
- * Settings → My email: connect your own mailbox so quotes go out from your address, with your
- * signature, and land in your own Sent folder (as in Raptor's EmailIntegrationCard).
+ * Settings → My email: connect your own mailbox so quotes and client emails go out from your
+ * address, with your signature, and land in your own Sent folder; and so clients' replies are
+ * filed on their page (as in Raptor's EmailIntegrationCard).
  */
 
 type Preset = 'own' | 'google' | 'microsoft'
@@ -51,6 +53,8 @@ export function MailboxCard() {
   const [error, setError] = useState<string | null>(null)
   const [signature, setSignature] = useState('')
   const [signatureSaved, setSignatureSaved] = useState(false)
+  const [syncing, setSyncing] = useState(false)
+  const [syncNote, setSyncNote] = useState<string | null>(null)
 
   useEffect(() => {
     setSignature(currentUser?.email_signature ?? '')
@@ -85,10 +89,27 @@ export function MailboxCard() {
       setShowForm(false)
       setForm(empty)
       status.reload()
+      // First look at the mailbox straight away, so the client pages fill without waiting a day.
+      void sync()
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
     } finally {
       setBusy(false)
+    }
+  }
+
+  async function sync() {
+    setSyncing(true)
+    setError(null)
+    setSyncNote(null)
+    try {
+      const r = await syncMailbox()
+      setSyncNote(r.logged === 0 ? 'Up to date: no new mail from clients.' : `${r.logged} new email${r.logged === 1 ? '' : 's'} filed on client pages.`)
+      status.reload()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setSyncing(false)
     }
   }
 
@@ -124,16 +145,25 @@ export function MailboxCard() {
             {status.loading && !status.data
               ? 'Checking…'
               : connected
-                ? <>Quotes you send go out from <span className="font-medium text-slate-800">{status.data?.email}</span>, and a copy lands in your Sent folder.</>
-                : 'Connect your own mailbox so quotes go out from your address, with your signature, and show in your Sent folder.'}
+                ? <>Quotes and emails you send go out from <span className="font-medium text-slate-800">{status.data?.email}</span>, and a copy lands in your Sent folder. Mail from clients is filed on their page once a day, or when you sync.</>
+                : 'Connect your own mailbox so quotes and emails go out from your address, with your signature, and clients’ replies show on their page.'}
           </p>
         </div>
         {connected ? (
-          <Button size="sm" variant="danger" onClick={disconnect}><Unlink size={14} /> Disconnect</Button>
+          <div className="flex shrink-0 gap-2">
+            <Button size="sm" onClick={sync} loading={syncing}><RefreshCw size={14} /> Sync</Button>
+            <Button size="sm" variant="danger" onClick={disconnect}><Unlink size={14} /> Disconnect</Button>
+          </div>
         ) : (
           !showForm && !status.loading && <Button size="sm" onClick={openForm}><Link2 size={14} /> Connect</Button>
         )}
       </div>
+
+      {connected && (
+        <p className="mt-2 text-xs text-slate-500">
+          {syncNote ?? `Last synced ${status.data?.lastSyncedAt ? formatDateTime(status.data.lastSyncedAt) : 'never'}.`} Only mail from addresses saved on a client is filed; the rest of your inbox stays private.
+        </p>
+      )}
 
       {showForm && !connected && (
         <form onSubmit={connect} className="mt-4 grid gap-3 border-t border-slate-100 pt-4 sm:grid-cols-2">
@@ -177,7 +207,7 @@ export function MailboxCard() {
       )}
 
       <div className="mt-4 border-t border-slate-100 pt-4">
-        <Field label="Signature" hint="Added under every quote email you send from your own mailbox.">
+        <Field label="Signature" hint="Added under every quote and email you send from your own mailbox.">
           <textarea
             className="input min-h-24"
             value={signature}

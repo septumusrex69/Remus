@@ -7,6 +7,7 @@
 import { supabase, BRANDING_BUCKET, QUOTE_FILES_BUCKET, RECEIPTS_BUCKET } from './supabase'
 import { quoteTotals } from './quoteMath'
 import type {
+  Activity,
   BankAccount,
   BankStatement,
   BankTransaction,
@@ -493,7 +494,7 @@ export interface MailboxDetails {
 }
 
 /** The signed-in person's own mailbox (api/email/mailbox.ts). Never includes the password. */
-export async function mailboxStatus(): Promise<{ connected: boolean; email: string | null }> {
+export async function mailboxStatus(): Promise<{ connected: boolean; email: string | null; lastSyncedAt?: string | null }> {
   const res = await callApi('/api/email/mailbox', { headers: await authHeader() }, 'check your mailbox')
   const body = (await res.json().catch(() => null)) as { connected?: boolean; email?: string | null; error?: string } | null
   if (!res.ok) throw new Error(body?.error ?? `Could not check your mailbox (HTTP ${res.status}).`)
@@ -708,4 +709,65 @@ export async function listLinkedPaymentIds(): Promise<Set<ID>> {
     supabase.from('bank_transactions').select('matched_payment_id').eq('status', 'matched').not('matched_payment_id', 'is', null).order('id').range(from, to),
   )
   return new Set(rows.map((r) => r.matched_payment_id!).filter(Boolean))
+}
+
+// ---------- Client emails (ported from Raptor: synced into activities, sent from your own mailbox) ----------
+
+/** Emails logged against a client: a company's own and its people's, or one private contact's. */
+export async function listClientEmails(ref: { companyId?: ID; contactIds: ID[] }): Promise<Activity[]> {
+  const ors: string[] = []
+  if (ref.companyId) ors.push(`company_id.eq.${ref.companyId}`)
+  if (ref.contactIds.length) ors.push(`contact_id.in.(${ref.contactIds.join(',')})`)
+  if (ors.length === 0) return []
+  return unwrap<Activity[]>(
+    await supabase
+      .from('activities')
+      .select('id, type, user_id, company_id, contact_id, subject, notes, activity_date, created_at, email_message_id, is_read, attachment_names')
+      .eq('type', 'Email')
+      .or(ors.join(','))
+      .order('activity_date', { ascending: false })
+      .limit(500),
+  )
+}
+
+export async function setEmailRead(id: ID, isRead: boolean): Promise<void> {
+  unwrap(await supabase.from('activities').update({ is_read: isRead }).eq('id', id).select('id').single())
+}
+
+/** Files new mail from known clients now, instead of waiting for the daily sync. */
+export async function syncMailbox(): Promise<{ logged: number }> {
+  const res = await callApi('/api/email/sync', { method: 'POST', headers: await authHeader() }, 'check your mailbox')
+  const body = (await res.json().catch(() => null)) as { logged?: number; error?: string } | null
+  if (!res.ok || !body) throw new Error(body?.error ?? `Could not check your mailbox (HTTP ${res.status}).`)
+  return { logged: body.logged ?? 0 }
+}
+
+/** Emails a client from your own mailbox and files it on their Emails card. */
+export async function sendEmail(values: { to: string; subject: string; body: string; companyId?: ID | null; contactId?: ID | null; inReplyTo?: string | null }): Promise<void> {
+  const res = await callApi('/api/email/send', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...(await authHeader()) },
+    body: JSON.stringify(values),
+  }, 'send the email')
+  const body = (await res.json().catch(() => null)) as { ok?: boolean; error?: string } | null
+  if (!res.ok || !body?.ok) throw new Error(body?.error ?? `Sending failed (HTTP ${res.status}).`)
+}
+
+/** Pulls an attachment out of the mailbox through the server and hands it to the browser to save. */
+export async function downloadEmailAttachment(activityId: ID, filename: string): Promise<void> {
+  const res = await callApi('/api/email/attachment', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...(await authHeader()) },
+    body: JSON.stringify({ activityId, filename }),
+  }, 'download the attachment')
+  if (!res.ok) {
+    const body = (await res.json().catch(() => null)) as { error?: string } | null
+    throw new Error(body?.error ?? 'Could not download that attachment.')
+  }
+  const url = URL.createObjectURL(await res.blob())
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename
+  link.click()
+  URL.revokeObjectURL(url)
 }
