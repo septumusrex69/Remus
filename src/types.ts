@@ -28,6 +28,7 @@ export interface Profile {
   phone: string | null
   avatar_color: string
   created_at: string
+  email_signature?: string | null
 }
 
 export interface Company {

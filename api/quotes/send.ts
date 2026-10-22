@@ -1,14 +1,22 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import nodemailer from 'nodemailer'
+import MailComposer from 'nodemailer/lib/mail-composer/index.js'
 import { requireCaller, supabaseEnv } from '../_lib/auth.js'
+import { credentialsKeyProblem, decrypt } from '../_lib/crypto.js'
+import { adminClient, appendToSent, getConnection, smtpTransport, type MailboxConnection } from '../_lib/mailbox.js'
 import { buildQuotePdf } from '../_lib/quotePdf.js'
+import { SIGNATURE_CID, composeBody, fetchSignatureImage, signatureHtml } from '../_lib/signature.js'
 
 /**
- * Emails a quote to the client, through Resend's API (RESEND_API_KEY + EMAIL_FROM) or over SMTP
- * (SMTP_HOST/PORT/USER/PASS/FROM, nodemailer as in Raptor's api/email/send.ts, with one company
- * mailbox instead of per-user inboxes). Resend wins when both are set.
+ * Emails a quote to the client.
  *
- * GET ?check=1 → { configured } so the app can say up front whether sending will work.
+ * From the sender's own mailbox when they have connected one in Settings → My email (as in
+ * Raptor's api/email/send.ts: SMTP with their signature, and a copy filed in their Sent folder).
+ * Otherwise from the company sender: Resend's API (RESEND_API_KEY + EMAIL_FROM) or SMTP
+ * (SMTP_HOST/PORT/USER/PASS/FROM). Resend wins when both are set.
+ *
+ * GET ?check=1 → { configured, from } so the app can say up front whether, and from where,
+ * sending will work. With the caller's session it checks their own mailbox too.
  *
  * POST { quoteId, to: string[], cc?: string[], subject, message }
  *
@@ -41,6 +49,7 @@ function zar(n: number): string {
 
 type Mailer = 'resend' | 'smtp' | null
 
+/** The company-wide sender, used when the person hasn't connected their own mailbox. */
 function mailer(): Mailer {
   const env = process.env
   if (env.RESEND_API_KEY && (env.EMAIL_FROM || env.SMTP_FROM)) return 'resend'
@@ -50,7 +59,14 @@ function mailer(): Mailer {
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === 'GET' && req.query.check) {
-    res.status(200).json({ configured: mailer() !== null })
+    const caller = await requireCaller(req)
+    const own = caller ? await ownMailbox(caller.user.id) : null
+    if (own) {
+      res.status(200).json({ configured: true, from: own.email, own: true })
+      return
+    }
+    const via = mailer()
+    res.status(200).json({ configured: via !== null, from: via ? process.env.EMAIL_FROM || process.env.SMTP_FROM : null, own: false })
     return
   }
   if (req.method !== 'POST') {
@@ -67,13 +83,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return
   }
 
-  const via = mailer()
-  if (!via) {
-    res.status(503).json({ configured: false, error: "Email sending isn't set up yet. Download the PDF and email it yourself for now." })
+  const own = await ownMailbox(caller.user.id)
+  const via = own ? null : mailer()
+  if (!own && !via) {
+    res.status(503).json({ configured: false, error: "Email sending isn't set up yet. Connect your mailbox in Settings → My email, or download the PDF and email it yourself for now." })
     return
   }
   const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, RESEND_API_KEY } = process.env
-  const FROM = (process.env.EMAIL_FROM || process.env.SMTP_FROM)!
+  const FROM = process.env.EMAIL_FROM || process.env.SMTP_FROM || ''
 
   const body = (req.body ?? {}) as { quoteId?: unknown; to?: unknown; cc?: unknown; subject?: unknown; message?: unknown }
   const to = Array.isArray(body.to) ? body.to.filter((x): x is string => typeof x === 'string') : []
@@ -95,7 +112,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const message = typeof body.message === 'string' ? body.message.slice(0, 5000) : ''
 
   const { db } = caller
-  const { data: me } = await db.from('profiles').select('role, status').eq('id', caller.user.id).maybeSingle()
+  const { data: me } = await db
+    .from('profiles')
+    .select('name, role, status, email_signature, email_signature_image_url, email_signature_image_width, email_signature_image_align')
+    .eq('id', caller.user.id)
+    .maybeSingle()
   if (!me || me.status !== 'Active' || me.role === 'Read Only') {
     res.status(403).json({ error: 'Your access is read-only, so you can\'t send quotes.' })
     return
@@ -182,7 +203,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const text = `${message}${clientPdf ? '' : `\n\nQuote ${quote.number ?? ''}: ${quote.title}\nTotal excl. VAT: ${zar(totalExcl)}\nVAT: ${zar(vat)}\nTotal: ${zar(totalIncl)}`}`
 
   try {
-    if (via === 'resend') {
+    if (own) {
+      await sendFromOwnMailbox(own, me, { to, cc, subject, html, text, attachments: files })
+    } else if (via === 'resend') {
       const r = await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: { Authorization: `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
@@ -245,4 +268,62 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   res.status(200).json({ ok: true, attached: files.map((f) => f.filename) })
+}
+
+/**
+ * The caller's connected mailbox, or null when they haven't connected one or the server can't use
+ * it (no service-role key, or no usable EMAIL_CREDENTIALS_KEY). Null falls back to the company
+ * sender, so a half-configured server never blocks a quote that could have gone out.
+ */
+async function ownMailbox(userId: string): Promise<MailboxConnection | null> {
+  const admin = adminClient()
+  if (!admin || credentialsKeyProblem()) return null
+  return getConnection(admin, userId)
+}
+
+type Profile = {
+  name?: string | null
+  email_signature?: string | null
+  email_signature_image_url?: string | null
+  email_signature_image_width?: number | null
+  email_signature_image_align?: 'left' | 'center' | 'right' | null
+} | null
+
+/**
+ * Sends from the person's own mailbox, as in Raptor's api/email/send.ts: their name and address
+ * on the From line, their signature (image embedded, not linked), and a copy in their Sent folder.
+ */
+async function sendFromOwnMailbox(
+  conn: MailboxConnection,
+  me: Profile,
+  msg: { to: string[]; cc: string[]; subject: string; html: string; text: string; attachments: { filename: string; content: Buffer; contentType?: string }[] },
+) {
+  const imageUrl = me?.email_signature_image_url ?? null
+  const image = imageUrl ? { width: me?.email_signature_image_width ?? 160, align: me?.email_signature_image_align ?? 'left' } : null
+  const embedded = imageUrl ? await fetchSignatureImage(imageUrl) : null
+  const imageSrc = imageUrl ? (embedded ? `cid:${SIGNATURE_CID}` : imageUrl) : null
+  const signature = signatureHtml(me?.email_signature ? esc(me.email_signature) : null, image, imageSrc)
+
+  const name = me?.name?.trim()
+  const mail = {
+    from: name ? { name, address: conn.email } : conn.email,
+    to: msg.to,
+    cc: msg.cc.length ? msg.cc : undefined,
+    subject: msg.subject,
+    html: composeBody(msg.html, signature),
+    text: me?.email_signature ? `${msg.text}\n\n${me.email_signature}` : msg.text,
+    attachments: [
+      ...msg.attachments,
+      ...(embedded ? [{ filename: 'signature', content: embedded.content, contentType: embedded.contentType, cid: SIGNATURE_CID }] : []),
+    ],
+  }
+  await smtpTransport(conn, decrypt(conn.encrypted_password)).sendMail(mail)
+
+  // Best effort: the message has already gone, so failing to file the copy is never a send error.
+  try {
+    const raw = await new MailComposer(mail).compile().build()
+    await appendToSent(conn, raw)
+  } catch (e) {
+    console.error('Quote sent, but not filed in Sent', e)
+  }
 }

@@ -112,7 +112,7 @@ export async function listProfiles(): Promise<Profile[]> {
   return unwrap<Profile[]>(await supabase.from('profiles').select('*').order('name'))
 }
 
-export async function updateOwnProfile(id: ID, values: Pick<Partial<Profile>, 'name' | 'phone'>): Promise<void> {
+export async function updateOwnProfile(id: ID, values: Pick<Partial<Profile>, 'name' | 'phone' | 'email_signature'>): Promise<void> {
   unwrap(await supabase.from('profiles').update(values).eq('id', id))
 }
 
@@ -460,15 +460,61 @@ export async function sendQuote(quoteId: ID, payload: { to: string[]; cc?: strin
   return body
 }
 
-/** Whether the server can send email at all (so the Send dialog can say so before anyone tries). */
-export async function emailConfigured(): Promise<boolean | null> {
+export interface EmailSetup {
+  configured: boolean
+  /** The address quotes will go out from, when known. */
+  from: string | null
+  /** True when that is the person's own connected mailbox rather than the company sender. */
+  own: boolean
+}
+
+/**
+ * Whether, and from where, the server can send this person's email (so the Send dialog can say so
+ * before anyone tries). Null when the check itself failed: let them try, and show the error then.
+ */
+export async function emailConfigured(): Promise<EmailSetup | null> {
   try {
-    const res = await fetch('/api/quotes/send?check=1')
-    const body = (await res.json().catch(() => null)) as { configured?: boolean } | null
-    return typeof body?.configured === 'boolean' ? body.configured : null
+    const res = await fetch('/api/quotes/send?check=1', { headers: await authHeader() })
+    const body = (await res.json().catch(() => null)) as Partial<EmailSetup> | null
+    if (typeof body?.configured !== 'boolean') return null
+    return { configured: body.configured, from: body.from ?? null, own: !!body.own }
   } catch {
-    return null // unknown: let them try, and show the error then
+    return null
   }
+}
+
+export interface MailboxDetails {
+  email: string
+  password: string
+  smtpHost: string
+  smtpPort: number
+  imapHost: string
+  imapPort: number
+}
+
+/** The signed-in person's own mailbox (api/email/mailbox.ts). Never includes the password. */
+export async function mailboxStatus(): Promise<{ connected: boolean; email: string | null }> {
+  const res = await callApi('/api/email/mailbox', { headers: await authHeader() }, 'check your mailbox')
+  const body = (await res.json().catch(() => null)) as { connected?: boolean; email?: string | null; error?: string } | null
+  if (!res.ok) throw new Error(body?.error ?? `Could not check your mailbox (HTTP ${res.status}).`)
+  return { connected: !!body?.connected, email: body?.email ?? null }
+}
+
+/** Logs in over IMAP and SMTP on the server, and saves the mailbox only when both work. */
+export async function connectMailbox(details: MailboxDetails): Promise<void> {
+  const res = await callApi('/api/email/mailbox', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...(await authHeader()) },
+    body: JSON.stringify(details),
+  }, 'connect your mailbox')
+  const body = (await res.json().catch(() => null)) as { error?: string } | null
+  if (!res.ok) throw new Error(body?.error ?? `Could not connect that mailbox (HTTP ${res.status}).`)
+}
+
+export async function disconnectMailbox(): Promise<void> {
+  const res = await callApi('/api/email/mailbox', { method: 'DELETE', headers: await authHeader() }, 'disconnect your mailbox')
+  const body = (await res.json().catch(() => null)) as { error?: string } | null
+  if (!res.ok) throw new Error(body?.error ?? `Could not disconnect your mailbox (HTTP ${res.status}).`)
 }
 
 /** Opens the server-built PDF of a quote in a new tab (the endpoint needs the session token, so fetch it first). */

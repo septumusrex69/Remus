@@ -33,6 +33,8 @@ npm run dev
      deleted go back to "needs linking", deleting a statement removes its lines, draft invoices
      don't count as invoiced, profile backfill.
    - `0004_connector_tokens.sql`: personal access tokens for the Claude connector.
+   - `0005_email_connections.sql`: each person's own mailbox (encrypted password; RLS on with no
+     policies, so only the server can read it).
 3. In Authentication → URL Configuration set the Site URL to the app's address and add
    `<app>/set-password` to the redirect URLs (invite and password-reset links land there).
 4. Create the first user under Authentication → Users. The first person becomes Administrator
@@ -58,15 +60,25 @@ reports that email isn't set up.
 | `VITE_SUPABASE_URL` | browser + functions | yes |
 | `VITE_SUPABASE_ANON_KEY` | browser + functions | yes (anon or publishable key; `VITE_SUPABASE_PUBLISHABLE_KEY` is accepted as an alias) |
 | `ANTHROPIC_API_KEY` | functions only | no: enables AI slip reading |
-| `RESEND_API_KEY`, `EMAIL_FROM` | functions only | no: enables "Send to client" through Resend (simplest; `EMAIL_FROM` like `Urban Haus <quotes@urbanhausgroup.co.za>` on a domain verified in Resend) |
+| `EMAIL_CREDENTIALS_KEY` | functions only | for "My email": 32 random bytes, base64 (`openssl rand -base64 32`). Encrypts mailbox passwords. Never change it once mailboxes are connected, or everyone has to reconnect |
+| `RESEND_API_KEY`, `EMAIL_FROM` | functions only | no: company sender for people who haven't connected their own mailbox. Enables "Send to client" through Resend (simplest; `EMAIL_FROM` like `Urban Haus <quotes@urbanhausgroup.co.za>` on a domain verified in Resend) |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` | functions only | no: or send over SMTP instead (used only when Resend isn't set) |
-| `SUPABASE_SERVICE_ROLE_KEY` | functions only | no: enables in-app invites and the Claude connector |
+| `SUPABASE_SERVICE_ROLE_KEY` | functions only | no: enables in-app invites, the Claude connector and "My email" |
 | `APP_URL` | functions only | no: production address for invite and connector links (default `https://remus-xi.vercel.app`) |
 
 Most functions verify the caller's Supabase session and then query *as that user*, so RLS applies.
-Only `api/team/invite.ts` (Supabase's admin invite API) and `api/mcp.ts` (which acts for the owner
-of a personal access token) use the service-role key, and both check the person's role and status
-themselves.
+Only `api/team/invite.ts` (Supabase's admin invite API), `api/mcp.ts` (which acts for the owner
+of a personal access token) and the mailbox code (`api/email/mailbox.ts`, and `api/quotes/send.ts`
+reading the sender's own mailbox) use the service-role key, and each only ever touches the
+caller's own rows or checks the person's role and status itself.
+
+### Email
+
+As in Raptor, each person connects their own mailbox in **Settings → My email** (SMTP to send,
+IMAP to file a copy in their Sent folder; presets for company-domain hosting, Google Workspace and
+Microsoft 365). Quotes then go out from their own address with their signature. Someone who
+hasn't connected a mailbox sends from the company sender (`RESEND_API_KEY` + `EMAIL_FROM`, or
+`SMTP_*`) if one is set, and otherwise gets "Download PDF".
 
 ## Features
 

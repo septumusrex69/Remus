@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { FileDown, FileText, Paperclip } from 'lucide-react'
-import { emailConfigured, openQuotePdf, sendQuote, quotes as quotesApi } from '../../../lib/api'
+import { emailConfigured, openQuotePdf, sendQuote, quotes as quotesApi, type EmailSetup } from '../../../lib/api'
 import { formatZAR } from '../../../lib/format'
 import type { QuoteTotals } from '../../../lib/quoteMath'
 import { Button, Field, Modal } from '../../../components/ui'
@@ -43,12 +43,13 @@ export function SendQuoteModal({
   const [error, setError] = useState<string | null>(null)
   const [warning, setWarning] = useState<string | null>(null)
   /** null while checking or if the check itself failed (then sending is still allowed). */
-  const [configured, setConfigured] = useState<boolean | null>(null)
+  const [setup, setSetup] = useState<EmailSetup | null>(null)
+  const configured = setup?.configured ?? null
 
   useEffect(() => {
     if (!open) return
     let active = true
-    emailConfigured().then((c) => active && setConfigured(c))
+    emailConfigured().then((c) => active && setSetup(c))
     return () => {
       active = false
     }
@@ -105,7 +106,7 @@ export function SendQuoteModal({
         {configured === false && (
           <div className="rounded-lg border border-brand-200 bg-brand-50 p-3 text-sm text-brand-900">
             <p className="font-medium">Email sending isn't set up yet.</p>
-            <p className="mt-0.5">Download the quote as a PDF and email it from your own mailbox for now.</p>
+            <p className="mt-0.5">Connect your mailbox in Settings → My email, or download the quote as a PDF and email it yourself for now.</p>
             <Button
               size="sm"
               className="mt-2"
@@ -114,6 +115,12 @@ export function SendQuoteModal({
               <FileDown size={14} /> Download PDF
             </Button>
           </div>
+        )}
+        {setup?.configured && setup.from && (
+          <p className="text-sm text-slate-600">
+            Sending from <span className="font-medium text-slate-800">{setup.from}</span>
+            {!setup.own && <span className="text-slate-500"> (the company address; connect your own in Settings → My email)</span>}
+          </p>
         )}
         <Field label="To" hint="Separate several addresses with commas.">
           <input className="input" value={to} onChange={(e) => setTo(e.target.value)} placeholder="client@example.com" />

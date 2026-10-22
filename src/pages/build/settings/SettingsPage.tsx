@@ -7,6 +7,7 @@ import type { CompanySettings } from '../../../types'
 import { useBuild } from '../BuildContext'
 import { TeamCard } from './TeamCard'
 import { ConnectorCard } from './ConnectorCard'
+import { MailboxCard } from './MailboxCard'
 
 export function SettingsPage() {
   const { settings, reloadSettings } = useBuild()
@@ -144,6 +145,7 @@ export function SettingsPage() {
           </div>
           <Button className="mt-3" size="sm" onClick={saveMe}>Save profile</Button>
         </Card>
+        <MailboxCard />
         <TeamCard />
         <ConnectorCard />
       </div>
