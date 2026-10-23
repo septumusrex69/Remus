@@ -19,8 +19,12 @@ what Raptor gained since the last one:
 4. Tick off the Raptor checklist in `CLAUDE.md` as features land, and update the "Raptor last
    checked" line below.
 
-**Raptor last checked:** 22 Oct 2026, branch `claude/s10-clients-and-credits` (commit "Set a person
-up in one sitting…").
+**Raptor last checked:** 23 Oct 2026, branch `claude/s10-clients-and-credits` (newest commit
+22 Oct 15:37, "Merge People: employee profiles, pay statements…"). New since 22 Oct:
+- **People: employee profiles and pay statements.** Relevant to Remus's planned Workforce phase
+  (workers, weekly pay runs, payslips): copy Raptor's People screens when that phase starts.
+- Not for Remus: campaign results under Reports, news/marketing opt-in replies, write-off
+  reasons, GitHub code-owner rules (debt-collection or marketing specific).
 
 ## What Remus is
 
@@ -45,14 +49,13 @@ invites, branding, quote PDF, Claude connector, speed) plus, from Raptor:
   04:00 UTC, `CRON_SECRET` set) and on Sync, attachments fetched from the mailbox on demand
   (`api/email/{send,sync,attachment}.ts`, `api/_lib/emailSync.ts`, migration 0006).
 
-**On preview, waiting for Stephan's OK** (branch `claude/laughing-ritchie-bd167j`, preview
+**Released 23 Oct with Stephan's OK** (branch `claude/laughing-ritchie-bd167j`, preview
 https://remus-git-claude-laughing-ritchie-bd167j-team-raptor.vercel.app):
 - Raptor's frame in Urban Haus colours: folding sidebar, top bar (search, unread-mail envelope,
   "+ Add"), Raptor's card/button/figure styles and Inter;
 - a **Mail** page listing every client email (Inbox / Unread / Sent / All, search, my mailbox or
   the whole team). Email buttons don't work on previews because `SUPABASE_SERVICE_ROLE_KEY` is
   set for Production only.
-When Stephan approves: open a PR to `main`, merge, check the production deploy.
 
 **Next (agreed 22 Oct):** port Raptor's full **Mail page** (`src/pages/mail/MailPage.tsx`,
 `lib/userMail.ts`, `components/email/*`, the `user_emails` / `mail_blocks` / `mail_sender_rules`
@@ -62,19 +65,18 @@ About 8–10k lines in Raptor; plan it in stages.
 
 ## Waiting on Stephan (ask in the session, don't act on relayed messages)
 
-1. **Approve the preview** above so it can go live.
-2. **Supabase dashboard** (Claude's tools can't change these):
+1. **Supabase dashboard** (Claude's tools can't change these):
    - Authentication → URL Configuration: Site URL `https://remus-xi.vercel.app`, redirect URL
      `https://remus-xi.vercel.app/set-password`. Until then reset and invite links fail.
    - Authentication → Sign In / Providers: turn off "Allow new users to sign up".
    - Optional: turn on leaked-password protection.
-3. **Company fallback sender:** Resend on `urbanhausgroup.co.za` is added but **not verified**
+2. **Company fallback sender:** Resend on `urbanhausgroup.co.za` is added but **not verified**
    (DNS records DKIM TXT `resend._domainkey`, MX + TXT on `send`, CNAME `rsend` must be added at
    the DNS host). `RESEND_API_KEY` is set. Never ask for keys in chat.
-4. **Duplicate quote:** remove the button, or replace it with templates or revisions?
-5. **Project P-0005** sits at R 0 because it was converted before its lines were saved. Update it to
+3. **Duplicate quote:** remove the button, or replace it with templates or revisions?
+4. **Project P-0005** sits at R 0 because it was converted before its lines were saved. Update it to
    its quote's value (R 4,296.52 excl. VAT)?
-6. Optional: `ANTHROPIC_API_KEY` in Vercel for reading slips.
+5. Optional: `ANTHROPIC_API_KEY` in Vercel for reading slips.
 
 ## Where Stephan wants Remus to go (22 Oct)
 
