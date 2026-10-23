@@ -203,9 +203,11 @@ async function syncMailbox(
     for (const uid of uids) {
       // An IMAP server returns the highest UID for "n:*" even when nothing is newer.
       if (sinceUid && uid <= sinceUid) continue
-      const msg = await client.fetchOne(String(uid), { source: true }, { uid: true })
+      const msg = await client.fetchOne(String(uid), { source: true, flags: true }, { uid: true })
       if (!msg || !msg.source) continue
       maxUid = Math.max(maxUid, msg.uid)
+      // Already opened in Outlook or on a phone? Then it arrives in Remus already read.
+      const seen = msg.flags?.has('\\Seen') ?? false
 
       const parsed = await simpleParser(msg.source)
       const fromAddress = parsed.from?.value?.[0]?.address?.toLowerCase()
@@ -240,7 +242,7 @@ async function syncMailbox(
             cc_recipients: cc,
             occurred_at: occurredAt,
             // Your own sent mail is not something to read.
-            read_at: kind === 'sent' ? occurredAt : null,
+            read_at: kind === 'sent' || seen ? occurredAt : null,
             body_text: !tooBig && text.length <= TEXT_LIMIT ? text || null : null,
             body_html: !tooBig ? html || null : null,
             body_cached_at: new Date().toISOString(),
@@ -315,7 +317,7 @@ async function syncMailbox(
             notes: text.slice(0, EMAIL_NOTES_MAX_LENGTH),
             activity_date: occurredAt,
             email_message_id: messageId,
-            is_read: false,
+            is_read: seen,
             // Names only: the files stay in the mailbox and are fetched when opened.
             attachment_names: attachments,
             email_folder: path,
@@ -328,10 +330,49 @@ async function syncMailbox(
       else if (inserted && inserted.length > 0) logged += 1
     }
 
+    if (kind !== 'sent') await catchUpReadState(client, admin, conn.user_id, path)
     return { logged, maxUid }
   } finally {
     lock.release()
   }
+}
+
+/**
+ * Mail read elsewhere is read here too.
+ *
+ * The messages Remus still shows as unread in this folder are asked of the mail server once per
+ * sync (flags only, one request), and any it reports as Seen are marked read, on the mailbox and
+ * on the client's Emails card. So reading a message in Outlook or on a phone clears it in Remus by
+ * the next sync. One way only: reading in Remus does not change the mailbox.
+ */
+async function catchUpReadState(client: ImapFlow, admin: SupabaseClient, userId: string, path: string): Promise<void> {
+  const { data: unread } = await admin
+    .from('user_emails')
+    .select('id, uid, message_id')
+    .eq('user_id', userId)
+    .eq('folder', path)
+    .is('read_at', null)
+    .order('occurred_at', { ascending: false })
+    .limit(500)
+  if (!unread?.length) return
+  const byUid = new Map(unread.map((r) => [Number(r.uid), r as { id: string; uid: number; message_id: string | null }]))
+  const seen: { id: string; message_id: string | null }[] = []
+  try {
+    for await (const m of client.fetch([...byUid.keys()].join(','), { flags: true }, { uid: true })) {
+      const row = byUid.get(m.uid)
+      if (row && m.flags?.has('\\Seen')) seen.push(row)
+    }
+  } catch (err) {
+    // A read state we could not check is not worth failing the sync over.
+    console.error(`[emailSync] ${path}: read-state check failed: ${err instanceof Error ? err.message : String(err)}`)
+    return
+  }
+  if (!seen.length) return
+  const now = new Date().toISOString()
+  await admin.from('user_emails').update({ read_at: now }).in('id', seen.map((r) => r.id))
+  const messageIds = seen.map((r) => r.message_id).filter((x): x is string => !!x)
+  if (messageIds.length) await admin.from('activities').update({ is_read: true }).eq('user_id', userId).in('email_message_id', messageIds)
+  console.log(`[emailSync] ${path}: ${seen.length} message(s) already read in the mailbox, marked read`)
 }
 
 /**
