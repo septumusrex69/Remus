@@ -8,6 +8,7 @@ const p = (s: string) => `${BUILD_BASE}${s}` || '/'
 
 export const paths = {
   dashboard: () => p('/'),
+  mail: () => p('/mail'),
   quotes: () => p('/quotes'),
   quote: (id: string) => p(`/quotes/${id}`),
   quotePrint: (id: string) => p(`/quotes/${id}/print`),

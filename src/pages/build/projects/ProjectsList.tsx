@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useEffect, useMemo, useState } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
 import { FolderKanban, Plus } from 'lucide-react'
 import { clientLabel, listProjectFinancials, loadClientDirectory, projects as projectsApi } from '../../../lib/api'
 import { formatPct, formatZAR, labelize } from '../../../lib/format'
@@ -12,6 +12,14 @@ import { ProjectFormModal } from './ProjectFormModal'
 export function ProjectsList() {
   const [status, setStatus] = useState<ProjectStatus | 'all' | 'open'>('open')
   const [creating, setCreating] = useState(false)
+
+  // The top bar's "+ Add" lands here with ?new=1: open the form, then drop the flag so a refresh doesn't reopen it.
+  const [params, setParams] = useSearchParams()
+  useEffect(() => {
+    if (params.get('new') !== '1') return
+    setCreating(true)
+    setParams((p) => { p.delete('new'); return p }, { replace: true })
+  }, [params, setParams])
   const { data, error, loading, reload } = useLoad(async () => {
     const [list, fin, dir] = await Promise.all([projectsApi.list(), listProjectFinancials(), loadClientDirectory()])
     return { list, fin, dir }
@@ -44,7 +52,7 @@ export function ProjectsList() {
           {rows.map((p) => {
             const f = data!.fin.get(p.id)
             return (
-              <Link key={p.id} to={paths.project(p.id)} className="block rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-brand-300 hover:shadow">
+              <Link key={p.id} to={paths.project(p.id)} className="card block p-5 transition hover:border-brand-300 hover:shadow">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <p className="truncate font-semibold text-slate-900">{p.name}</p>

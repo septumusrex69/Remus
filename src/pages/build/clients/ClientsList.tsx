@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useEffect, useMemo, useState } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
 import { Building2, Plus, Search, User } from 'lucide-react'
 import { contactName, loadClientDirectory, projects as projectsApi } from '../../../lib/api'
 import { useLoad } from '../../../hooks/useLoad'
@@ -18,6 +18,14 @@ interface Row {
 export function ClientsList() {
   const [q, setQ] = useState('')
   const [creating, setCreating] = useState(false)
+
+  // The top bar's "+ Add" lands here with ?new=1: open the form, then drop the flag so a refresh doesn't reopen it.
+  const [params, setParams] = useSearchParams()
+  useEffect(() => {
+    if (params.get('new') !== '1') return
+    setCreating(true)
+    setParams((p) => { p.delete('new'); return p }, { replace: true })
+  }, [params, setParams])
   const { data, error, loading, reload } = useLoad(async () => {
     const [dir, projects] = await Promise.all([loadClientDirectory(), projectsApi.list()])
     return { dir, projects }

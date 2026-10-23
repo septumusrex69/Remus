@@ -54,7 +54,7 @@ export class ErrorBoundary extends Component<Props, { error: Error | null }> {
     const chunk = isChunkLoadError(error)
     return (
       <div className="flex min-h-[50vh] items-center justify-center px-4 py-10">
-        <div className="max-w-md rounded-xl border border-slate-200 bg-white p-6 text-center shadow-sm">
+        <div className="max-w-md card p-6 text-center">
           <p className="mb-1 font-semibold text-slate-900">{chunk ? 'A new version of Remus is available' : 'Something went wrong'}</p>
           <p className="mb-4 text-sm text-slate-500">
             {chunk ? 'Reload to continue.' : 'This page hit an error. Your saved work is safe. Reload to try again.'}

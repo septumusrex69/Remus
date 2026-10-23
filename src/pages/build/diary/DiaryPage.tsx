@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import {
   addDays,
   addMonths,
@@ -43,6 +44,14 @@ export function DiaryPage() {
   const [cursor, setCursor] = useState(new Date())
   const [editing, setEditing] = useState<DiaryEvent | null>(null)
   const [creating, setCreating] = useState<Partial<DiaryEvent> | null>(null)
+
+  // The top bar's "+ Add" lands here with ?new=1: open the form, then drop the flag so a refresh doesn't reopen it.
+  const [params, setParams] = useSearchParams()
+  useEffect(() => {
+    if (params.get('new') !== '1') return
+    setCreating({})
+    setParams((p) => { p.delete('new'); return p }, { replace: true })
+  }, [params, setParams])
   const [entryOpen, setEntryOpen] = useState(false)
   const [entry, setEntry] = useState<SiteDiaryEntry | null>(null)
 
@@ -121,7 +130,7 @@ export function DiaryPage() {
           </div>
 
           {loading && !data ? <Spinner /> : view === 'month' ? (
-            <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+            <div className="card overflow-hidden">
               <div className="grid grid-cols-7 border-b border-slate-200 bg-slate-50 text-center text-[11px] font-medium uppercase text-slate-500">
                 {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((d) => <div key={d} className="py-1.5">{d}</div>)}
               </div>

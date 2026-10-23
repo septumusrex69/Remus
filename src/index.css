@@ -16,6 +16,19 @@
   --color-brand-950: #3e1508;
   /* The logo's charcoal. */
   --color-charcoal: #3b3b3b;
+  /* The sidebar, Raptor's navy-950 recast in the logo's charcoal. */
+  --color-ink-950: #18191c;
+  --color-ink-900: #212327;
+  /* Raptor's page and card surfaces. */
+  --color-surface: #f4f6fb;
+  --color-card: #ffffff;
+}
+
+/* Raptor's card: one definition, used by <Card> and by anything shaped like one. */
+:root {
+  --card-radius: 1rem;
+  --card-border: #eceff5;
+  --card-shadow: 0 1px 2px rgba(16, 24, 64, 0.04);
 }
 
 html,
@@ -25,9 +38,23 @@ body,
 }
 
 body {
-  background: #f8fafc; /* slate-50 */
-  color: #0f172a; /* slate-900 */
+  margin: 0;
+  background: var(--color-surface);
+  color: #1c2233;
+  font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background-color: #d3d8e6;
+  border-radius: 999px;
+}
+::-webkit-scrollbar-track {
+  background-color: transparent;
 }
 
 /* Number columns line up. */
@@ -38,8 +65,14 @@ body {
 /* Form controls: one look everywhere. In the components layer so utilities (pl-9, text-right,
    w-32…) on the same element still win. */
 @layer components {
+.card {
+  background-color: var(--color-card);
+  border-radius: var(--card-radius);
+  border: 1px solid var(--card-border);
+  box-shadow: var(--card-shadow);
+}
 .input {
-  @apply w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none placeholder:text-slate-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 disabled:bg-slate-50 disabled:text-slate-500;
+  @apply w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none placeholder:text-slate-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 disabled:bg-slate-50 disabled:text-slate-500;
 }
 .label {
   @apply mb-1 block text-xs font-medium text-slate-600;

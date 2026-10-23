@@ -138,8 +138,8 @@ export function ClientDetail({ kind }: { kind: 'company' | 'contact' }) {
 
         <div className="space-y-4 lg:col-span-2">
           <div className="grid grid-cols-2 gap-3">
-            <div className="rounded-xl border border-slate-200 bg-white p-4"><p className="text-xs text-slate-500">Invoiced (incl. VAT)</p><p className="tabular text-lg font-semibold">{formatZAR(invoiced)}</p></div>
-            <div className="rounded-xl border border-slate-200 bg-white p-4"><p className="text-xs text-slate-500">Received</p><p className="tabular text-lg font-semibold">{formatZAR(received)}</p></div>
+            <div className="card p-5"><p className="text-xs font-medium text-slate-400">Invoiced (incl. VAT)</p><p className="tabular text-lg font-semibold">{formatZAR(invoiced)}</p></div>
+            <div className="card p-5"><p className="text-xs font-medium text-slate-400">Received</p><p className="tabular text-lg font-semibold">{formatZAR(received)}</p></div>
           </div>
           <ClientEmails company={data.company} contact={data.contact} people={data.people} />
           <Card title="Projects" padded={false}>

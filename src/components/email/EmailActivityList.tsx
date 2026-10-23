@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { clsx } from 'clsx'
 import { ArrowDownLeft, ArrowUpRight, Mail, Paperclip, Reply } from 'lucide-react'
 import { downloadEmailAttachment, setEmailRead } from '../../lib/api'
@@ -39,6 +40,7 @@ function EmailActivityRow({
   onReply,
   onChanged,
   userName,
+  client,
 }: {
   activity: Activity
   open: boolean
@@ -46,6 +48,8 @@ function EmailActivityRow({
   onReply?: () => void
   onChanged: (patch: Partial<Activity>) => void
   userName?: string
+  /** Which client this is, on lists that span clients (the Mail page). */
+  client?: { label: string; to: string } | null
 }) {
   const [downloading, setDownloading] = useState<string | null>(null)
   const [downloadError, setDownloadError] = useState<string | null>(null)
@@ -85,10 +89,11 @@ function EmailActivityRow({
       <button onClick={toggle} className="flex w-full items-center gap-2.5 px-4 py-2.5 text-left hover:bg-slate-50" aria-expanded={open}>
         <DirectionBadge kind={kind} />
         <span className="flex min-w-0 flex-1 items-baseline gap-2">
-          <span className={clsx('max-w-[60%] shrink-0 truncate text-sm', isUnread ? 'font-semibold text-slate-900' : 'text-slate-700')}>{subject}</span>
-          {!open && body && <span className="min-w-0 truncate text-sm text-slate-400">{body}</span>}
+          <span className={clsx('min-w-0 truncate text-sm sm:max-w-[60%] sm:shrink-0', isUnread ? 'font-semibold text-slate-900' : 'text-slate-700')}>{subject}</span>
+          {!open && body && <span className="hidden min-w-0 truncate text-sm text-slate-400 sm:inline">{body}</span>}
         </span>
         <span className="flex shrink-0 items-center gap-2.5">
+          {client && <span className="hidden max-w-[12rem] truncate rounded-md bg-brand-50 px-1.5 py-0.5 text-[11px] font-medium text-brand-700 sm:inline">{client.label}</span>}
           {attachments.length > 0 && <Paperclip size={13} className="text-slate-400" />}
           {isUnread && <span className="h-2 w-2 rounded-full bg-brand-500" title="Unread" />}
           <span className="tabular text-xs text-slate-400">{emailTimeLabel(activity.activity_date)}</span>
@@ -103,6 +108,11 @@ function EmailActivityRow({
             {` · ${emailDayLabel(activity.activity_date)} at ${emailTimeLabel(activity.activity_date)}`}
             {parsed?.isSpam && ' · was in Spam/Junk'}
           </p>
+          {client && (
+            <p className="mb-2 text-xs">
+              <Link to={client.to} className="font-medium text-brand-600 hover:underline">Open {client.label} &rarr;</Link>
+            </p>
+          )}
           {body && <p className="max-w-[70ch] whitespace-pre-wrap text-[15px] leading-relaxed text-slate-700">{body}</p>}
           <div className="mt-3 flex flex-wrap items-center gap-2">
             {attachments.map((name, i) => (
@@ -152,13 +162,30 @@ export function EmailActivityList({
   profiles,
   onReply,
   onChanged,
+  clientOf,
+  focusId,
 }: {
   activities: Activity[]
   profiles?: Profile[]
   onReply?: (activity: Activity) => void
   onChanged: (id: string, patch: Partial<Activity>) => void
+  clientOf?: (a: Activity) => { label: string; to: string } | null
+  /**
+   * A message to open and scroll to, named in the URL by whatever linked here (the envelope in the
+   * top bar). Landing on the right client with the message closed thirty rows down reads as a
+   * broken link (Raptor's focusId).
+   */
+  focusId?: string | null
 }) {
   const [openId, setOpenId] = useState<string | null>(null)
+  const focusRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!focusId || !activities.some((a) => a.id === focusId)) return
+    setOpenId(focusId)
+    // After paint, so the row has expanded before it is scrolled to.
+    const timer = window.setTimeout(() => focusRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 80)
+    return () => window.clearTimeout(timer)
+  }, [focusId, activities])
   const nameOf = (id: string) => profiles?.find((p) => p.id === id)?.name || undefined
 
   const days = activities.map((a) => emailDayLabel(a.activity_date))
@@ -177,7 +204,7 @@ export function EmailActivityList({
           const day = days[i]
           const showDay = i === 0 || day !== days[i - 1]
           return (
-            <div key={a.id}>
+            <div key={a.id} ref={a.id === focusId ? focusRef : undefined}>
               {showDay && <p className="border-b border-slate-100 bg-slate-50/80 px-4 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">{day}</p>}
               <EmailActivityRow
                 activity={a}
@@ -186,6 +213,7 @@ export function EmailActivityList({
                 onReply={onReply ? () => onReply(a) : undefined}
                 onChanged={(patch) => onChanged(a.id, patch)}
                 userName={nameOf(a.user_id)}
+                client={clientOf?.(a)}
               />
             </div>
           )
