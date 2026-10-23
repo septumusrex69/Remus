@@ -407,6 +407,9 @@ export function MailPage() {
           </div>
         )}
 
+        {unreadMail.syncError && mailbox?.connected !== false && (
+          <p className="border-b border-slate-100 bg-red-50/50 px-5 py-2 text-[13px] text-red-700">Couldn't check your mailbox: {unreadMail.syncError}</p>
+        )}
         {status && <p className="border-b border-slate-100 px-5 py-2 text-[13px] text-emerald-700">{status}</p>}
         {error && <p className="border-b border-slate-100 px-5 py-2 text-[13px] text-red-700">{error}</p>}
 

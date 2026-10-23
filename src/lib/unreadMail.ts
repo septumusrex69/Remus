@@ -13,6 +13,8 @@ import { fetchMail, markMailRead, type MailItem } from './mailbox'
 let items: MailItem[] = []
 let count = 0
 let syncing = false
+/** Why the last sync failed, shown on the Mail page rather than swallowed. Null when it worked. */
+let syncError: string | null = null
 let loadedFor: string | null = null
 const CHANGED = 'remus:unread-mail'
 const emit = () => window.dispatchEvent(new Event(CHANGED))
@@ -56,8 +58,10 @@ async function sync(): Promise<void> {
   emit()
   try {
     await syncMailbox()
-  } catch {
-    // No mailbox connected, or offline: the list still shows whatever was already synced.
+    syncError = null
+  } catch (e) {
+    // The list still shows whatever was already synced; the Mail page says why nothing new came.
+    syncError = e instanceof Error ? e.message : String(e)
   } finally {
     syncing = false
     await refresh()
@@ -91,5 +95,5 @@ export function useUnreadMail() {
     }
   }, [])
   const markAllRead = useCallback(() => markRead(items), [])
-  return { count, items, syncing, sync, refresh, markRead, markAllRead }
+  return { count, items, syncing, syncError, sync, refresh, markRead, markAllRead }
 }

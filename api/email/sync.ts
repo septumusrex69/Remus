@@ -11,11 +11,18 @@ import { adminClient } from '../_lib/mailbox.js'
  * POST, signed in       → syncs the caller's own mailbox ("Sync now")
  * GET, Bearer CRON_SECRET → syncs every connected mailbox (Vercel Cron, see vercel.json)
  */
+/** Every refusal is logged, so "it isn't syncing" can be answered from the server log. */
+function refuse(res: VercelResponse, status: number, error: string) {
+  console.log(`[email/sync] refused ${status}: ${error}`)
+  return res.status(status).json({ error })
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  console.log(`[email/sync] ${req.method}`)
   const admin = adminClient()
-  if (!admin) return res.status(501).json({ error: 'Email sync is not set up yet: add SUPABASE_SERVICE_ROLE_KEY to the Vercel project.' })
+  if (!admin) return refuse(res, 501, 'Email sync is not set up on this copy of Remus: SUPABASE_SERVICE_ROLE_KEY is missing. Use https://remus-xi.vercel.app.')
   const keyProblem = credentialsKeyProblem()
-  if (keyProblem) return res.status(500).json({ error: keyProblem })
+  if (keyProblem) return refuse(res, 500, keyProblem)
 
   const cronSecret = process.env.CRON_SECRET
   if (req.method === 'GET') {
@@ -37,16 +44,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
   const caller = await requireCaller(req)
-  if (!caller) return res.status(401).json({ error: 'Please sign in again.' })
+  if (!caller) return refuse(res, 401, 'Please sign in again.')
   const { data: me } = await caller.db.from('profiles').select('status').eq('id', caller.user.id).maybeSingle()
-  if (me?.status !== 'Active') return res.status(403).json({ error: 'Your account is deactivated.' })
+  if (me?.status !== 'Active') return refuse(res, 403, 'Your account is deactivated.')
 
   const { data: conn } = await admin.from('email_connections').select('*').eq('user_id', caller.user.id).maybeSingle()
-  if (!conn) return res.status(400).json({ error: 'Connect your mailbox in Settings first.' })
+  if (!conn) return refuse(res, 400, 'Connect your mailbox in Settings first.')
   try {
     const r = await syncConnection(admin, conn as EmailConnectionRow)
     return res.status(200).json({ ok: true, logged: r.logged })
   } catch (err) {
+    console.error('[email/sync] failed', err)
     return res.status(400).json({ error: err instanceof Error ? `Couldn't read your mailbox: ${err.message}` : 'Sync failed.' })
   }
 }
