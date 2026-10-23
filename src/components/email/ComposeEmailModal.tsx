@@ -10,7 +10,9 @@ import type { ID } from '../../types'
  */
 export function ComposeEmailModal({
   open,
+  title,
   to,
+  cc: initialCc,
   recipients,
   initialSubject,
   initialBody,
@@ -21,8 +23,12 @@ export function ComposeEmailModal({
   onSent,
 }: {
   open: boolean
-  /** Pre-filled recipient. */
+  /** Overrides the heading ("Reply all", "Forward"). */
+  title?: string
+  /** Pre-filled recipient(s), comma separated. */
   to?: string
+  /** Pre-filled Cc (Reply all). The field shows when there is one, or on "Add Cc". */
+  cc?: string[]
   /**
    * Addresses to suggest: everyone already known on the client. The field stays typeable, since
    * the person who needs the email (an architect, a site agent) is often not in Remus yet.
@@ -40,6 +46,8 @@ export function ComposeEmailModal({
 }) {
   const listId = useId()
   const [address, setAddress] = useState(to ?? recipients?.[0]?.email ?? '')
+  const [cc, setCc] = useState((initialCc ?? []).join(', '))
+  const [showCc, setShowCc] = useState((initialCc ?? []).length > 0)
   const [subject, setSubject] = useState(initialSubject ?? '')
   const [body, setBody] = useState(initialBody ?? '')
   const [sending, setSending] = useState(false)
@@ -51,7 +59,8 @@ export function ComposeEmailModal({
     setSending(true)
     setError(null)
     try {
-      await sendEmail({ to: address.trim(), subject: subject.trim(), body: body.trim(), companyId, contactId, inReplyTo })
+      const ccList = cc.split(/[,;]/).map((x) => x.trim()).filter(Boolean)
+      await sendEmail({ to: address.trim(), cc: ccList, subject: subject.trim(), body: body.trim(), companyId, contactId, inReplyTo })
       onSent()
       onClose()
     } catch (err) {
@@ -64,7 +73,7 @@ export function ComposeEmailModal({
     <Modal
       open={open}
       onClose={onClose}
-      title={initialSubject ? 'Reply' : 'New email'}
+      title={title ?? (initialSubject ? 'Reply' : 'New email')}
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>Cancel</Button>
@@ -78,6 +87,7 @@ export function ComposeEmailModal({
           <input
             className="input"
             type="email"
+            multiple
             list={recipients && recipients.length > 0 ? listId : undefined}
             value={address}
             onChange={(e) => setAddress(e.target.value)}
@@ -91,6 +101,13 @@ export function ComposeEmailModal({
             </datalist>
           )}
         </Field>
+        {showCc ? (
+          <Field label="Cc">
+            <input className="input" type="email" multiple value={cc} onChange={(e) => setCc(e.target.value)} placeholder="Separate addresses with commas" />
+          </Field>
+        ) : (
+          <button type="button" onClick={() => setShowCc(true)} className="-mt-1 justify-self-start text-xs font-medium text-brand-600 hover:underline">Add Cc</button>
+        )}
         <Field label="Subject">
           <input className="input" value={subject} onChange={(e) => setSubject(e.target.value)} required autoFocus={!!address && !initialSubject} />
         </Field>

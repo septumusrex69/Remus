@@ -38,14 +38,14 @@ How to apply it:
 
 ## Every Raptor-style app has these. Check they're present; add them if not.
 
-- [ ] **Collapsible sidebar** (folds to an icon rail, remembered per device: Raptor's
+- [x] **Collapsible sidebar** (folds to an icon rail, remembered per device: Raptor's
       `src/lib/sidebarCollapsed.ts` and `components/layout/Sidebar.tsx`).
-- [ ] **Top bar**: page title, global search, unread-mail envelope, notifications, "+ New" quick add
+- [x] **Top bar** (no notifications bell yet: Remus has no notifications): page title, global search, unread-mail envelope, notifications, "+ New" quick add
       (Raptor's `components/layout/Topbar.tsx`, `GlobalSearch`, `MessagesMenu`, `QuickAdd`).
-- [ ] **Mail page with an Inbox** (Raptor's `src/pages/mail/MailPage.tsx`, `lib/userMail.ts`,
+- [x] **Mail page with an Inbox** (Raptor's `src/pages/mail/MailPage.tsx`, `lib/userMail.ts`,
       `components/email/*`): each person's mailbox inside the app, mail filed onto clients.
-- [ ] **Emails on every client page**, threaded, with reply and attachments.
-- [ ] Each person connects their own mailbox in Settings; sends go out from it with their signature.
+- [x] **Emails on every client page**, threaded, with reply and attachments.
+- [x] Each person connects their own mailbox in Settings; sends go out from it with their signature.
 - [ ] Record pages with Raptor's hero band, cards (`CardHeader` title + subtitle) and tabs.
 - [ ] Phone and iPad layouts that work (site managers use phones).
 
