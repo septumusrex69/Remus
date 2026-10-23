@@ -7,7 +7,8 @@ import { adminClient, getConnection, logEmailActivity, sendFromOwnMailbox } from
  * Emails a client from the caller's own mailbox, with their signature, and files it on the
  * client's Emails card (Raptor's api/email/send). Body arrives as plain text and is escaped here.
  *
- * POST { to, subject, body, companyId?, contactId?, inReplyTo? }
+ * POST { to, cc?, subject, body, companyId?, contactId?, inReplyTo? }
+ *   `to` may hold several addresses separated by commas; `cc` is a list (Reply all).
  */
 
 const EMAIL_RE = /^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$/
@@ -33,11 +34,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!me || me.status !== 'Active' || me.role === 'Read Only') return res.status(403).json({ error: "Your access is read-only, so you can't send email." })
 
   const b = (req.body ?? {}) as Record<string, unknown>
-  const to = typeof b.to === 'string' ? b.to.trim() : ''
+  const toList = (typeof b.to === 'string' ? b.to : '').split(/[,;]/).map((x) => x.trim()).filter(Boolean)
+  const cc = (Array.isArray(b.cc) ? b.cc : []).filter((x): x is string => typeof x === 'string').map((x) => x.trim()).filter(Boolean)
+  const to = toList[0] ?? ''
   const subject = typeof b.subject === 'string' ? b.subject.trim().slice(0, 300) : ''
   const text = typeof b.body === 'string' ? b.body.trim().slice(0, 50000) : ''
   const str = (v: unknown) => (typeof v === 'string' && v ? v : null)
-  if (!EMAIL_RE.test(to)) return res.status(400).json({ error: `"${to}" is not a valid email address.` })
+  const bad = [...toList, ...cc].find((x) => !EMAIL_RE.test(x))
+  if (!to || bad !== undefined) return res.status(400).json({ error: `"${bad ?? to}" is not a valid email address.` })
+  if (toList.length + cc.length > 20) return res.status(400).json({ error: 'Too many recipients.' })
   if (!subject || !text) return res.status(400).json({ error: 'A subject and a message are required.' })
 
   const conn = await getConnection(admin, caller.user.id)
@@ -46,7 +51,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const html = `<div style="font-family:Arial,Helvetica,sans-serif;color:#0f172a;line-height:1.5">${esc(text).replace(/\n/g, '<br>')}</div>`
   let messageId: string | null
   try {
-    messageId = await sendFromOwnMailbox(conn, me, { to: [to], cc: [], subject, html, text, attachments: [], inReplyTo: str(b.inReplyTo) })
+    messageId = await sendFromOwnMailbox(conn, me, { to: toList, cc, subject, html, text, attachments: [], inReplyTo: str(b.inReplyTo) })
   } catch (err) {
     return res.status(502).json({ error: `The email could not be sent: ${err instanceof Error ? err.message : String(err)}` })
   }

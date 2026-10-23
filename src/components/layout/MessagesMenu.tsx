@@ -3,22 +3,13 @@ import { useNavigate } from 'react-router-dom'
 import { Loader2, Mail, MailOpen } from 'lucide-react'
 import { formatDistanceToNowStrict } from 'date-fns'
 import { clientLabel, loadClientDirectory, type ClientDirectory } from '../../lib/api'
-import { parseEmailActivity } from '../../lib/emailActivity'
 import { useUnreadMail } from '../../lib/unreadMail'
 import { paths } from '../../pages/build/paths'
-import type { Activity } from '../../types'
-
-/** Where an email lives: the client page, with the message named so the page opens it (Raptor's destinationFor). */
-function destinationFor(a: Activity): string {
-  const focus = `?email=${encodeURIComponent(a.id)}`
-  if (a.company_id) return `${paths.company(a.company_id)}${focus}`
-  if (a.contact_id) return `${paths.contact(a.contact_id)}${focus}`
-  return `${paths.mail()}${focus}`
-}
 
 /**
- * Unread client mail, counted where people look for a count (Raptor's MessagesMenu). Separate from
- * any notification: an unread email is a person waiting on a reply.
+ * Unread mail, counted where people look for a count (Raptor's MessagesMenu). Separate from any
+ * notification: an unread email is a person waiting on a reply. Each one opens on the Mail page,
+ * with the client it is filed on named underneath.
  */
 export function MessagesMenu() {
   const unread = useUnreadMail()
@@ -45,11 +36,12 @@ export function MessagesMenu() {
 
   const rows = useMemo(
     () =>
-      unread.items.slice(0, 30).map((a) => ({
-        a,
-        subject: parseEmailActivity(a.subject)?.subject ?? a.subject,
-        about: dir ? clientLabel(dir, a) : null,
-        preview: (a.notes ?? '').replace(/\s+/g, ' ').trim(),
+      unread.items.slice(0, 30).map((m) => ({
+        a: m,
+        subject: m.subject || '(no subject)',
+        from: m.fromName || m.fromAddress,
+        about: dir && (m.linkedCompanyId || m.linkedContactId) ? clientLabel(dir, { company_id: m.linkedCompanyId, contact_id: m.linkedContactId }) : null,
+        preview: (m.snippet ?? '').replace(/\s+/g, ' ').trim(),
       })),
     [unread.items, dir],
   )
@@ -59,8 +51,8 @@ export function MessagesMenu() {
       <button
         onClick={() => setOpen((o) => !o)}
         className="relative rounded-lg p-2 text-slate-500 hover:bg-slate-100"
-        aria-label={unread.count > 0 ? `${unread.count} unread client emails` : 'Client mail'}
-        title="Unread client mail"
+        aria-label={unread.count > 0 ? `${unread.count} unread emails` : 'Mail'}
+        title="Unread mail"
       >
         <Mail size={19} />
         {unread.count > 0 && (
@@ -74,7 +66,7 @@ export function MessagesMenu() {
         <div className="fixed inset-x-3 top-16 z-50 max-h-[70vh] overflow-y-auto rounded-xl border border-slate-100 bg-white py-2 shadow-lg sm:absolute sm:inset-x-auto sm:top-full sm:right-0 sm:mt-2 sm:w-[22rem]">
           <div className="flex items-center justify-between gap-2 border-b border-slate-100 px-4 py-2">
             <h3 className="flex items-center gap-1.5 text-sm font-semibold text-slate-700">
-              Unread client mail{unread.count > 0 && <span className="font-normal text-slate-400">· {unread.count}</span>}
+              Unread mail{unread.count > 0 && <span className="font-normal text-slate-400">· {unread.count}</span>}
               {unread.syncing && <Loader2 size={12} className="animate-spin text-slate-300" />}
             </h3>
             {unread.count > 0 && (
@@ -87,25 +79,25 @@ export function MessagesMenu() {
           {rows.length === 0 ? (
             <p className="flex flex-col items-center gap-2 px-4 py-6 text-center text-sm text-slate-400">
               <MailOpen size={20} className="text-slate-300" />
-              {unread.syncing ? 'Checking your mailbox…' : 'Nothing unread from clients.'}
+              {unread.syncing ? 'Checking your mailbox…' : 'Nothing unread. Every message has been opened.'}
             </p>
           ) : (
-            rows.map(({ a, subject, about, preview }) => (
+            rows.map(({ a, subject, from, about, preview }) => (
               <button
                 key={a.id}
                 onClick={() => {
                   setOpen(false)
-                  void unread.markRead([a.id])
-                  navigate(destinationFor(a))
+                  navigate(`${paths.mail()}?message=${encodeURIComponent(a.id)}`)
                 }}
                 className="flex w-full items-start gap-2 px-4 py-2.5 text-left hover:bg-slate-50"
               >
                 <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-brand-500" />
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[13px] leading-snug font-medium text-slate-800">{subject}</span>
+                  <span className="block truncate text-[13px] leading-snug font-medium text-slate-800">{from}</span>
+                  <span className="block truncate text-[12.5px] leading-snug text-slate-700">{subject}</span>
                   {about && <span className="block truncate text-[12px] leading-snug text-brand-600">{about}</span>}
                   {preview && <span className="block truncate text-[12px] leading-snug text-slate-400">{preview}</span>}
-                  <span className="mt-0.5 block text-[11px] text-slate-400">{formatDistanceToNowStrict(new Date(a.activity_date), { addSuffix: true })}</span>
+                  <span className="mt-0.5 block text-[11px] text-slate-400">{formatDistanceToNowStrict(new Date(a.occurredAt), { addSuffix: true })}</span>
                 </span>
               </button>
             ))

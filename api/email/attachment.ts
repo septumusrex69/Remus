@@ -8,7 +8,8 @@ import { adminClient, getConnection } from '../_lib/mailbox.js'
  * Streams one attachment of a synced email straight out of the mailbox it arrived in, on demand
  * (Raptor's api/email/attachment). Nothing is copied into Storage: the mailbox is the archive.
  *
- * POST { activityId, filename }
+ * POST { activityId, filename }   an email on a client's Emails card
+ * POST { mailId, filename }       a message in the caller's own mailbox (the Mail page)
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
@@ -19,15 +20,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const caller = await requireCaller(req)
   if (!caller) return res.status(401).json({ error: 'Please sign in again.' })
 
-  const { activityId, filename } = (req.body ?? {}) as { activityId?: string; filename?: string }
-  if (!activityId || !filename) return res.status(400).json({ error: 'activityId and filename are required.' })
+  const { activityId, mailId, filename } = (req.body ?? {}) as { activityId?: string; mailId?: string; filename?: string }
+  if ((!activityId && !mailId) || !filename) return res.status(400).json({ error: 'activityId or mailId, and filename, are required.' })
 
-  // Read as the caller, so RLS decides whether they may see this email at all.
-  const { data: activity } = await caller.db
-    .from('activities')
-    .select('id, user_id, email_message_id, email_folder, email_uid, attachment_names')
-    .eq('id', activityId)
-    .maybeSingle()
+  // Read as the caller, so RLS decides whether they may see this email at all (a mailbox row is
+  // only ever visible to its owner).
+  const { data: activity } = activityId
+    ? await caller.db
+        .from('activities')
+        .select('id, user_id, email_message_id, email_folder, email_uid, attachment_names')
+        .eq('id', activityId)
+        .maybeSingle()
+    : await caller.db
+        .from('user_emails')
+        .select('id, user_id, email_message_id:message_id, email_folder:folder, email_uid:uid, attachment_names')
+        .eq('id', mailId!)
+        .maybeSingle()
   if (!activity) return res.status(404).json({ error: 'That email is no longer in Remus.' })
   // Only names the sync recorded on this email, so this can't pull arbitrary files out of a mailbox.
   if (!((activity.attachment_names as string[] | null) ?? []).includes(filename)) {

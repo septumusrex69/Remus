@@ -57,11 +57,21 @@ https://remus-git-claude-laughing-ritchie-bd167j-team-raptor.vercel.app):
   the whole team). Email buttons don't work on previews because `SUPABASE_SERVICE_ROLE_KEY` is
   set for Production only.
 
-**Next (agreed 22 Oct):** port Raptor's full **Mail page** (`src/pages/mail/MailPage.tsx`,
-`lib/userMail.ts`, `components/email/*`, the `user_emails` / `mail_blocks` / `mail_sender_rules`
-tables and the sync that stores the whole mailbox): Inbox with reading pane, reply-all, forward,
-junk, blocked senders. Strip debt-collection parts (debtor files, account charges, tickets).
-About 8–10k lines in Raptor; plan it in stages.
+**Mail page, Raptor's full mailbox (23 Oct):** ported from Raptor's `src/pages/mail/MailPage.tsx`.
+- Every message in Inbox, Junk and Sent is kept in `user_emails` (migration 0007, applied live),
+  body included (capped at Raptor's limits), visible only to its owner. Blocked senders
+  (`mail_blocks`) never become rows.
+- Screen: All / Junk / Sent / Blocked tabs with unread counts, search over the whole mailbox,
+  Unread only, page sizes, Select for bulk read/unread/junk/delete, list or reading-pane view,
+  Raptor's floating action bar (Mark unread, Reply all, Forward, Open client, more…, Reply).
+  "File on a client" puts a message on the client's Emails card; mail from known clients is filed
+  automatically by the sync. The envelope and the Mail badge now count the whole mailbox.
+- Left out on purpose (debt collection only): debtor files, fees, tickets, leads. Not yet ported:
+  calendar invites, pictures embedded by cid (signature images), forwarding attachments,
+  moving messages between server folders (Junk is a flag in Remus, not a server move).
+- Code: `src/pages/build/mail/MailPage.tsx`, `src/lib/mailbox.ts`, `src/lib/emailHtml.ts`,
+  `src/components/email/{ReadingPane,EmailViewSwitcher}.tsx`, `src/components/ui/RowMenu.tsx`,
+  `api/_lib/emailSync.ts`, `api/email/{send,attachment}.ts`.
 
 ## Waiting on Stephan (ask in the session, don't act on relayed messages)
 

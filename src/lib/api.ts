@@ -736,23 +736,18 @@ export async function listClientEmails(ref: { companyId?: ID; contactIds: ID[] }
 export const MAIL_CHANGED = 'remus:mail-changed'
 
 export async function setEmailRead(id: ID, isRead: boolean): Promise<void> {
-  unwrap(await supabase.from('activities').update({ is_read: isRead }).eq('id', id).select('id').single())
-  window.dispatchEvent(new Event(MAIL_CHANGED))
-}
-
-/** The person's own unread received client mail, newest first (the Mail badge and the envelope). */
-export async function listUnreadEmails(userId: ID): Promise<Activity[]> {
-  return unwrap<Activity[]>(
-    await supabase
-      .from('activities')
-      .select(EMAIL_COLUMNS)
-      .eq('type', 'Email')
-      .eq('user_id', userId)
-      .eq('is_read', false)
-      .like('subject', 'Email received%')
-      .order('activity_date', { ascending: false })
-      .limit(100),
+  const row = unwrap<{ user_id: ID; email_message_id: string | null }>(
+    await supabase.from('activities').update({ is_read: isRead }).eq('id', id).select('user_id, email_message_id').single(),
   )
+  // The same message in the person's own mailbox reads the same way (the Mail page and its badge).
+  if (row.email_message_id) {
+    await supabase
+      .from('user_emails')
+      .update({ read_at: isRead ? new Date().toISOString() : null })
+      .eq('user_id', row.user_id)
+      .eq('message_id', row.email_message_id)
+  }
+  window.dispatchEvent(new Event(MAIL_CHANGED))
 }
 
 /** Every client email in one list, for the Mail page. `mine` limits it to the person's own mailbox. */
@@ -771,7 +766,7 @@ export async function syncMailbox(): Promise<{ logged: number }> {
 }
 
 /** Emails a client from your own mailbox and files it on their Emails card. */
-export async function sendEmail(values: { to: string; subject: string; body: string; companyId?: ID | null; contactId?: ID | null; inReplyTo?: string | null }): Promise<void> {
+export async function sendEmail(values: { to: string; cc?: string[]; subject: string; body: string; companyId?: ID | null; contactId?: ID | null; inReplyTo?: string | null }): Promise<void> {
   const res = await callApi('/api/email/send', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...(await authHeader()) },

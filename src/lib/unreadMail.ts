@@ -1,20 +1,17 @@
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from './supabase'
-import { MAIL_CHANGED, listUnreadEmails, setEmailRead, syncMailbox } from './api'
-import type { Activity } from '../types'
+import { MAIL_CHANGED, syncMailbox } from './api'
+import { fetchMail, markMailRead, type MailItem } from './mailbox'
 
 /**
- * The signed-in person's unread client mail: the Mail badge in the sidebar and the envelope in the
- * top bar (Raptor's MessagesMenu and navCounts).
+ * The signed-in person's unread mail: the Mail badge in the sidebar and the envelope in the top bar
+ * (Raptor's MessagesMenu and navCounts). Their own mailbox, Junk and Sent aside, which is the same
+ * number the Mail page's All tab shows, so the two can never contradict each other on one screen.
  *
- * YOUR unread mail, not the team's, as in Raptor: everyone sees every client's email, so counting
- * all of it would put a number on the badge no action of yours could clear. A synced email carries
- * the id of the mailbox it arrived in, which is the person actually being waited on.
- *
- * One copy for the whole app, shared through a window event like the sidebar fold, so the badge
- * and the envelope can never disagree.
+ * One copy for the whole app, shared through a window event like the sidebar fold.
  */
-let items: Activity[] = []
+let items: MailItem[] = []
+let count = 0
 let syncing = false
 let loadedFor: string | null = null
 const CHANGED = 'remus:unread-mail'
@@ -29,7 +26,18 @@ async function refresh(): Promise<void> {
   const id = await myId()
   if (!id) return
   try {
-    items = await listUnreadEmails(id)
+    const [page, total] = await Promise.all([
+      fetchMail({ userId: id, filter: 'all', unreadOnly: true, page: 0, pageSize: 30 }),
+      supabase
+        .from('user_emails')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', id)
+        .is('read_at', null)
+        .eq('is_junk', false)
+        .eq('is_sent', false),
+    ])
+    items = page.items
+    count = total.count ?? page.items.length
     loadedFor = id
     emit()
   } catch {
@@ -56,10 +64,14 @@ async function sync(): Promise<void> {
   }
 }
 
-async function markRead(ids: string[]): Promise<void> {
-  items = items.filter((a) => !ids.includes(a.id))
+async function markRead(mails: MailItem[]): Promise<void> {
+  const id = await myId()
+  if (!id || mails.length === 0) return
+  const ids = new Set(mails.map((m) => m.id))
+  items = items.filter((m) => !ids.has(m.id))
+  count = Math.max(0, count - ids.size)
   emit()
-  await Promise.all(ids.map((id) => setEmailRead(id, true).catch(() => {})))
+  await markMailRead(id, mails).catch(() => {})
 }
 
 export function useUnreadMail() {
@@ -68,7 +80,7 @@ export function useUnreadMail() {
     const on = () => setTick((t) => t + 1)
     const changed = () => void refresh()
     window.addEventListener(CHANGED, on)
-    // A message opened or marked unread anywhere (a client page, the Mail page) recounts here.
+    // A message read or marked unread anywhere (the Mail page, a client page) recounts here.
     window.addEventListener(MAIL_CHANGED, changed)
     void myId().then((id) => {
       if (id && loadedFor !== id) void sync()
@@ -78,6 +90,6 @@ export function useUnreadMail() {
       window.removeEventListener(MAIL_CHANGED, changed)
     }
   }, [])
-  const markAllRead = useCallback(() => markRead(items.map((a) => a.id)), [])
-  return { count: items.length, items, syncing, sync, refresh, markRead, markAllRead }
+  const markAllRead = useCallback(() => markRead(items), [])
+  return { count, items, syncing, sync, refresh, markRead, markAllRead }
 }

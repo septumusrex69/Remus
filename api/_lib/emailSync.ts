@@ -1,12 +1,13 @@
 import type { ImapFlow } from 'imapflow'
-import { simpleParser } from 'mailparser'
+import { simpleParser, type AddressObject } from 'mailparser'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { decrypt } from './crypto.js'
 import { EMAIL_NOTES_MAX_LENGTH, findFolder, imapClient } from './mailbox.js'
 
 /**
- * Incoming mail, ported from Raptor's api/_lib/emailSync.ts: pulls new messages from a person's
- * Inbox and Junk folders and files the ones from known clients on that client's Emails card.
+ * The mailbox sync, ported from Raptor's api/_lib/emailSync.ts. Reads a person's Inbox, Junk and
+ * Sent folders into `user_emails` (their Mail page), and files a message from a known client on
+ * that client's Emails card (`activities`) as well.
  */
 
 export interface EmailConnectionRow {
@@ -17,10 +18,51 @@ export interface EmailConnectionRow {
   encrypted_password: string
   last_seen_uid: number | null
   last_seen_uid_junk: number | null
+  last_seen_uid_sent?: number | null
 }
 
 /** On the very first sync of a mailbox there's no watermark yet — pull only the most recent messages instead of its entire history. */
-const FIRST_SYNC_MESSAGE_LIMIT = 25
+const FIRST_SYNC_MESSAGE_LIMIT = 40
+
+/** The list shows this much of a message (Raptor's SNIPPET_LENGTH). */
+const SNIPPET_LENGTH = 240
+/** Raptor's body cache ceilings (lib/mailBodyCache.ts): past these the body isn't kept. */
+const TEXT_LIMIT = 100_000
+const HTML_LIMIT = 1_000_000
+
+type Recipient = { name: string | null; address: string }
+
+/** Everyone in a To or Cc header, as plain {name, address} pairs. */
+function recipientsOf(field: AddressObject | AddressObject[] | undefined): Recipient[] {
+  const groups = Array.isArray(field) ? field : field ? [field] : []
+  return groups
+    .flatMap((g) => g.value)
+    .filter((v) => !!v.address)
+    .map((v) => ({ name: v.name || null, address: v.address!.toLowerCase() }))
+}
+
+type Blocks = { addresses: Set<string>; domains: Set<string> }
+
+/** The senders this person has blocked, loaded once per sync (Raptor's loadBlocks). */
+async function loadBlocks(admin: SupabaseClient, userId: string): Promise<Blocks> {
+  const { data, error } = await admin.from('mail_blocks').select('pattern, kind').eq('user_id', userId)
+  // A blocklist that couldn't be read must not stop the sync. Worst case is a week of newsletters.
+  if (error) return { addresses: new Set(), domains: new Set() }
+  const blocks: Blocks = { addresses: new Set(), domains: new Set() }
+  for (const row of data ?? []) {
+    const pattern = String(row.pattern).toLowerCase()
+    if (row.kind === 'domain') blocks.domains.add(pattern)
+    else blocks.addresses.add(pattern)
+  }
+  return blocks
+}
+
+function isBlocked(address: string, blocks: Blocks): boolean {
+  const clean = address.toLowerCase()
+  if (blocks.addresses.has(clean)) return true
+  const at = clean.lastIndexOf('@')
+  return at > -1 && blocks.domains.has(clean.slice(at + 1))
+}
 
 
 /** No point recording 40 filenames on one message; nobody scans past the first few. */
@@ -125,13 +167,15 @@ export async function fetchAttachment(
   }
 }
 
+type FolderKind = 'inbox' | 'junk' | 'sent'
+
 /**
- * Pulls whatever's new in one mailbox since sinceUid, and logs an Activity for
- * any message whose sender matches a known Contact or Company email —
- * unmatched mail (most of an inbox, realistically) is left alone so Remus
- * timeline stays about actual clients, not everything that ever landed
- * in someone's inbox. isJunk only changes the logged subject's wording, so a
- * message a spam filter misfiled is still visible but clearly flagged as such.
+ * Pulls whatever is new in one folder since sinceUid.
+ *
+ * Every message becomes a row in the person's mailbox (`user_emails`), except a blocked sender's.
+ * A received message from a known client (or a reply to mail sent from Remus) is also filed on
+ * that client's Emails card. Sent mail is a mailbox row only: what Remus sends is already on the
+ * client, and mail sent from Outlook or a phone shows under Sent without being filed twice.
  */
 async function syncMailbox(
   client: ImapFlow,
@@ -139,7 +183,8 @@ async function syncMailbox(
   conn: EmailConnectionRow,
   path: string,
   sinceUid: number | null,
-  isJunk: boolean,
+  kind: FolderKind,
+  blocks: Blocks,
 ): Promise<{ logged: number; maxUid: number }> {
   let logged = 0
   const lock = await client.getMailboxLock(path)
@@ -152,35 +197,68 @@ async function syncMailbox(
       const found = await client.search({ all: true }, { uid: true })
       uids = (found === false ? [] : found).slice(-FIRST_SYNC_MESSAGE_LIMIT)
     }
-
-    console.log(`[emailSync] ${path}: found ${uids.length} new UID(s) since ${sinceUid ?? '(first sync)'}`)
+    console.log(`[emailSync] ${path} (${kind}): ${uids.length} new UID(s) since ${sinceUid ?? '(first sync)'}`)
 
     let maxUid = sinceUid ?? 0
     for (const uid of uids) {
+      // An IMAP server returns the highest UID for "n:*" even when nothing is newer.
+      if (sinceUid && uid <= sinceUid) continue
       const msg = await client.fetchOne(String(uid), { source: true }, { uid: true })
-      if (!msg || !msg.source) {
-        console.log(`[emailSync] ${path} UID ${uid}: fetchOne returned no message/source, skipped`)
-        continue
-      }
+      if (!msg || !msg.source) continue
       maxUid = Math.max(maxUid, msg.uid)
 
       const parsed = await simpleParser(msg.source)
-      const fromAddress = parsed.from?.value?.[0]?.address
-      if (!fromAddress) {
-        console.log(`[emailSync] ${path} UID ${uid}: no parseable From address, skipped`)
-        continue
+      const fromAddress = parsed.from?.value?.[0]?.address?.toLowerCase()
+      if (!fromAddress) continue
+      const messageId = parsed.messageId ?? `${conn.user_id}:${path}:${uid}`
+      const occurredAt = (parsed.date ?? new Date()).toISOString()
+      const text = parsed.text || ''
+      const html = typeof parsed.html === 'string' ? parsed.html : ''
+      const attachments = realAttachmentNames(parsed.attachments)
+      const to = recipientsOf(parsed.to)
+      const cc = recipientsOf(parsed.cc)
+
+      // ---------- The person's mailbox ----------
+      if (kind === 'sent' || !isBlocked(fromAddress, blocks)) {
+        const tooBig = html.length > HTML_LIMIT
+        const { error: rowError } = await admin.from('user_emails').upsert(
+          {
+            user_id: conn.user_id,
+            folder: path,
+            uid: msg.uid,
+            message_id: messageId,
+            from_address: fromAddress,
+            from_name: parsed.from?.value?.[0]?.name || null,
+            subject: parsed.subject || null,
+            snippet: (text || html.replace(/<[^>]+>/g, ' ')).replace(/\s+/g, ' ').trim().slice(0, SNIPPET_LENGTH) || null,
+            attachment_names: attachments,
+            is_junk: kind === 'junk',
+            is_sent: kind === 'sent',
+            to_address: to[0]?.address ?? null,
+            to_name: to[0]?.name ?? null,
+            to_recipients: to,
+            cc_recipients: cc,
+            occurred_at: occurredAt,
+            // Your own sent mail is not something to read.
+            read_at: kind === 'sent' ? occurredAt : null,
+            body_text: !tooBig && text.length <= TEXT_LIMIT ? text || null : null,
+            body_html: !tooBig ? html || null : null,
+            body_cached_at: new Date().toISOString(),
+          },
+          { onConflict: 'user_id,message_id', ignoreDuplicates: true },
+        )
+        if (rowError) console.error(`[emailSync] ${path} UID ${uid}: mailbox row failed: ${rowError.message}`)
       }
+      if (kind === 'sent') continue
 
       /*
-       * Thread first, sender second.
+       * ---------- Filing on a client: thread first, sender second ----------
        *
        * A reply carries In-Reply-To (and References) naming the Message-ID of the message it
        * answers, and sends from Remus record that id, so a reply from an address nobody has
        * captured yet (a colleague of the client, the client's architect) still lands on the
-       * client it answers.
-       *
-       * References is checked as well as In-Reply-To because some clients drop the latter; it
-       * is walked newest-first so a long thread resolves to its most recent turn.
+       * client it answers. References is walked newest-first so a long thread resolves to its
+       * most recent turn.
        */
       const threadIds: string[] = []
       if (parsed.inReplyTo) threadIds.push(...parsed.inReplyTo.split(/\s+/).filter(Boolean))
@@ -202,42 +280,29 @@ async function syncMailbox(
             companyId: (parent.company_id as string | null) ?? undefined,
             contactId: (parent.contact_id as string | null) ?? undefined,
           }
-          console.log(`[emailSync] ${path} UID ${uid}: threaded onto ${id}`)
           break
         }
       }
 
       const match = await findMatch(admin, fromAddress)
-      if (!match && !threadMatch) {
-        console.log(`[emailSync] ${path} UID ${uid}: sender ${fromAddress} matches no Contact/Company and no known thread, skipped`)
-        continue
-      }
+      if (!match && !threadMatch) continue
 
-      // A reply from an address nobody has captured yet — a colleague of the contact, a new
-      // person on the account — still belongs on the record it is answering, so the thread
-      // stands on its own where the address lookup found nothing.
       const filed = {
         contactId: match?.contactId ?? threadMatch?.contactId,
         companyId: match?.companyId ?? threadMatch?.companyId,
       }
-      console.log(
-        `[emailSync] ${path} UID ${uid}: filed (contact=${filed.contactId ?? '-'}, company=${filed.companyId ?? '-'}), writing activity...`,
-      )
-      // Logged whenever a message carries parts at all, so a "my attachment vanished" report
-      // can be answered from what the mail server actually sent rather than by guessing.
-      if ((parsed.attachments ?? []).length > 0) {
-        const described = (parsed.attachments ?? [])
-          .map((att) => `${att.filename || '(no filename)'} [${att.contentType}, disposition=${att.contentDisposition ?? '-'}, related=${att.related ?? false}]`)
-          .join('; ')
-        console.log(`[emailSync] ${path} UID ${uid}: parts -- ${described}`)
-      }
 
-      // upsert + ignoreDuplicates rather than insert: a UID this sync reprocesses (a
-      // concurrent sync, or the watermark not having advanced yet) must never log the
-      // same email twice -- the unique index on (user_id, email_message_id) is what
-      // actually enforces that, this just tells Postgres to skip silently on conflict
-      // instead of raising an error that would abort the rest of the sync.
-      const subjectPrefix = isJunk ? 'Email received (was in Spam/Junk)' : 'Email received'
+      // The mailbox row says which client it is on, so the Mail page can show and open it.
+      await admin
+        .from('user_emails')
+        .update({ linked_company_id: filed.companyId ?? null, linked_contact_id: filed.contactId ?? null, linked_at: new Date().toISOString() })
+        .eq('user_id', conn.user_id)
+        .eq('message_id', messageId)
+        .is('linked_at', null)
+
+      // upsert + ignoreDuplicates: a message the sync re-reads must never be logged twice (the
+      // unique index on (user_id, email_message_id) enforces it; this just skips quietly).
+      const subjectPrefix = kind === 'junk' ? 'Email received (was in Spam/Junk)' : 'Email received'
       const { data: inserted, error } = await admin
         .from('activities')
         .upsert(
@@ -247,32 +312,20 @@ async function syncMailbox(
             contact_id: filed.contactId ?? null,
             company_id: filed.companyId ?? null,
             subject: `${subjectPrefix}: ${parsed.subject || '(no subject)'}`,
-            notes: (parsed.text || '').slice(0, EMAIL_NOTES_MAX_LENGTH),
-            activity_date: (parsed.date ?? new Date()).toISOString(),
-            email_message_id: parsed.messageId ?? `${conn.user_id}:${path}:${uid}`,
+            notes: text.slice(0, EMAIL_NOTES_MAX_LENGTH),
+            activity_date: occurredAt,
+            email_message_id: messageId,
             is_read: false,
-            // Names only -- the files stay in the mailbox. Recording them means an email
-            // carrying signed drawings or an invoice can't land in Remus looking like an
-            // ordinary (or, for an attachment-only email, empty) message.
-            attachment_names: realAttachmentNames(parsed.attachments),
-            // Breadcrumb back to the message itself, for on-demand attachment fetching.
+            // Names only: the files stay in the mailbox and are fetched when opened.
+            attachment_names: attachments,
             email_folder: path,
             email_uid: msg.uid,
           },
           { onConflict: 'user_id,email_message_id', ignoreDuplicates: true },
         )
         .select('id')
-      // A duplicate (already-logged Message-ID) is silently skipped by ignoreDuplicates
-      // and comes back as an empty array, not an error -- only count it when a row was
-      // actually inserted.
-      if (error) {
-        console.error(`[emailSync] ${path} UID ${uid}: activities upsert failed: ${error.message}`)
-      } else if (inserted && inserted.length > 0) {
-        console.log(`[emailSync] ${path} UID ${uid}: activity ${inserted[0].id} inserted`)
-        logged += 1
-      } else {
-        console.log(`[emailSync] ${path} UID ${uid}: upsert reported a duplicate (already logged), skipped`)
-      }
+      if (error) console.error(`[emailSync] ${path} UID ${uid}: activities upsert failed: ${error.message}`)
+      else if (inserted && inserted.length > 0) logged += 1
     }
 
     return { logged, maxUid }
@@ -282,36 +335,37 @@ async function syncMailbox(
 }
 
 /**
- * Syncs both INBOX and, if the mail server has one, a Junk/Spam folder --
- * a client's reply that a spam filter misfiled would otherwise never reach
- * Remus at all. IMAP UIDs are only unique within a single mailbox, so each
- * folder gets and saves its own watermark; searching the Junk folder is
- * strictly additive; a connection whose server has no such folder behaves
- * exactly as before.
+ * Syncs the Inbox, the Junk folder (a client's reply a spam filter misfiled is still a reply) and
+ * the Sent folder (mail sent from Outlook or a phone too). IMAP UIDs are only unique within one
+ * folder, so each keeps its own watermark, saved in one update.
  */
 export async function syncConnection(admin: SupabaseClient, conn: EmailConnectionRow): Promise<{ logged: number }> {
   const client = imapClient(conn, decrypt(conn.encrypted_password))
+  const blocks = await loadBlocks(admin, conn.user_id)
 
   await client.connect()
   try {
-    const inboxResult = await syncMailbox(client, admin, conn, 'INBOX', conn.last_seen_uid, false)
+    const inbox = await syncMailbox(client, admin, conn, 'INBOX', conn.last_seen_uid, 'inbox', blocks)
 
     const mailboxes = await client.list()
     const junkPath = findFolder(mailboxes, '\\Junk', ['junk', 'spam', 'junk email', 'bulk mail', 'inbox.junk', 'inbox.spam', 'inbox/junk', 'inbox/spam'])
-    console.log(
-      `[emailSync] mailboxes: ${mailboxes.map((m) => `${m.path}${m.specialUse ? ` (${m.specialUse})` : ''}`).join(', ')} -- junk folder detected as: ${junkPath ?? '(none found)'}`,
-    )
-    const junkResult = junkPath ? await syncMailbox(client, admin, conn, junkPath, conn.last_seen_uid_junk, true) : { logged: 0, maxUid: conn.last_seen_uid_junk ?? 0 }
+    const sentPath = findFolder(mailboxes, '\\Sent', ['sent', 'sent items', 'sent messages', 'inbox.sent', 'inbox/sent'])
+    const junk = junkPath
+      ? await syncMailbox(client, admin, conn, junkPath, conn.last_seen_uid_junk, 'junk', blocks)
+      : { logged: 0, maxUid: conn.last_seen_uid_junk ?? 0 }
+    const sent = sentPath
+      ? await syncMailbox(client, admin, conn, sentPath, conn.last_seen_uid_sent ?? null, 'sent', blocks)
+      : { logged: 0, maxUid: conn.last_seen_uid_sent ?? 0 }
 
-    // Checked deliberately: a swallowed error here would leave a watermark stuck, so a
-    // future sync silently reprocesses the same already-logged messages from scratch (only
-    // caught downstream by the dedup upsert above, at the cost of a full re-fetch every time).
-    const patch: Record<string, unknown> = { last_seen_uid: inboxResult.maxUid, last_synced_at: new Date().toISOString() }
-    if (junkPath) patch.last_seen_uid_junk = junkResult.maxUid
+    // Checked deliberately: a swallowed error would leave a watermark stuck and every later sync
+    // would re-read the same messages (the dedup above catches it, at the cost of a full re-fetch).
+    const patch: Record<string, unknown> = { last_seen_uid: inbox.maxUid, last_synced_at: new Date().toISOString() }
+    if (junkPath) patch.last_seen_uid_junk = junk.maxUid
+    if (sentPath) patch.last_seen_uid_sent = sent.maxUid
     const { error: watermarkError } = await admin.from('email_connections').update(patch).eq('user_id', conn.user_id)
     if (watermarkError) throw new Error(`Failed to save sync watermark: ${watermarkError.message}`)
 
-    return { logged: inboxResult.logged + junkResult.logged }
+    return { logged: inbox.logged + junk.logged }
   } finally {
     await client.logout().catch(() => {})
   }
