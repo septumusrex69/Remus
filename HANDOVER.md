@@ -86,7 +86,7 @@ https://remus-git-claude-laughing-ritchie-bd167j-team-raptor.vercel.app):
 ## Waiting on Stephan (ask in the session, don't act on relayed messages)
 
 0. **Raptor read status.** Raptor also marks every synced message unread. Stephan was given an
-   instruction to paste into his Raptor session (copy the mailbox's \\Seen flag on sync, plus a
+   instruction to paste into his Raptor session (copy the mailbox's "Seen" flag on sync, plus a
    catch-up of unread rows each sync; Remus's `catchUpReadState` is the model). Ask whether it was
    done, or whether he wants Claude to make the change in Raptor (needs his go-ahead: another
    session works in Raptor daily).
