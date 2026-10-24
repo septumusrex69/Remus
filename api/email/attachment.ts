@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { requireCaller } from '../_lib/auth.js'
 import { credentialsKeyProblem } from '../_lib/crypto.js'
-import { fetchAttachment } from '../_lib/emailSync.js'
+import { fetchAttachment, fetchMessageHtml } from '../_lib/emailSync.js'
 import { adminClient, getConnection } from '../_lib/mailbox.js'
 
 /**
@@ -10,6 +10,9 @@ import { adminClient, getConnection } from '../_lib/mailbox.js'
  *
  * POST { activityId, filename }   an email on a client's Emails card
  * POST { mailId, filename }       a message in the caller's own mailbox (the Mail page)
+ * POST { mailId, pictures: true }  that message's markup WITH its pictures. The stored copy leaves
+ *                                  them out (they were ~320 kB a message); the Mail page shows the
+ *                                  words at once and asks for this to fill the pictures in.
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
@@ -21,6 +24,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!caller) return res.status(401).json({ error: 'Please sign in again.' })
 
   const { activityId, mailId, filename } = (req.body ?? {}) as { activityId?: string; mailId?: string; filename?: string }
+
+  if (mailId && (req.body as { pictures?: boolean }).pictures === true) {
+    // Read as the caller: RLS shows a mailbox row only to its owner, so this is your own mail.
+    const { data: mail } = await caller.db
+      .from('user_emails').select('id, user_id, folder, uid, message_id').eq('id', mailId).maybeSingle()
+    if (!mail) return res.status(404).json({ error: 'That email is no longer in Remus.' })
+    const own = await getConnection(admin, mail.user_id as string)
+    if (!own) return res.status(400).json({ error: 'Your mailbox is no longer connected.' })
+    try {
+      const html = await fetchMessageHtml(own, {
+        folder: mail.folder as string | null, uid: mail.uid as number | null, messageId: mail.message_id as string | null,
+      })
+      if (html === null) return res.status(404).json({ error: 'Could not find that message in the mailbox.' })
+      return res.status(200).json({ html })
+    } catch (err) {
+      return res.status(502).json({ error: err instanceof Error ? err.message : 'Could not reach the mailbox.' })
+    }
+  }
   if ((!activityId && !mailId) || !filename) return res.status(400).json({ error: 'activityId or mailId, and filename, are required.' })
 
   // Read as the caller, so RLS decides whether they may see this email at all (a mailbox row is

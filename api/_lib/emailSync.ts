@@ -126,6 +126,39 @@ export async function fetchAttachment(
   location: { folder?: string | null; uid?: number | null; messageId?: string | null },
   filename: string,
 ): Promise<FetchedAttachment | null> {
+  return withParsedMessage(conn, location, (parsed) => {
+    const match = (parsed.attachments ?? []).find((att) => (att.filename || '') === filename)
+    if (!match) return null
+    return { filename, contentType: match.contentType || 'application/octet-stream', content: match.content as Buffer }
+  })
+}
+
+/**
+ * A message's markup WITH its pictures, read out of the mailbox for the Mail page.
+ *
+ * The stored copy leaves the pictures out (see withoutEmbeddedPictures), so the page shows the
+ * words at once and asks for this to fill the pictures in. Nothing is written back: writing it
+ * back is exactly the storage this exists to avoid.
+ */
+export async function fetchMessageHtml(
+  conn: { email: string; imap_host: string; imap_port: number; encrypted_password: string },
+  location: { folder?: string | null; uid?: number | null; messageId?: string | null },
+): Promise<string | null> {
+  return withParsedMessage(conn, location, (parsed) => (typeof parsed.html === 'string' ? parsed.html : null))
+}
+
+/**
+ * Finds one message in the mailbox and hands it, parsed, to `take`.
+ *
+ * Looks in the folder the message was synced from first, and falls back to searching by
+ * Message-ID, since a message genuinely does move (rescued from Spam, filed into a folder)
+ * after Remus logged it. A null from `take` means "not this one, keep looking".
+ */
+async function withParsedMessage<T>(
+  conn: { email: string; imap_host: string; imap_port: number; encrypted_password: string },
+  location: { folder?: string | null; uid?: number | null; messageId?: string | null },
+  take: (parsed: Awaited<ReturnType<typeof simpleParser>>) => T | null,
+): Promise<T | null> {
   const client = imapClient(conn, decrypt(conn.encrypted_password))
   await client.connect()
   try {
@@ -154,9 +187,8 @@ export async function fetchAttachment(
         // original was deleted and the UID reused, so confirm identity when we can.
         if (location.messageId && parsed.messageId && parsed.messageId !== location.messageId) continue
 
-        const match = (parsed.attachments ?? []).find((att) => (att.filename || '') === filename)
-        if (!match) continue
-        return { filename, contentType: match.contentType || 'application/octet-stream', content: match.content as Buffer }
+        const hit = take(parsed)
+        if (hit !== null) return hit
       } finally {
         lock.release()
       }
@@ -165,6 +197,23 @@ export async function fetchAttachment(
   } finally {
     await client.logout().catch(() => {})
   }
+}
+
+/** Must match DROPPED_PICTURE in src/lib/mailPictures.ts -- the Mail page looks for it. */
+const DROPPED_PICTURE = 'cid:remus-picture-not-kept'
+
+/**
+ * The markup to STORE: every embedded picture replaced by a reference (copy of
+ * withoutEmbeddedPictures in src/lib/mailPictures.ts, because api/ can't import from src).
+ *
+ * mailparser rewrites each signature logo from cid: into the picture itself, base64, inside the
+ * HTML. Kept as-is that was ~320 kB a message (24 Oct: 59 messages, 19 MB); Raptor's staging
+ * database filled its disk the same way. The words stay; the pictures come from the mailbox when
+ * the message is opened. No whitespace in the class, or `src=data:... alt=x` loses its alt.
+ */
+function withoutEmbeddedPictures(html: string): string {
+  if (!html || !/data:image\//i.test(html)) return html
+  return html.replace(/data:image\/[a-z0-9.+-]+;base64,[a-z0-9+/=]*/gi, DROPPED_PICTURE)
 }
 
 type FolderKind = 'inbox' | 'junk' | 'sent'
@@ -216,13 +265,16 @@ async function syncMailbox(
       const occurredAt = (parsed.date ?? new Date()).toISOString()
       const text = parsed.text || ''
       const html = typeof parsed.html === 'string' ? parsed.html : ''
+      // What is stored: the same markup without its pictures, measured AFTER they come out, so a big
+      // logo no longer pushes an ordinary message out of the stored copy.
+      const keptHtml = withoutEmbeddedPictures(html)
       const attachments = realAttachmentNames(parsed.attachments)
       const to = recipientsOf(parsed.to)
       const cc = recipientsOf(parsed.cc)
 
       // ---------- The person's mailbox ----------
       if (kind === 'sent' || !isBlocked(fromAddress, blocks)) {
-        const tooBig = html.length > HTML_LIMIT
+        const tooBig = keptHtml.length > HTML_LIMIT
         const { error: rowError } = await admin.from('user_emails').upsert(
           {
             user_id: conn.user_id,
@@ -244,7 +296,7 @@ async function syncMailbox(
             // Your own sent mail is not something to read.
             read_at: kind === 'sent' || seen ? occurredAt : null,
             body_text: !tooBig && text.length <= TEXT_LIMIT ? text || null : null,
-            body_html: !tooBig ? html || null : null,
+            body_html: !tooBig ? keptHtml || null : null,
             body_cached_at: new Date().toISOString(),
           },
           { onConflict: 'user_id,message_id', ignoreDuplicates: true },
