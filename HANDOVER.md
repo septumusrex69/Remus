@@ -93,7 +93,7 @@ https://remus-git-claude-laughing-ritchie-bd167j-team-raptor.vercel.app):
 - First real sync (23 Oct): Inbox 40, Sent 19, Junk ("INBOX.spambucket" on his server) empty.
 
 
-**Remus brand and skins (24 Oct, branch `claude/remus-skins`, preview only until Stephan OKs):**
+**Remus brand and skins (24 Oct, live with Stephan's OK; built on branch `claude/remus-skins`):**
 Stephan's brief: "we're operating as Urban Haus, but the app's name is Remus", make it look like his
 Remus brand board, and "build the same thing you've done for Raptor with different skins".
 - Raptor's skin system copied: `src/lib/themes.ts`, `src/store/ThemeContext.tsx`, the no-flash
