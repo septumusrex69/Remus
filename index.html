@@ -3,13 +3,26 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#18191c" />
-    <title>Urban Haus · Remus</title>
-    <link rel="icon" type="image/png" sizes="64x64" href="/brand/icon-64.png" />
-    <link rel="apple-touch-icon" href="/brand/icon-192.png" />
+    <meta name="theme-color" content="#3e4448" />
+    <title>Remus</title>
+    <link rel="icon" type="image/png" sizes="64x64" href="/brand/remus-icon-64.png" />
+    <link rel="apple-touch-icon" href="/brand/remus-icon-192.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <script>
+      // The skin before first paint, so nobody sees a flash of the other one. This repeats a few
+      // lines of src/lib/themes.ts (a module can't run this early): change the key and ids together.
+      ;(function () {
+        var ids = ['urban-haus', 'remus', 'oxblood', 'sage', 'blueprint', 'teal', 'concrete']
+        var id = 'remus'
+        try {
+          var saved = localStorage.getItem('remus.theme')
+          if (saved && ids.indexOf(saved) >= 0) id = saved
+        } catch (e) {}
+        if (id !== 'urban-haus') document.documentElement.setAttribute('data-theme', id)
+      })()
+    </script>
   </head>
   <body>
     <div id="root"></div>

@@ -7,14 +7,16 @@ import { preloadPages } from '../../pages/build/routes'
 import { Spinner } from '../ui'
 import { ErrorBoundary } from '../ErrorBoundary'
 import { Sidebar } from './Sidebar'
+import { useTheme } from '../../store/ThemeContext'
 import { Topbar } from './Topbar'
 
-/** Urban Haus Construction logo: `onDark` uses the white-lettered version. */
+/** The skin's logo (REMUS, or Urban Haus on Classic): `onDark` uses the white version. */
 export function Logo({ className, onDark }: { className?: string; onDark?: boolean }) {
+  const { theme } = useTheme()
   return (
     <img
-      src={onDark ? '/brand/urban-haus-logo-white.png' : '/brand/urban-haus-logo.png'}
-      alt="Urban Haus Construction"
+      src={onDark ? theme.lockupLight : theme.lockupDark}
+      alt={theme.productName}
       className={clsx('h-auto w-auto object-contain', className)}
     />
   )

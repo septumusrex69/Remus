@@ -31,9 +31,14 @@ How to apply it:
 - **Copy Raptor's code, then adapt.** Start from Raptor's component or page and strip what is
   debt-collection specific (accounts, charges, Annexure B tariff, debtors, leads/deals). Do not
   write a simpler version of your own.
-- **Keep Remus's brand:** Urban Haus logo and orange `#EF6723` where Raptor uses its gold, and a
-  dark charcoal where Raptor uses navy. Everything else (structure, spacing, behaviour) follows
-  Raptor.
+- **Keep Remus's brand (since 24 Oct 2026):** the app is **Remus**, run by Urban Haus. The frame
+  carries the REMUS wordmark; quotes, PDFs and client emails keep the company's own logo from
+  Settings. Colours come from **skins** (Settings → Appearance, Raptor's skin system):
+  `src/lib/themes.ts` + `src/styles/skins.css`. Never hard-code a colour in a component: use the
+  tokens (`brand-*` where Raptor uses gold, `ink-950` where Raptor uses navy, `slate-*`,
+  `emerald-*` for progress) so every skin follows. Default skin "Remus" is the brand board:
+  graphite #454B50, oxblood #512C35, sage #78846E, stone #EEEAE4, paper #FAF9F6, Inter.
+  "Urban Haus Classic" (orange #EF6723 on charcoal) is the old look, kept as a skin.
 - **If you do something differently from Raptor, tell the owner why before you build it.**
 
 ## Every Raptor-style app has these. Check they're present; add them if not.

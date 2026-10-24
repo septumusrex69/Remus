@@ -10,6 +10,7 @@ import { useBuild } from '../../pages/build/BuildContext'
 import { paths } from '../../pages/build/paths'
 import { useSidebarCollapsed } from '../../lib/sidebarCollapsed'
 import { useUnreadMail } from '../../lib/unreadMail'
+import { useTheme } from '../../store/ThemeContext'
 
 /**
  * The navigation, copied from Raptor's Sidebar: folds to an icon rail (remembered per device),
@@ -41,7 +42,8 @@ const ROLE_LABEL: Record<string, string> = { 'Read Only': 'Read only', Administr
  */
 export function Sidebar({ drawer, onNavigate }: { drawer?: boolean; onNavigate?: () => void }) {
   const { currentUser, signOut } = useAuth()
-  const { needsLinking } = useBuild()
+  const { needsLinking, settings } = useBuild()
+  const { theme } = useTheme()
   const unreadMail = useUnreadMail()
   const [foldedPref, toggleCollapsed] = useSidebarCollapsed()
   const collapsed = !drawer && foldedPref
@@ -69,10 +71,21 @@ export function Sidebar({ drawer, onNavigate }: { drawer?: boolean; onNavigate?:
     >
       <div className={clsx('flex h-16 items-center border-b border-white/10', collapsed ? 'justify-center px-2' : 'px-5')}>
         {/* Folded, the wordmark would smear into 48px, so the rail shows the icon alone. */}
-        <Link to={paths.dashboard()} onClick={onNavigate} aria-label="Dashboard">
-          {collapsed
-            ? <img src="/brand/icon-64.png" alt="Urban Haus" className="h-8 w-8 rounded-md" />
-            : <img src="/brand/urban-haus-logo-white.png" alt="Urban Haus Construction" className="max-h-11 w-auto object-contain" />}
+        <Link to={paths.dashboard()} onClick={onNavigate} aria-label="Dashboard" className="min-w-0">
+          {collapsed ? (
+            <img src={theme.icon} alt={theme.productName} className="h-8 w-8 rounded-md" />
+          ) : theme.tagline ? (
+            // The app's wordmark, with the company it is running for underneath (the skin's
+            // default until Settings has loaded, then the company name from Settings).
+            <span className="block">
+              <img src={theme.lockupLight} alt={theme.productName} className="h-5 w-auto object-contain" />
+              <span className="skin-eyebrow mt-1.5 block truncate text-[9.5px] font-medium text-white/55">
+                {settings?.name || theme.tagline}
+              </span>
+            </span>
+          ) : (
+            <img src={theme.lockupLight} alt={settings?.name || 'Urban Haus Construction'} className="max-h-11 w-auto object-contain" />
+          )}
         </Link>
       </div>
 

@@ -1,0 +1,170 @@
+/*
+ * REMUS SKINS, in the manner of Raptor's src/styles/*.css.
+ *
+ * Selectors are `html[data-theme=…]` (Raptor's rule): `:root` and a bare attribute carry the same
+ * specificity, and Tailwind's own tokens would win on source order. With no attribute (Urban Haus
+ * Classic) not one rule here applies and the app renders exactly as index.css says.
+ *
+ * Each skin sets seven ingredients; the recipe below turns them into every token the app draws
+ * from (brand ramp, greys, sidebar, surfaces, progress green), so a skin is a dozen lines and no
+ * component knows which one is on.
+ *
+ *   --skin-ground    the sidebar and dark surfaces
+ *   --skin-accent    primary buttons, the active menu item, links, chart bars
+ *   --skin-neutral   the grey family (text, borders, placeholders), tinted to suit the skin
+ *   --skin-positive  progress, paid, profit (replaces emerald)
+ *   --skin-surface   the page
+ *   --skin-card      cards and the top bar
+ *   --skin-pattern   the page's linework (an SVG, kept faint)
+ */
+
+/* ── The recipe ─────────────────────────────────────────────────────────────── */
+html[data-theme] {
+  --color-surface: var(--skin-surface);
+  --color-card: var(--skin-card);
+  --color-ink-950: var(--skin-ground);
+  --color-ink-900: color-mix(in oklab, var(--skin-ground), white 9%);
+  --color-charcoal: var(--skin-ground);
+
+  --color-brand-50: color-mix(in oklab, var(--skin-accent) 6%, white);
+  --color-brand-100: color-mix(in oklab, var(--skin-accent) 12%, white);
+  --color-brand-200: color-mix(in oklab, var(--skin-accent) 25%, white);
+  --color-brand-300: color-mix(in oklab, var(--skin-accent) 45%, white);
+  --color-brand-400: color-mix(in oklab, var(--skin-accent) 72%, white);
+  --color-brand-500: var(--skin-accent);
+  --color-brand-600: color-mix(in oklab, var(--skin-accent), black 14%);
+  --color-brand-700: color-mix(in oklab, var(--skin-accent), black 28%);
+  --color-brand-800: color-mix(in oklab, var(--skin-accent), black 42%);
+  --color-brand-900: color-mix(in oklab, var(--skin-accent), black 55%);
+  --color-brand-950: color-mix(in oklab, var(--skin-accent), black 70%);
+
+  /* The greys, rebuilt around the skin's neutral at roughly Tailwind slate's lightness steps. */
+  --color-slate-50: color-mix(in oklab, var(--skin-neutral) 3%, white);
+  --color-slate-100: color-mix(in oklab, var(--skin-neutral) 7%, white);
+  --color-slate-200: color-mix(in oklab, var(--skin-neutral) 13%, white);
+  --color-slate-300: color-mix(in oklab, var(--skin-neutral) 23%, white);
+  --color-slate-400: color-mix(in oklab, var(--skin-neutral) 52%, white);
+  --color-slate-500: color-mix(in oklab, var(--skin-neutral) 80%, white);
+  --color-slate-600: var(--skin-neutral);
+  --color-slate-700: color-mix(in oklab, var(--skin-neutral), black 20%);
+  --color-slate-800: color-mix(in oklab, var(--skin-neutral), black 42%);
+  --color-slate-900: color-mix(in oklab, var(--skin-neutral), black 60%);
+  --color-slate-950: color-mix(in oklab, var(--skin-neutral), black 75%);
+
+  /* Progress, paid and profit in the skin's green (sage on the board) instead of emerald. */
+  --color-emerald-50: color-mix(in oklab, var(--skin-positive) 10%, white);
+  --color-emerald-100: color-mix(in oklab, var(--skin-positive) 18%, white);
+  --color-emerald-200: color-mix(in oklab, var(--skin-positive) 34%, white);
+  --color-emerald-500: var(--skin-positive);
+  --color-emerald-600: color-mix(in oklab, var(--skin-positive), black 12%);
+  --color-emerald-700: color-mix(in oklab, var(--skin-positive), black 30%);
+  --color-emerald-800: color-mix(in oklab, var(--skin-positive), black 45%);
+
+  /* Errors, losses and overdue in a brick red that belongs with the palette, not a traffic light. */
+  --color-red-50: color-mix(in oklab, var(--skin-negative) 7%, white);
+  --color-red-100: color-mix(in oklab, var(--skin-negative) 14%, white);
+  --color-red-200: color-mix(in oklab, var(--skin-negative) 28%, white);
+  --color-red-500: var(--skin-negative);
+  --color-red-600: color-mix(in oklab, var(--skin-negative), black 8%);
+  --color-red-700: color-mix(in oklab, var(--skin-negative), black 24%);
+
+  /* The board's cards: crisper corners, a hairline and almost no shadow. */
+  --card-radius: 0.625rem;
+  --card-border: color-mix(in oklab, var(--skin-neutral) 12%, white);
+  --card-shadow: 0 1px 2px color-mix(in oklab, var(--skin-ground) 6%, transparent);
+
+  --skin-positive: #78846e;
+  --skin-negative: #a8473d;
+  --skin-card: #fbfaf8;
+}
+
+html[data-theme] body {
+  color: var(--color-slate-900);
+  background-color: var(--skin-surface);
+  background-image: var(--skin-pattern);
+  background-attachment: fixed;
+}
+
+html[data-theme] ::-webkit-scrollbar-thumb {
+  background-color: var(--color-slate-300);
+}
+
+/* The board's section labels: small capitals, wide tracking, under the page title. */
+html[data-theme] .skin-eyebrow {
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+
+/* ── Remus: the brand board ────────────────────────────────────────────────── */
+html[data-theme='remus'] {
+  --skin-ground: #3e4448;
+  --skin-accent: #512c35;
+  --skin-neutral: #555b60;
+  --skin-positive: #78846e;
+  --skin-surface: #eeeae4;
+  --skin-card: #faf9f6;
+  /* Architectural grid: a 24px minor grid, 120px major lines, and a door swing now and then. */
+  --skin-pattern: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='480' height='480'><g fill='none' stroke='rgb(69,75,80)'><path d='M0 .5H480M0 120.5H480M0 240.5H480M0 360.5H480M.5 0V480M120.5 0V480M240.5 0V480M360.5 0V480' stroke-opacity='.07'/><path d='M0 24.5H480M0 48.5H480M0 72.5H480M0 96.5H480M0 144.5H480M0 168.5H480M0 192.5H480M0 216.5H480M0 264.5H480M0 288.5H480M0 312.5H480M0 336.5H480M0 384.5H480M0 408.5H480M0 432.5H480M0 456.5H480M24.5 0V480M48.5 0V480M72.5 0V480M96.5 0V480M144.5 0V480M168.5 0V480M192.5 0V480M216.5 0V480M264.5 0V480M288.5 0V480M312.5 0V480M336.5 0V480M384.5 0V480M408.5 0V480M432.5 0V480M456.5 0V480' stroke-opacity='.025'/><path d='M240.5 360.5h48M240.5 360.5v-48a48 48 0 0 1 48 48' stroke-opacity='.09'/><circle cx='360.5' cy='120.5' r='34' stroke-opacity='.07'/></g></svg>");
+}
+
+/* ── Oxblood: the colour variant ───────────────────────────────────────────── */
+html[data-theme='oxblood'] {
+  --skin-ground: #2c171d;
+  --skin-accent: #7a3342;
+  --skin-neutral: #5f5557;
+  --skin-positive: #78846e;
+  --skin-surface: #f2ede7;
+  --skin-card: #fbf9f6;
+  /* Registration crosshairs on a fine grid, as on logo 02. */
+  --skin-pattern: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='360' height='360'><g fill='none' stroke='rgb(81,44,53)'><path d='M0 .5H360M0 180.5H360M.5 0V360M180.5 0V360' stroke-opacity='.06' stroke-dasharray='2 6'/><circle cx='90.5' cy='90.5' r='12' stroke-opacity='.1'/><path d='M70 90.5h41M90.5 70v41' stroke-opacity='.1'/><circle cx='270.5' cy='270.5' r='12' stroke-opacity='.1'/><path d='M250 270.5h41M270.5 250v41' stroke-opacity='.1'/></g></svg>");
+}
+
+/* ── Sage: logo 03, a hex grid ─────────────────────────────────────────────── */
+html[data-theme='sage'] {
+  --skin-ground: #2b3328;
+  --skin-accent: #5d6b4e;
+  --skin-neutral: #575d52;
+  --skin-positive: #6f8a5c;
+  --skin-surface: #f1f1ea;
+  --skin-card: #fbfbf7;
+  --skin-pattern: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='208'><g fill='none' stroke='rgb(93,107,78)' stroke-opacity='.08'><path d='M0 0L120 208M120 0L0 208M60 0L0 104L60 208L120 104Z'/><path d='M0 104H120'/></g></svg>");
+}
+
+/* ── Blueprint: logo 04, drawing-office navy ───────────────────────────────── */
+html[data-theme='blueprint'] {
+  --skin-negative: #b5473f;
+  --skin-ground: #13233b;
+  --skin-accent: #2c5a8c;
+  --skin-neutral: #4f5d70;
+  --skin-positive: #4e8a73;
+  --skin-surface: #edf1f7;
+  --skin-card: #fbfcfe;
+  --skin-pattern: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='400'><g fill='none' stroke='rgb(44,90,140)'><path d='M0 .5H400M0 100.5H400M0 200.5H400M0 300.5H400M.5 0V400M100.5 0V400M200.5 0V400M300.5 0V400' stroke-opacity='.08'/><path d='M0 20.5H400M0 40.5H400M0 60.5H400M0 80.5H400M0 120.5H400M0 140.5H400M0 160.5H400M0 180.5H400M0 220.5H400M0 240.5H400M0 260.5H400M0 280.5H400M0 320.5H400M0 340.5H400M0 360.5H400M0 380.5H400M20.5 0V400M40.5 0V400M60.5 0V400M80.5 0V400M120.5 0V400M140.5 0V400M160.5 0V400M180.5 0V400M220.5 0V400M240.5 0V400M260.5 0V400M280.5 0V400M320.5 0V400M340.5 0V400M360.5 0V400M380.5 0V400' stroke-opacity='.03'/><circle cx='300.5' cy='100.5' r='70' stroke-opacity='.07'/><circle cx='100.5' cy='300.5' r='40' stroke-opacity='.07'/></g></svg>");
+}
+
+/* ── Steel Teal: logo 05, structural steel ─────────────────────────────────── */
+html[data-theme='teal'] {
+  --skin-ground: #0f2b2a;
+  --skin-accent: #1f5f59;
+  --skin-neutral: #4f5f5e;
+  --skin-positive: #5e8a6e;
+  --skin-surface: #edf2f1;
+  --skin-card: #fbfcfc;
+  /* A Warren truss: chords top and bottom, diagonals between. */
+  --skin-pattern: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='160'><g fill='none' stroke='rgb(31,95,89)' stroke-opacity='.07'><path d='M0 .5H240M0 80.5H240M0 0L60 80L120 0L180 80L240 0M60 80L60 160M180 80V160'/><path d='M0 160L60 80M120 160L60 80M120 160L180 80M240 160L180 80' stroke-opacity='.04'/></g></svg>");
+}
+
+/* ── Concrete: logo 06, monochrome with a diagonal hatch ───────────────────── */
+html[data-theme='concrete'] {
+  --skin-ground: #232323;
+  --skin-accent: #3b3b3b;
+  --skin-neutral: #5a5856;
+  --skin-positive: #6f7d68;
+  --skin-surface: #e9e6e0;
+  --skin-card: #f9f8f6;
+  --skin-pattern: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12'><path d='M-3 3L3 -3M0 12L12 0M9 15L15 9' stroke='rgb(60,60,60)' stroke-opacity='.07'/></svg>");
+}
+/* On a charcoal sidebar a charcoal "active" item disappears: lift it. */
+html[data-theme='concrete'] aside .bg-brand-500 {
+  background-color: #4a4a4a;
+}

@@ -2,11 +2,13 @@ import { useState, type FormEvent } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { ArrowRight, Lock } from 'lucide-react'
 import { useAuth } from '../../store/AuthContext'
+import { useTheme } from '../../store/ThemeContext'
 
 /** Landing page for invite and password-reset links: the person is signed in but has no password yet. */
 export function SetPasswordPage() {
   const { session, loading, currentUser, setPassword, signOut } = useAuth()
   const navigate = useNavigate()
+  const { theme } = useTheme()
   const [password, setPw] = useState('')
   const [confirm, setConfirm] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -30,7 +32,7 @@ export function SetPasswordPage() {
   return (
     <div className="flex min-h-dvh items-center justify-center px-4 py-10">
       <div className="w-full max-w-sm">
-        <img src="/brand/urban-haus-logo.png" alt="Urban Haus Construction" className="mb-8 h-20 w-auto object-contain" />
+        <img src={theme.lockupDark} alt={theme.productName} className={theme.tagline ? "mb-8 h-9 w-auto object-contain" : "mb-8 h-20 w-auto object-contain"} />
         <h1 className="text-2xl font-semibold text-slate-900">Choose your password</h1>
         <p className="mt-1 text-sm text-slate-500">
           {currentUser?.email ?? session.user.email}: you'll use this with your email to sign in from now on.

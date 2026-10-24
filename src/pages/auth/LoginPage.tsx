@@ -3,10 +3,13 @@ import { Navigate, useLocation } from 'react-router-dom'
 import { ArrowRight, Lock, Mail } from 'lucide-react'
 import { useAuth } from '../../store/AuthContext'
 import { isSupabaseConfigured, supabase } from '../../lib/supabase'
+import { useTheme } from '../../store/ThemeContext'
 
 export function LoginPage() {
   const { session, loading, signIn, needsPassword } = useAuth()
   const location = useLocation()
+  const { theme } = useTheme()
+  const remus = !!theme.tagline
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -38,19 +41,56 @@ export function LoginPage() {
 
   return (
     <div className="flex min-h-dvh">
-      <div className="relative hidden w-1/2 flex-col justify-between overflow-hidden bg-slate-900 p-10 text-white lg:flex">
-        <img src="/brand/urban-haus-logo-white.png" alt="Urban Haus Construction" className="h-24 w-auto self-start object-contain" />
-        <div>
-          <h2 className="text-3xl font-semibold leading-tight">Quotes, projects, site diary and costs — in one place.</h2>
-          <p className="mt-3 max-w-md text-slate-400">Know your margin on every job, from the first quote to the final payment.</p>
+      {theme.loginArt ? (
+        // The brand artwork: the wordmark on a floorplan, with the board's line under it.
+        <div className="relative hidden w-1/2 flex-col justify-end overflow-hidden border-r border-slate-200 bg-[#fcf8ef] p-10 lg:flex">
+          <img
+            src={theme.loginArt}
+            alt={theme.productName}
+            className="absolute inset-x-0 top-1/2 w-full -translate-y-[62%] object-contain"
+            // Feathered on all four sides so the drawing fades into the paper instead of ending in a box.
+            style={{
+              maskImage: 'linear-gradient(to right, transparent, #000 12%, #000 88%, transparent), linear-gradient(to bottom, transparent, #000 18%, #000 82%, transparent)',
+              maskComposite: 'intersect',
+              WebkitMaskImage: 'linear-gradient(to right, transparent, #000 12%, #000 88%, transparent), linear-gradient(to bottom, transparent, #000 18%, #000 82%, transparent)',
+              WebkitMaskComposite: 'source-in',
+            }}
+          />
+          <div className="relative">
+            <p className="skin-eyebrow text-[11px] font-medium text-slate-500">Construction management</p>
+            <h2 className="mt-2 text-3xl font-light text-slate-800">Build with clarity.</h2>
+            <p className="mt-2 max-w-md text-sm text-slate-500">Quotes, projects, site diary and costs in one place, for Urban Haus Construction.</p>
+            <p className="skin-eyebrow mt-6 text-[10.5px] text-slate-400">Plans · People · Progress · Together</p>
+          </div>
         </div>
-        <p className="text-xs text-slate-500">Construction · Renovations · Maintenance · Electrical</p>
-        <div className="pointer-events-none absolute -right-24 -bottom-24 h-80 w-80 rounded-full bg-brand-500/10" />
+      ) : (
+      <div className="relative hidden w-1/2 flex-col justify-between overflow-hidden bg-ink-950 p-10 text-white lg:flex">
+        {remus ? (
+          <div className="self-start">
+            <img src={theme.lockupLight} alt={theme.productName} className="h-12 w-auto object-contain" />
+            <p className="skin-eyebrow mt-3 text-[11px] font-medium text-white/60">Construction management</p>
+          </div>
+        ) : (
+          <img src={theme.lockupLight} alt="Urban Haus Construction" className="h-24 w-auto self-start object-contain" />
+        )}
+        <div>
+          <h2 className="text-3xl font-semibold leading-tight">{remus ? 'Build with clarity.' : 'Quotes, projects, site diary and costs — in one place.'}</h2>
+          <p className="mt-3 max-w-md text-white/55">
+            {remus
+              ? 'Quotes, projects, site diary and costs in one place, for Urban Haus Construction.'
+              : 'Know your margin on every job, from the first quote to the final payment.'}
+          </p>
+        </div>
+        <p className={remus ? 'skin-eyebrow text-[11px] text-white/40' : 'text-xs text-white/40'}>
+          {remus ? 'Plans · People · Progress · Together' : 'Construction · Renovations · Maintenance · Electrical'}
+        </p>
+        <div className="pointer-events-none absolute -right-24 -bottom-24 h-80 w-80 rounded-full bg-brand-500/15" />
       </div>
+      )}
 
       <div className="flex flex-1 items-center justify-center px-4 py-10">
         <div className="w-full max-w-sm">
-          <img src="/brand/urban-haus-logo.png" alt="Urban Haus Construction" className="mb-8 h-20 w-auto object-contain lg:hidden" />
+          <img src={theme.lockupDark} alt={theme.productName} className={remus ? "mb-8 h-9 w-auto object-contain lg:hidden" : "mb-8 h-20 w-auto object-contain lg:hidden"} />
           <h1 className="text-2xl font-semibold text-slate-900">Sign in</h1>
           <p className="mt-1 text-sm text-slate-500">Use the email and password your administrator set up.</p>
 

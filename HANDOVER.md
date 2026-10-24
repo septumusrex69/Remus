@@ -1,4 +1,4 @@
-# Remus handover (updated 24 Oct 2026)
+# Remus handover (updated 24 Oct 2026, skins)
 
 For the next Claude Code session on `septumusrex69/Remus`. Read `CLAUDE.md` (the standing rules),
 then this file, then do the Raptor check below **before** waiting for Stephan's instructions.
@@ -83,6 +83,22 @@ https://remus-git-claude-laughing-ritchie-bd167j-team-raptor.vercel.app):
 - First real sync (23 Oct): Inbox 40, Sent 19, Junk ("INBOX.spambucket" on his server) empty.
 
 
+**Remus brand and skins (24 Oct, branch `claude/remus-skins`, preview only until Stephan OKs):**
+Stephan's brief: "we're operating as Urban Haus, but the app's name is Remus", make it look like his
+Remus brand board, and "build the same thing you've done for Raptor with different skins".
+- Raptor's skin system copied: `src/lib/themes.ts`, `src/store/ThemeContext.tsx`, the no-flash
+  script in `index.html` (storage key `remus.theme`), and an **Appearance** card at the top of
+  Settings (Raptor's tile picker). Per person, per device; changes nothing clients receive.
+- Seven skins: **Remus** (default: the board), Oxblood, Sage, Blueprint, Steel Teal, Concrete (the
+  six colourways from Stephan's logo sheet, each with its own faint linework), and **Urban Haus
+  Classic** (exactly the previous look; it is the base, no `data-theme` attribute).
+- `src/styles/skins.css`: each skin sets 7 ingredients (ground, accent, neutral, positive,
+  negative, surface, card, pattern); one shared recipe derives every token with `color-mix`.
+  Adding a skin = one entry in `themes.ts`, one block in `skins.css`, and its id in `index.html`.
+- Brand files in `public/brand/remus-*` (wordmark white/graphite, R icon 64/192/512, the floorplan
+  artwork from Stephan's image, used on the Remus sign-in screen). Sidebar shows REMUS with the
+  company name from Settings under it. Charts now use tokens, so they follow the skin.
+
 ## Waiting on Stephan (ask in the session, don't act on relayed messages)
 
 0. **Raptor read status.** Raptor also marks every synced message unread. Stephan was given an
@@ -126,8 +142,9 @@ Remus should become an app **any small construction company** can use, not just 
 
 ## Next phases (planned, not started; confirm order with Stephan)
 
-1. **Visual refresh:** light/dark mode, a richer dashboard with site photos, and phone layouts for
-   site managers.
+1. **Visual refresh (skins done 24 Oct):** still to do from the board: project cards with site photos
+   and progress on the dashboard and Projects list, a project workspace hero (photo, phase,
+   progress, milestones), and a dark mode.
 2. **Workforce:**
    - workers (separate from logins), teams, and scheduling with clash warnings;
    - daily site check-in and attendance, with an audit log;

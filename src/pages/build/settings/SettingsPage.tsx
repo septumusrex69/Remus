@@ -7,6 +7,7 @@ import type { CompanySettings } from '../../../types'
 import { useBuild } from '../BuildContext'
 import { TeamCard } from './TeamCard'
 import { ConnectorCard } from './ConnectorCard'
+import { AppearanceCard } from './AppearanceCard'
 import { MailboxCard } from './MailboxCard'
 
 export function SettingsPage() {
@@ -103,6 +104,7 @@ export function SettingsPage() {
       />
       <ErrorBanner error={error} />
       <div className="grid gap-4 lg:grid-cols-2">
+        <AppearanceCard />
         <Card title="Company details (letterhead)">
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label="Company name" className="sm:col-span-2"><input className="input" value={form.name ?? ''} onChange={(e) => set('name', e.target.value)} /></Field>

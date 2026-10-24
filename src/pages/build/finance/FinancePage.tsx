@@ -29,7 +29,7 @@ function isValidRange(from: string, to: string): boolean {
   return YMD.test(from) && YMD.test(to) && !Number.isNaN(parseISO(from).getTime()) && !Number.isNaN(parseISO(to).getTime()) && from <= to
 }
 
-const PIE_COLORS = ['#ef6723', '#3b3b3b', '#64748b', '#f8a172', '#94a3b8', '#b14214', '#334155', '#cbd5e1']
+const PIE_COLORS = ['var(--color-brand-500)', 'var(--color-ink-950)', 'var(--color-slate-500)', 'var(--color-brand-300)', 'var(--color-slate-400)', 'var(--color-brand-700)', 'var(--color-slate-700)', 'var(--color-slate-300)']
 
 export function FinancePage() {
   const [period, setPeriod] = useState<PeriodKey>('this_fy')
@@ -136,13 +136,13 @@ export function FinancePage() {
               <div className="h-72">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={calc.months} margin={{ left: 0, right: 8, top: 8 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                    <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#64748b' }} tickLine={false} axisLine={false} />
-                    <YAxis tickFormatter={formatZARShort} tick={{ fontSize: 11, fill: '#64748b' }} tickLine={false} axisLine={false} width={60} />
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-slate-200)" />
+                    <XAxis dataKey="month" tick={{ fontSize: 11, fill: 'var(--color-slate-500)' }} tickLine={false} axisLine={false} />
+                    <YAxis tickFormatter={formatZARShort} tick={{ fontSize: 11, fill: 'var(--color-slate-500)' }} tickLine={false} axisLine={false} width={60} />
                     <Tooltip formatter={(v) => formatZAR(Number(v))} />
                     <Legend wrapperStyle={{ fontSize: 12 }} />
-                    <Bar dataKey="Income" fill="#ef6723" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="Expenses" fill="#334155" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="Income" fill="var(--color-brand-500)" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="Expenses" fill="var(--color-ink-950)" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
