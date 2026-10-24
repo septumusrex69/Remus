@@ -3,6 +3,7 @@ import { requireCaller } from '../_lib/auth.js'
 import { credentialsKeyProblem } from '../_lib/crypto.js'
 import { syncConnection, type EmailConnectionRow } from '../_lib/emailSync.js'
 import { adminClient } from '../_lib/mailbox.js'
+import { expireMailPictures } from '../_lib/mailPictures.js'
 
 /**
  * Files new mail from known clients on their Emails card (Raptor's api/email/sync and sync-all,
@@ -39,7 +40,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         results.push({ userId: conn.user_id, error: err instanceof Error ? err.message : 'Sync failed.' })
       }
     }
-    return res.status(200).json({ ok: true, results })
+    // And the picture store's 30 days: a logo nobody has opened in a month is deleted. Never fails the sync.
+    const pictureExpiry = await expireMailPictures(admin).catch((e: unknown) => ({ error: e instanceof Error ? e.message : String(e) }))
+    return res.status(200).json({ ok: true, results, pictureExpiry })
   }
 
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })

@@ -11,7 +11,7 @@ import {
   fileOnClient, forwardSubject, isSharedDomain, domainOf, markMailRead, markMailUnread, quoteBlock, replyAllTo, replySubject,
   setJunk, unblockSender, unfileFromClient, type BlockedSender, type LinkedClient, type MailFilter, type MailItem,
 } from '../../../lib/mailbox'
-import { picturesLeftOut } from '../../../lib/mailPictures'
+import { fillStoredPictures, picturesLeftOut } from '../../../lib/mailPictures'
 import { emailDayLabel, emailTimeLabel } from '../../../lib/emailActivity'
 import { sanitizeEmailHtml } from '../../../lib/emailHtml'
 import { useEmailView } from '../../../lib/emailView'
@@ -184,13 +184,15 @@ export function MailPage() {
     }
     if (!(m.id in bodies)) {
       setLoadingBody(m.id)
-      const body = await fetchBody(m.id).catch(() => null)
+      const stored = await fetchBody(m.id).catch(() => null)
+      // The logos out of the picture store, before the email is shown (it is a few kB, fetched once a visit).
+      const body = stored ? { ...stored, html: await fillStoredPictures(stored.html).catch(() => stored.html) } : null
       setBodies((b) => ({ ...b, [m.id]: body }))
       setLoadingBody(null)
       /*
-       * AND THE PICTURES AFTERWARDS (Raptor's way). The stored copy leaves them out -- they were
-       * ~320 kB a message -- so the words show at once and the signature logos follow from the
-       * mailbox. Silent if the mailbox can't be reached: the message is already readable.
+       * AND ANY PICTURE THE STORE DID NOT HAVE, from the mailbox (Raptor's way): never saved, or
+       * deleted after 30 days unused. The mailbox read saves it, so this happens once. Silent if the
+       * mailbox can't be reached: the message is already readable.
        */
       if (body && picturesLeftOut(body.html)) {
         const html = await fetchMailPictures(m.id).catch(() => null)

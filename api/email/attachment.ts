@@ -3,6 +3,7 @@ import { requireCaller } from '../_lib/auth.js'
 import { credentialsKeyProblem } from '../_lib/crypto.js'
 import { fetchAttachment, fetchMessageHtml } from '../_lib/emailSync.js'
 import { adminClient, getConnection } from '../_lib/mailbox.js'
+import { extractPictures, savePictures } from '../_lib/mailPictures.js'
 
 /**
  * Streams one attachment of a synced email straight out of the mailbox it arrived in, on demand
@@ -37,6 +38,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         folder: mail.folder as string | null, uid: mail.uid as number | null, messageId: mail.message_id as string | null,
       })
       if (html === null) return res.status(404).json({ error: 'Could not find that message in the mailbox.' })
+      /*
+       * AND SAVED, so this is the last time this email's pictures cost a mailbox trip: they go into
+       * the picture store and the stored copy is rewritten to name them by fingerprint. This is
+       * what heals an email whose pictures were never saved, or were deleted after 30 days unused.
+       */
+      const { html: kept, pictures } = extractPictures(html)
+      if (pictures.length > 0) {
+        await savePictures(admin, pictures).catch(() => 0)
+        await admin.from('user_emails').update({ body_html: kept }).eq('id', mail.id).not('body_html', 'is', null)
+      }
       return res.status(200).json({ html })
     } catch (err) {
       return res.status(502).json({ error: err instanceof Error ? err.message : 'Could not reach the mailbox.' })

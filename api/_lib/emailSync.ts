@@ -2,6 +2,7 @@ import type { ImapFlow } from 'imapflow'
 import { simpleParser, type AddressObject } from 'mailparser'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { decrypt } from './crypto.js'
+import { extractPictures, savePictures } from './mailPictures.js'
 import { EMAIL_NOTES_MAX_LENGTH, findFolder, imapClient } from './mailbox.js'
 
 /**
@@ -136,7 +137,7 @@ export async function fetchAttachment(
 /**
  * A message's markup WITH its pictures, read out of the mailbox for the Mail page.
  *
- * The stored copy leaves the pictures out (see withoutEmbeddedPictures), so the page shows the
+ * The stored copy names its pictures by fingerprint (see mailPictures.ts), so the page shows the
  * words at once and asks for this to fill the pictures in. Nothing is written back: writing it
  * back is exactly the storage this exists to avoid.
  */
@@ -199,22 +200,6 @@ async function withParsedMessage<T>(
   }
 }
 
-/** Must match DROPPED_PICTURE in src/lib/mailPictures.ts -- the Mail page looks for it. */
-const DROPPED_PICTURE = 'cid:remus-picture-not-kept'
-
-/**
- * The markup to STORE: every embedded picture replaced by a reference (copy of
- * withoutEmbeddedPictures in src/lib/mailPictures.ts, because api/ can't import from src).
- *
- * mailparser rewrites each signature logo from cid: into the picture itself, base64, inside the
- * HTML. Kept as-is that was ~320 kB a message (24 Oct: 59 messages, 19 MB); Raptor's staging
- * database filled its disk the same way. The words stay; the pictures come from the mailbox when
- * the message is opened. No whitespace in the class, or `src=data:... alt=x` loses its alt.
- */
-function withoutEmbeddedPictures(html: string): string {
-  if (!html || !/data:image\//i.test(html)) return html
-  return html.replace(/data:image\/[a-z0-9.+-]+;base64,[a-z0-9+/=]*/gi, DROPPED_PICTURE)
-}
 
 type FolderKind = 'inbox' | 'junk' | 'sent'
 
@@ -265,9 +250,11 @@ async function syncMailbox(
       const occurredAt = (parsed.date ?? new Date()).toISOString()
       const text = parsed.text || ''
       const html = typeof parsed.html === 'string' ? parsed.html : ''
-      // What is stored: the same markup without its pictures, measured AFTER they come out, so a big
-      // logo no longer pushes an ordinary message out of the stored copy.
-      const keptHtml = withoutEmbeddedPictures(html)
+      // What is stored: the markup with each picture replaced by its fingerprint, measured AFTER
+      // they come out, so a big logo no longer pushes an ordinary message out of the stored copy.
+      // The pictures themselves go to the picture store, once each (api/_lib/mailPictures.ts).
+      const extracted = extractPictures(html)
+      const keptHtml = extracted.html
       const attachments = realAttachmentNames(parsed.attachments)
       const to = recipientsOf(parsed.to)
       const cc = recipientsOf(parsed.cc)
@@ -275,6 +262,11 @@ async function syncMailbox(
       // ---------- The person's mailbox ----------
       if (kind === 'sent' || !isBlocked(fromAddress, blocks)) {
         const tooBig = keptHtml.length > HTML_LIMIT
+        // Saved before the row is written, so the row never names a picture that is not there.
+        if (!tooBig) {
+          await savePictures(admin, extracted.pictures)
+            .catch((e: unknown) => console.log(`[emailSync] pictures not saved: ${e instanceof Error ? e.message : String(e)}`))
+        }
         const { error: rowError } = await admin.from('user_emails').upsert(
           {
             user_id: conn.user_id,
