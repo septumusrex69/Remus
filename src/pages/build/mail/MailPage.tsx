@@ -7,10 +7,11 @@ import {
 } from 'lucide-react'
 import { clientLabel, contactName, loadClientDirectory, mailboxStatus, type ClientDirectory } from '../../../lib/api'
 import {
-  blockSender, countUnreadByTab, deleteMail, downloadMailAttachment, fetchBlockedSenders, fetchBody, fetchMail, fetchMailItem,
+  blockSender, countUnreadByTab, deleteMail, downloadMailAttachment, fetchBlockedSenders, fetchBody, fetchMail, fetchMailItem, fetchMailPictures,
   fileOnClient, forwardSubject, isSharedDomain, domainOf, markMailRead, markMailUnread, quoteBlock, replyAllTo, replySubject,
   setJunk, unblockSender, unfileFromClient, type BlockedSender, type LinkedClient, type MailFilter, type MailItem,
 } from '../../../lib/mailbox'
+import { picturesLeftOut } from '../../../lib/mailPictures'
 import { emailDayLabel, emailTimeLabel } from '../../../lib/emailActivity'
 import { sanitizeEmailHtml } from '../../../lib/emailHtml'
 import { useEmailView } from '../../../lib/emailView'
@@ -186,6 +187,15 @@ export function MailPage() {
       const body = await fetchBody(m.id).catch(() => null)
       setBodies((b) => ({ ...b, [m.id]: body }))
       setLoadingBody(null)
+      /*
+       * AND THE PICTURES AFTERWARDS (Raptor's way). The stored copy leaves them out -- they were
+       * ~320 kB a message -- so the words show at once and the signature logos follow from the
+       * mailbox. Silent if the mailbox can't be reached: the message is already readable.
+       */
+      if (body && picturesLeftOut(body.html)) {
+        const html = await fetchMailPictures(m.id).catch(() => null)
+        if (html) setBodies((b) => ({ ...b, [m.id]: { text: body.text, html } }))
+      }
     }
   }, [bodies, userId])
 

@@ -3,6 +3,18 @@
 For the next Claude Code session on `septumusrex69/Remus`. Read `CLAUDE.md` (the standing rules),
 then this file, then do the Raptor check below **before** waiting for Stephan's instructions.
 
+## Lean Mail (24 Oct 2026) — mail pictures no longer stored
+
+Stephan saw Raptor Mail taking up Supabase space. Cause, in both apps: the mail parser turns every
+signature logo into base64 inside the stored HTML. Remus was at 59 messages = 19 MB (~320 kB each).
+Fix (branch `claude/lean-mail`): the sync stores the HTML WITHOUT pictures (`withoutEmbeddedPictures`,
+marker `cid:remus-picture-not-kept`, in `api/_lib/emailSync.ts` and `src/lib/mailPictures.ts` — keep
+the two copies identical); the Mail page shows the words at once and then fetches the pictures from the
+mailbox (`/api/email/attachment` with `{ mailId, pictures: true }`, no write-back). **Still to do once
+Stephan approves the preview:** strip the 59 existing rows with the same regex
+(`update user_emails set body_html = regexp_replace(body_html, 'data:image/[a-zA-Z0-9.+-]+;base64,[A-Za-z0-9+/=]*', 'cid:remus-picture-not-kept', 'g') where body_html like '%data:image/%'`)
+then `vacuum full public.user_emails`. Stephan cancelled that update when it was first run, so ask first.
+
 ## Start of every session: check Raptor first (keep this section in every update)
 
 Stephan works on Raptor (`septumusrex69/Sales-Raptor`) every day, and Raptor is the template for
@@ -19,7 +31,8 @@ what Raptor gained since the last one:
 4. Tick off the Raptor checklist in `CLAUDE.md` as features land, and update the "Raptor last
    checked" line below.
 
-**Raptor last checked:** 23 Oct 2026, branch `claude/s10-clients-and-credits` (newest commit
+**Raptor last checked:** 24 Oct 2026 — Raptor S11 · Lean Mail (`claude/s11-lean-mail`) shipped one fix,
+already ported here (see "Lean Mail" below). Before that: 23 Oct 2026, branch `claude/s10-clients-and-credits` (newest commit
 22 Oct 15:37, "Merge People: employee profiles, pay statements…"). New since 22 Oct:
 - **People: employee profiles and pay statements.** Relevant to Remus's planned Workforce phase
   (workers, weekly pay runs, payslips): copy Raptor's People screens when that phase starts.
