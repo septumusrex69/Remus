@@ -307,6 +307,23 @@ export async function unfileFromClient(userId: ID, mail: MailItem): Promise<void
 }
 
 /** Downloads one attachment straight from the mailbox, through the server. */
+/**
+ * The message's markup with its pictures, read from the mailbox. The stored copy leaves the
+ * pictures out (see mailPictures.ts); this fills them in once the words are already on screen.
+ */
+export async function fetchMailPictures(mailId: ID): Promise<string | null> {
+  const { data } = await supabase.auth.getSession()
+  const token = data.session?.access_token
+  const res = await fetch('/api/email/attachment', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    body: JSON.stringify({ mailId, pictures: true }),
+  })
+  if (!res.ok) return null
+  const b = (await res.json().catch(() => null)) as { html?: string } | null
+  return b?.html ?? null
+}
+
 export async function downloadMailAttachment(mailId: ID, filename: string): Promise<void> {
   const { data } = await supabase.auth.getSession()
   const token = data.session?.access_token
