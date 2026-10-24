@@ -10,10 +10,7 @@ signature logo into base64 inside the stored HTML. Remus was at 59 messages = 19
 Fix (branch `claude/lean-mail`): the sync stores the HTML WITHOUT pictures (`withoutEmbeddedPictures`,
 marker `cid:remus-picture-not-kept`, in `api/_lib/emailSync.ts` and `src/lib/mailPictures.ts` — keep
 the two copies identical); the Mail page shows the words at once and then fetches the pictures from the
-mailbox (`/api/email/attachment` with `{ mailId, pictures: true }`, no write-back). **Still to do once
-Stephan approves the preview:** strip the 59 existing rows with the same regex
-(`update user_emails set body_html = regexp_replace(body_html, 'data:image/[a-zA-Z0-9.+-]+;base64,[A-Za-z0-9+/=]*', 'cid:remus-picture-not-kept', 'g') where body_html like '%data:image/%'`)
-then `vacuum full public.user_emails`. Stephan cancelled that update when it was first run, so ask first.
+mailbox (`/api/email/attachment` with `{ mailId, pictures: true }`, no write-back). **Done 24 Oct:** merged to main (PR #7); the 59 existing rows were stripped and the table compacted — mail went from 19 MB to 200 kB.
 
 ## Start of every session: check Raptor first (keep this section in every update)
 
