@@ -22,5 +22,6 @@ export const paths = {
   diary: () => p('/diary'),
   bank: () => p('/bank'),
   finance: () => p('/finance'),
-  settings: () => p('/settings'),
+  /** Settings, optionally on one tab (Raptor's ?tab= links), e.g. paths.settings('Integrations'). */
+  settings: (tab?: string) => p(tab ? `/settings?tab=${encodeURIComponent(tab)}` : '/settings'),
 }

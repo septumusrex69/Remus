@@ -47,3 +47,8 @@ export function useCollapsed(key: string): [boolean, () => void] {
 export function useSidebarCollapsed(): [boolean, () => void] {
   return useCollapsed('remus.sidebar.collapsed')
 }
+
+/** The Settings page's own menu (Raptor's useSettingsNavCollapsed): folded separately from the main one. */
+export function useSettingsNavCollapsed(): [boolean, () => void] {
+  return useCollapsed('remus.settingsNav.collapsed')
+}

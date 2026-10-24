@@ -51,6 +51,7 @@ How to apply it:
       `components/email/*`): each person's mailbox inside the app, mail filed onto clients.
 - [x] **Emails on every client page**, threaded, with reply and attachments.
 - [x] Each person connects their own mailbox in Settings; sends go out from it with their signature.
+- [x] **Settings in Raptor's layout**: tab menu on the left that folds, one tab at a time, Save per tab, `?tab=` links.
 - [ ] Record pages with Raptor's hero band, cards (`CardHeader` title + subtitle) and tabs.
 - [ ] Phone and iPad layouts that work (site managers use phones).
 

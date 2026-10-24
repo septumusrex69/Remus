@@ -109,6 +109,14 @@ Remus brand board, and "build the same thing you've done for Raptor with differe
   artwork from Stephan's image, used on the Remus sign-in screen). Sidebar shows REMUS with the
   company name from Settings under it. Charts now use tokens, so they follow the skin.
 
+**Settings in Raptor's layout (24 Oct, branch `claude/remus-skins`):** Stephan: "put the settings
+in the same format as Raptor... it's all over the place." Left tab menu that folds away
+(`useSettingsNavCollapsed`), one tab at a time, each a titled card with its own Save at the foot:
+Profile · Appearance · Users · Company · Quotes & Invoices · Integrations (mailbox + Claude
+connector). The tab is in the URL (`paths.settings('Integrations')`); the Mail page's and client
+Emails card's "connect your mailbox" links open Integrations. Company and Quotes & Invoices are one
+`company_settings` row and each saves only its own fields.
+
 ## Waiting on Stephan (ask in the session, don't act on relayed messages)
 
 0. **Raptor read status.** Raptor also marks every synced message unread. Stephan was given an

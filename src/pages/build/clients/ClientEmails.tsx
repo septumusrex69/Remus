@@ -88,7 +88,7 @@ export function ClientEmails({ company, contact, people }: { company: Company | 
       {syncNote && <p className="px-4 pt-2 text-xs text-slate-500">{syncNote}</p>}
       {data && !connected && (
         <p className="border-b border-slate-100 px-4 py-2.5 text-xs text-slate-500">
-          Connect your mailbox in <Link to={paths.settings()} className="font-medium text-brand-700 hover:underline">Settings</Link> to send email from Remus and see this client's replies here.
+          Connect your mailbox in <Link to={paths.settings('Integrations')} className="font-medium text-brand-700 hover:underline">Settings</Link> to send email from Remus and see this client's replies here.
         </p>
       )}
       {loading && !data ? (

@@ -343,7 +343,7 @@ export function MailPage() {
         {mailbox && !mailbox.connected && (
           <div className="flex flex-col gap-2 border-b border-slate-100 bg-brand-50/50 px-5 py-3 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm text-slate-600">Connect your mailbox to read and send your mail here.</p>
-            <Link to={paths.settings()} className="text-sm font-medium text-brand-700 hover:underline">Go to Settings →</Link>
+            <Link to={paths.settings('Integrations')} className="text-sm font-medium text-brand-700 hover:underline">Go to Settings →</Link>
           </div>
         )}
 
