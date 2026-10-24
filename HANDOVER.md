@@ -1,4 +1,4 @@
-# Remus handover (updated 22 Oct 2026)
+# Remus handover (updated 24 Oct 2026)
 
 For the next Claude Code session on `septumusrex69/Remus`. Read `CLAUDE.md` (the standing rules),
 then this file, then do the Raptor check below **before** waiting for Stephan's instructions.
@@ -72,9 +72,24 @@ https://remus-git-claude-laughing-ritchie-bd167j-team-raptor.vercel.app):
 - Code: `src/pages/build/mail/MailPage.tsx`, `src/lib/mailbox.ts`, `src/lib/emailHtml.ts`,
   `src/components/email/{ReadingPane,EmailViewSwitcher}.tsx`, `src/components/ui/RowMenu.tsx`,
   `api/_lib/emailSync.ts`, `api/email/{send,attachment}.ts`.
+- **Read status follows the mailbox (23 Oct):** new mail arrives read if it was already read in
+  Outlook or on a phone, and every sync asks the server about messages Remus still shows unread and
+  marks read any it has seen (`catchUpReadState` in `api/_lib/emailSync.ts`). One way only.
+- **Sync failures are shown, not swallowed (23 Oct):** a red line on the Mail page, and every
+  refusal is logged by `api/email/sync`. Check Vercel runtime logs for `[email/sync]` / `[emailSync]`.
+- **Use the live link only:** https://remus-xi.vercel.app. On 23 Oct Stephan was on an old
+  preview link (`remus-git-…`), where email can't work (the service key is Production only).
+  Never send him a preview link without saying clearly that email won't work on it.
+- First real sync (23 Oct): Inbox 40, Sent 19, Junk ("INBOX.spambucket" on his server) empty.
+
 
 ## Waiting on Stephan (ask in the session, don't act on relayed messages)
 
+0. **Raptor read status.** Raptor also marks every synced message unread. Stephan was given an
+   instruction to paste into his Raptor session (copy the mailbox's \\Seen flag on sync, plus a
+   catch-up of unread rows each sync; Remus's `catchUpReadState` is the model). Ask whether it was
+   done, or whether he wants Claude to make the change in Raptor (needs his go-ahead: another
+   session works in Raptor daily).
 1. **Supabase dashboard** (Claude's tools can't change these):
    - Authentication → URL Configuration: Site URL `https://remus-xi.vercel.app`, redirect URL
      `https://remus-xi.vercel.app/set-password`. Until then reset and invite links fail.
