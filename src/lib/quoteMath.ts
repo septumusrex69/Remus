@@ -19,43 +19,33 @@ export function markupFromPrice(unitCost: number, unitPrice: number): number {
   return round2((unitPrice / unitCost - 1) * 100)
 }
 
-/** A line being edited. `fixedPrice` (editor-only, never saved) marks a price entered by hand before any cost. */
-export type EditableLine = LineInput & { fixedPrice?: boolean }
+/** A line being edited. */
+export type EditableLine = LineInput
 
 /**
- * Applies an edit to a line and keeps cost, markup and price consistent. A line priced by hand
- * with no cost keeps its price: typing a cost then derives the markup from that price (for every
- * keystroke, hence the sticky `fixedPrice`), and a markup change has no cost to apply to. Editing
- * the markup of a costed line hands control back to cost × markup.
+ * The unit price is never typed: it is always unit cost × (1 + markup). Stephan, 25 Oct 2026:
+ * "unit cost is changeable, markup is changeable, unit price stays unchangeable". 0% markup sells
+ * at cost.
  */
 export function applyLineEdit<T extends EditableLine>(line: T, p: Partial<T>): T {
   const next = { ...line, ...p }
-  const cost = Number(next.unit_cost)
-  if ('markup_pct' in p) {
-    if (cost) {
-      next.unit_price = priceFromMarkup(cost, Number(next.markup_pct))
-      next.fixedPrice = false
-    } else if (!Number(line.unit_price)) {
-      next.unit_price = 0
-    }
-  } else if ('unit_cost' in p) {
-    const fixed = line.fixedPrice || (!Number(line.unit_cost) && Number(line.unit_price) > 0)
-    if (fixed) {
-      next.fixedPrice = true
-      next.markup_pct = markupFromPrice(cost, Number(next.unit_price))
-    } else {
-      next.unit_price = priceFromMarkup(cost, Number(next.markup_pct))
-    }
-  } else if ('unit_price' in p) {
-    next.markup_pct = markupFromPrice(cost, Number(next.unit_price))
-  }
+  next.unit_price = priceFromMarkup(Number(next.unit_cost), Number(next.markup_pct))
   return next
 }
 
-/** "Set markup" for every line; lines with no cost keep their manual price. */
+/**
+ * A line saved before the price was locked, priced by hand with no cost (cost 0, price 6 000):
+ * shown as cost 6 000 at 0% markup, so the client's price stays exactly what it was. Every other
+ * line is left as saved until somebody edits it.
+ */
+export function lockedPriceLine<T extends EditableLine>(line: T): T {
+  if (Number(line.unit_cost) || !Number(line.unit_price)) return line
+  return { ...line, unit_cost: Number(line.unit_price), markup_pct: 0 }
+}
+
+/** "Set markup" for every line. */
 export function applyMarkup<T extends EditableLine>(line: T, markupPct: number): T {
-  if (!Number(line.unit_cost)) return line
-  return { ...line, markup_pct: markupPct, unit_price: priceFromMarkup(Number(line.unit_cost), markupPct), fixedPrice: false }
+  return applyLineEdit(line, { markup_pct: markupPct } as Partial<T>)
 }
 
 export interface QuoteTotals {

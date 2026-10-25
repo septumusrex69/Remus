@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { round2 } from './format'
-import { applyLineEdit, applyMarkup, markupFromPrice, priceFromMarkup, quoteTotals, quoteValidationError, type EditableLine } from './quoteMath'
+import { applyLineEdit, applyMarkup, lockedPriceLine, markupFromPrice, priceFromMarkup, quoteTotals, quoteValidationError, type EditableLine } from './quoteMath'
 
 const line = (p: Partial<EditableLine> = {}): EditableLine => ({ quantity: 1, unit_cost: 0, markup_pct: 20, unit_price: 0, ...p })
 
@@ -49,28 +49,20 @@ describe('line pricing', () => {
     expect(markupFromPrice(0, 125)).toBe(0)
   })
 
-  it('entering a cost after a manual price keeps the price', () => {
-    let l = line({ unit_price: 100, markup_pct: 0 })
-    l = applyLineEdit(l, { unit_cost: 1 }) // first keystroke of "150"
-    l = applyLineEdit(l, { unit_cost: 15 })
-    l = applyLineEdit(l, { unit_cost: 80 })
-    expect(l.unit_price).toBe(100)
-    expect(l.markup_pct).toBe(25)
-  })
-
-  it('a costed line follows cost × markup', () => {
+  it('the price is always cost × markup', () => {
     let l = applyLineEdit(line(), { unit_cost: 100 })
     expect(l.unit_price).toBe(120)
     l = applyLineEdit(l, { markup_pct: 50 })
     expect(l.unit_price).toBe(150)
-    l = applyLineEdit(l, { unit_price: 200 })
-    expect(l.markup_pct).toBe(100)
+    l = applyLineEdit(l, { markup_pct: 0 })
+    expect(l.unit_price).toBe(100)
+    expect(applyMarkup(line({ unit_cost: 100, unit_price: 120 }), 30).unit_price).toBe(130)
   })
 
-  it('markup changes do not wipe the price of a line with no cost', () => {
-    expect(applyLineEdit(line({ unit_price: 500 }), { markup_pct: 30 }).unit_price).toBe(500)
-    expect(applyMarkup(line({ unit_price: 500 }), 30).unit_price).toBe(500)
-    expect(applyMarkup(line({ unit_cost: 100, unit_price: 120 }), 30).unit_price).toBe(130)
+  it('a line priced by hand with no cost keeps its price', () => {
+    const l = lockedPriceLine(line({ unit_cost: 0, markup_pct: 20, unit_price: 6000 }))
+    expect(l).toMatchObject({ unit_cost: 6000, markup_pct: 0, unit_price: 6000 })
+    expect(lockedPriceLine(line({ unit_cost: 100, unit_price: 125 })).unit_cost).toBe(100)
   })
 })
 

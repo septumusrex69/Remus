@@ -31,7 +31,7 @@ import {
   type QuoteItemDraft,
 } from '../../../lib/api'
 import { formatDateTime, formatPct, formatZAR, round2, todayYmd } from '../../../lib/format'
-import { applyLineEdit, applyMarkup, MAX_MARKUP_PCT, quoteTotals, quoteValidationError, type EditableLine } from '../../../lib/quoteMath'
+import { applyLineEdit, applyMarkup, lockedPriceLine, MAX_MARKUP_PCT, quoteTotals, quoteValidationError, type EditableLine } from '../../../lib/quoteMath'
 import { QUOTE_FILES_BUCKET, supabase } from '../../../lib/supabase'
 import { Button, Card, ErrorBanner, Field, PageHeader, Spinner, StatusBadge } from '../../../components/ui'
 import { DictateButton } from '../../../components/ui/Dictate'
@@ -110,7 +110,7 @@ export function QuoteEditor() {
       .then(([q, items, d, att]) => {
         if (!active) return
         setQuote(q)
-        setLines(items.map((i) => ({ ...i, key: newKey() })))
+        setLines(items.map((i) => ({ ...lockedPriceLine(i), key: newKey() })))
         setDir(d)
         setAttachments(att)
         setDirty(false)
@@ -200,7 +200,7 @@ export function QuoteEditor() {
   }
 
   function applyMarkupToAll() {
-    const v = window.prompt('Markup % to apply to every line with a unit cost (lines priced by hand keep their price)', String(defaultMarkup))
+    const v = window.prompt('Markup % to apply to every line', String(defaultMarkup))
     if (v === null || v.trim() === '') return
     const m = Number(v)
     if (!Number.isFinite(m) || Math.abs(m) > MAX_MARKUP_PCT) {
@@ -496,10 +496,11 @@ export function QuoteEditor() {
                         <span className="label md:hidden">Markup %</span>
                         <input className="input text-right" type="number" inputMode="decimal" step="any" aria-label="Markup %" value={l.markup_pct} onChange={(e) => updateLine(l.key, { markup_pct: num(e.target.value) })} />
                       </label>
-                      <label className="md:contents">
+                      {/* Not typed: always unit cost × markup. */}
+                      <span className="flex items-center justify-between md:block md:text-right" title="Unit cost plus markup">
                         <span className="label md:hidden">Unit price</span>
-                        <input className="input text-right font-medium" type="number" inputMode="decimal" step="0.01" aria-label="Unit price" value={l.unit_price} onChange={(e) => updateLine(l.key, { unit_price: num(e.target.value) })} />
-                      </label>
+                        <span className="tabular text-sm text-slate-600">{formatZAR(l.unit_price)}</span>
+                      </span>
                       <span className="tabular self-center text-right text-sm font-medium text-slate-800">{formatZAR(round2(Number(l.quantity) * Number(l.unit_price)))}</span>
                       <span className="flex items-center justify-end gap-0.5 self-center">
                         <button className="rounded p-1 text-slate-400 hover:bg-slate-100" onClick={() => moveLine(l.key, -1)} aria-label="Move up"><ArrowUp size={13} /></button>

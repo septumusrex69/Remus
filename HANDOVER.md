@@ -26,6 +26,13 @@ trigger when a contact/company is added or its email changes, and once in the mi
 25 Oct: 27 messages, all on test client "Ferman Aanskaf", whose email is Stephan's old address
 stephan@bredellferreira.co.za). `unfiled_at`: set by "take off client", the automatic filing skips it.
 
+## Unit price locked to cost × markup (25 Oct 2026, branch `claude/quote-line-details`)
+
+Stephan: unit cost and markup are typed, unit price is never typed (0% markup sells at cost).
+`applyLineEdit` in `src/lib/quoteMath.ts` always sets price = cost × (1 + markup); the editor
+shows the price as text. Old lines priced by hand with no cost open as cost = that price at 0%
+(`lockedPriceLine`), so their price doesn't change. The connector's `create_quote` follows the rule.
+
 ## Quote line details + dictation (25 Oct 2026, branch `claude/quote-line-details`)
 
 Stephan: on a quote line like "Toilet" he wants to write out what's included ("installation of the

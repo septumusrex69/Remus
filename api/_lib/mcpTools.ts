@@ -366,9 +366,13 @@ export function buildServer(admin: SupabaseClient, user: ConnectorUser): McpServ
       valid.setUTCDate(valid.getUTCDate() + (a.valid_days ?? 30))
       const lines = a.sections.flatMap((s) =>
         s.items.map((it) => {
-          const cost = round2(it.unit_cost ?? 0)
-          const price = it.unit_price !== undefined ? round2(it.unit_price) : round2(cost * (1 + (it.markup_pct ?? 0) / 100))
-          const markup = it.markup_pct ?? (cost ? round2((price / cost - 1) * 100) : 0)
+          // As in the editor, the price is cost × markup. Given only a price, it becomes the cost at 0%.
+          const onlyPrice = it.unit_cost === undefined && it.unit_price !== undefined
+          const cost = round2(onlyPrice ? it.unit_price! : it.unit_cost ?? 0)
+          const markup = onlyPrice
+            ? 0
+            : it.markup_pct ?? (cost && it.unit_price !== undefined ? round2((it.unit_price / cost - 1) * 100) : 0)
+          const price = round2(cost * (1 + markup / 100))
           return { section: s.name?.trim() || null, description: it.description.trim(), details: it.details?.trim() || null, quantity: it.quantity, unit: it.unit ?? 'each', unit_cost: cost, markup_pct: markup, unit_price: price }
         }),
       )
