@@ -520,10 +520,19 @@ export async function disconnectMailbox(): Promise<void> {
 }
 
 /** Opens the server-built PDF of a quote in a new tab (the endpoint needs the session token, so fetch it first). */
-export async function openQuotePdf(quoteId: ID): Promise<void> {
+/**
+ * `beforeBuild` runs after the new tab is opened (iPad Safari only allows a tab opened straight
+ * from the tap) and before the PDF is built: the editor saves there, so the PDF never shows an
+ * older version than the screen. Returning false stops it.
+ */
+export async function openQuotePdf(quoteId: ID, beforeBuild?: () => Promise<boolean>): Promise<void> {
   const win = window.open('', '_blank')
   let res: Response
   try {
+    if (beforeBuild && !(await beforeBuild())) {
+      win?.close()
+      return
+    }
     res = await callApi(`/api/quotes/pdf?id=${encodeURIComponent(quoteId)}`, { headers: await authHeader() }, 'build the PDF')
   } catch (e) {
     win?.close()

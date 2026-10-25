@@ -341,13 +341,13 @@ export function QuoteEditor() {
             <Button variant="primary" onClick={save} loading={saving} disabled={!dirty}>
               <Save size={15} /> Save
             </Button>
-            <Link to={paths.quotePrint(quote.id)} onClick={(e) => dirty && !window.confirm('You have unsaved changes. Open the print view anyway?') && e.preventDefault()} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50">
+            {/* Print and PDF save first, so they always show what is on the screen. */}
+            <Button onClick={async () => { if (!dirty || (await save())) navigate(paths.quotePrint(quote.id)) }}>
               <Printer size={15} /> Print
-            </Link>
+            </Button>
             <Button
               onClick={() => {
-                if (dirty && !window.confirm('You have unsaved changes. The PDF shows the last saved version. Continue?')) return
-                openQuotePdf(quote.id).catch((e) => setError(e instanceof Error ? e.message : String(e)))
+                openQuotePdf(quote.id, async () => (dirty ? save() : true)).catch((e) => setError(e instanceof Error ? e.message : String(e)))
               }}
             >
               <FileDown size={15} /> PDF
