@@ -1,16 +1,33 @@
-# Remus handover (updated 24 Oct 2026, skins)
+# Remus handover (updated 25 Oct 2026)
 
 For the next Claude Code session on `septumusrex69/Remus`. Read `CLAUDE.md` (the standing rules),
 then this file, then do the Raptor check below **before** waiting for Stephan's instructions.
 
-## Lean Mail (24 Oct 2026) — mail pictures no longer stored
+## Two branches waiting to go live (25 Oct)
+
+Live (`main`, remus-xi.vercel.app) has the Remus skins. Two finished branches are NOT on `main` yet:
+- `claude/remus-skins`: **Settings in Raptor's layout** (see "Where the work is"). On the preview,
+  waiting for Stephan's "go live".
+- `claude/mail-picture-store`: **mail pictures saved once** (section below). Migration 0008 is
+  applied live; the code is not merged.
+They touch different files except this one. Release each with a merge of `origin/main` first.
+
+## Lean Mail (24 Oct 2026) — mail pictures saved once, Outlook-style
 
 Stephan saw Raptor Mail taking up Supabase space. Cause, in both apps: the mail parser turns every
-signature logo into base64 inside the stored HTML. Remus was at 59 messages = 19 MB (~320 kB each).
-Fix (branch `claude/lean-mail`): the sync stores the HTML WITHOUT pictures (`withoutEmbeddedPictures`,
-marker `cid:remus-picture-not-kept`, in `api/_lib/emailSync.ts` and `src/lib/mailPictures.ts` — keep
-the two copies identical); the Mail page shows the words at once and then fetches the pictures from the
-mailbox (`/api/email/attachment` with `{ mailId, pictures: true }`, no write-back). **Done 24 Oct:** merged to main (PR #7); the 59 existing rows were stripped and the table compacted — mail went from 19 MB to 200 kB.
+signature logo into base64 inside the stored HTML (Remus: 59 messages = 19 MB). Morning fix (PR #7,
+live): pictures taken out of stored mail. Afternoon, Stephan: "save one image somewhere and then always
+go and check it and take it back, like Microsoft, and then delete it after 30 days." So (branch
+`claude/mail-picture-store`, ported from Raptor S11):
+- `api/_lib/mailPictures.ts`: each picture fingerprinted (SHA-256), saved ONCE in the private
+  `mail-pictures` bucket + a `mail_pictures` row; stored markup says `cid:remus-pic-<hash>`.
+  Saved at sync and when the Mail page asks the mailbox for pictures (which also rewrites the row).
+- `src/lib/mailPictures.ts` `fillStoredPictures`: the Mail page draws the logos from the store (kept in
+  memory for the visit) and goes to the mailbox only for one the store lacks.
+- `expireMailPictures` in the daily sync cron: unused 30 days → deleted; a later open re-saves it.
+- Migration `0008_mail_pictures.sql`, applied. Rows cleaned in the morning carry
+  `cid:remus-picture-not-kept`; they heal the first time each is opened.
+Check it: `select count(*), pg_size_pretty(sum(bytes)) from mail_pictures;`
 
 ## Start of every session: check Raptor first (keep this section in every update)
 
@@ -109,7 +126,7 @@ Remus brand board, and "build the same thing you've done for Raptor with differe
   artwork from Stephan's image, used on the Remus sign-in screen). Sidebar shows REMUS with the
   company name from Settings under it. Charts now use tokens, so they follow the skin.
 
-**Settings in Raptor's layout (24 Oct, branch `claude/remus-skins`):** Stephan: "put the settings
+**Settings in Raptor's layout (24 Oct, branch `claude/remus-skins`, preview only, not live yet):** Stephan: "put the settings
 in the same format as Raptor... it's all over the place." Left tab menu that folds away
 (`useSettingsNavCollapsed`), one tab at a time, each a titled card with its own Save at the foot:
 Profile · Appearance · Users · Company · Quotes & Invoices · Integrations (mailbox + Claude
