@@ -286,12 +286,18 @@ function QuotesTab() {
       bank_details: form.bank_details || null,
       quote_prefix: form.quote_prefix || 'Q',
       invoice_prefix: form.invoice_prefix || 'INV',
+      labour_day_rate_senior: Math.max(0, Number(form.labour_day_rate_senior) || 0),
+      labour_day_rate_junior: Math.max(0, Number(form.labour_day_rate_junior) || 0),
+      markup_material: Number(form.markup_material) || 0,
+      markup_labour: Number(form.markup_labour) || 0,
+      markup_subcontractor: Number(form.markup_subcontractor) || 0,
+      management_fee_pct: Math.min(100, Math.max(0, Number(form.management_fee_pct) || 0)),
       ...counters,
     })
   }
 
   return (
-    <Card title="Quotes & Invoices" subtitle="VAT, numbering, and what every new quote says at the bottom.">
+    <Card title="Quotes & Invoices" subtitle="VAT, numbering, labour rates, markups, and what every new quote says at the bottom.">
       <ErrorBanner error={error} />
       <SectionLabel>Tax & numbering</SectionLabel>
       <div className="grid max-w-2xl gap-3 sm:grid-cols-2">
@@ -301,6 +307,28 @@ function QuotesTab() {
         <Field label="Next quote number"><input className="input" type="number" min={1} value={form.next_quote_number ?? 1} onChange={(e) => set('next_quote_number', Number(e.target.value))} /></Field>
         <Field label="Invoice prefix"><input className="input" value={form.invoice_prefix ?? 'INV'} onChange={(e) => set('invoice_prefix', e.target.value)} /></Field>
         <Field label="Next invoice number"><input className="input" type="number" min={1} value={form.next_invoice_number ?? 1} onChange={(e) => set('next_invoice_number', Number(e.target.value))} /></Field>
+      </div>
+
+      <SectionLabel className="mt-6">Labour and markup</SectionLabel>
+      <div className="grid max-w-2xl gap-3 sm:grid-cols-2">
+        <Field label="Senior worker, cost per day (R)" hint="What a senior worker costs you for one day. Labour lines on quotes start from it.">
+          <input className="input" type="number" min={0} step="0.01" inputMode="decimal" value={form.labour_day_rate_senior ?? 0} onChange={(e) => set('labour_day_rate_senior', Number(e.target.value))} />
+        </Field>
+        <Field label="Junior worker, cost per day (R)">
+          <input className="input" type="number" min={0} step="0.01" inputMode="decimal" value={form.labour_day_rate_junior ?? 0} onChange={(e) => set('labour_day_rate_junior', Number(e.target.value))} />
+        </Field>
+        <Field label="Markup on materials (%)" hint="Starting markup for a new line of each kind.">
+          <input className="input" type="number" step="0.5" inputMode="decimal" value={form.markup_material ?? 20} onChange={(e) => set('markup_material', Number(e.target.value))} />
+        </Field>
+        <Field label="Markup on labour (%)">
+          <input className="input" type="number" step="0.5" inputMode="decimal" value={form.markup_labour ?? 20} onChange={(e) => set('markup_labour', Number(e.target.value))} />
+        </Field>
+        <Field label="Markup on subcontractors (%)">
+          <input className="input" type="number" step="0.5" inputMode="decimal" value={form.markup_subcontractor ?? 10} onChange={(e) => set('markup_subcontractor', Number(e.target.value))} />
+        </Field>
+        <Field label="Management fee (%)" hint="Shown on the quote as its own line. Default for new quotes.">
+          <input className="input" type="number" min={0} max={100} step="0.5" inputMode="decimal" value={form.management_fee_pct ?? 0} onChange={(e) => set('management_fee_pct', Number(e.target.value))} />
+        </Field>
       </div>
 
       <SectionLabel className="mt-6">Default quote terms</SectionLabel>

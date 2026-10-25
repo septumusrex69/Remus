@@ -107,12 +107,26 @@ export interface CompanySettings {
   next_quote_number: number
   invoice_prefix: string
   next_invoice_number: number
+  /** Cost of one worker for one day, by grade. Labour lines on quotes start from these. */
+  labour_day_rate_senior: number
+  labour_day_rate_junior: number
+  /** Default markup % for a new line of each kind. */
+  markup_material: number
+  markup_labour: number
+  markup_subcontractor: number
+  /** Default management fee % for a new quote. */
+  management_fee_pct: number
 }
 
 export const QUOTE_STATUSES = ['draft', 'sent', 'accepted', 'declined', 'expired'] as const
 export type QuoteStatus = (typeof QUOTE_STATUSES)[number]
 
-export const UNITS = ['m²', 'm³', 'm', 'each', 'hours', 'sum'] as const
+export const UNITS = ['m²', 'm³', 'm', 'each', 'hours', 'day', 'sum'] as const
+
+export const LINE_KINDS = ['material', 'labour', 'subcontractor'] as const
+export type LineKind = (typeof LINE_KINDS)[number]
+export const LABOUR_GRADES = ['senior', 'junior'] as const
+export type LabourGrade = (typeof LABOUR_GRADES)[number]
 export type Unit = (typeof UNITS)[number]
 
 export interface Quote extends ClientRef {
@@ -128,10 +142,28 @@ export interface Quote extends ClientRef {
   terms: string | null
   discount: number
   vat_rate: number
+  /** Shown to the client as its own line: a % of the lines' total. */
+  management_fee_pct: number
+  /** Internal sign-off before sending; void once the total excl. VAT differs from approved_total. */
+  approved_at: string | null
+  approved_by: ID | null
+  approved_total: number | null
   sent_at: string | null
   sent_to: string | null
   created_at: string
   updated_at: string
+}
+
+/** A section of a quote seen as a stage of the work (migration 0011). `name` '' = the unnamed group. */
+export interface QuoteStage {
+  id: ID
+  quote_id: ID
+  name: string
+  sort_order: number
+  duration_days: number
+  start_mode: 'start' | 'with' | 'after'
+  start_ref: string | null
+  lag_days: number
 }
 
 export interface QuoteItem {
@@ -142,6 +174,9 @@ export interface QuoteItem {
   description: string
   /** Longer write-up under the description: what the line includes. Optional. */
   details: string | null
+  kind: LineKind
+  /** Labour lines only: priced from the senior or junior day rate. */
+  labour_grade: LabourGrade | null
   unit: Unit
   quantity: number
   unit_cost: number
@@ -157,6 +192,7 @@ export interface QuoteTotalsRow {
   total_excl: number
   vat: number
   total_incl: number
+  management_fee: number
 }
 
 export const ATTACHMENT_KINDS = ['render', 'photo', 'document', 'client_pdf'] as const

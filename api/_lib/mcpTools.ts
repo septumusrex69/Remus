@@ -23,7 +23,7 @@ export function hashToken(token: string): string {
 }
 
 const CATEGORIES = ['materials', 'labour', 'subcontractor', 'plant_hire', 'transport', 'permits', 'overheads', 'other'] as const
-const UNITS = ['m²', 'm³', 'm', 'each', 'hours', 'sum'] as const
+const UNITS = ['m²', 'm³', 'm', 'each', 'hours', 'day', 'sum'] as const
 const PROJECT_STATUSES = ['lead', 'planned', 'active', 'on_hold', 'completed', 'cancelled'] as const
 
 /** Today's date in South Africa (the server runs in UTC). */
@@ -343,9 +343,10 @@ export function buildServer(admin: SupabaseClient, user: ConnectorUser): McpServ
                 .array(
                   z.object({
                     description: z.string().min(1),
+                    kind: z.enum(['material', 'labour', 'subcontractor']).optional().describe('Kind of cost; labour is counted in days (unit "day")'),
                     details: z.string().optional().describe('What the line includes, shown under the description, e.g. "Remove old suite, supply and fit toilet, connect waste"'),
                     quantity: z.number().positive(),
-                    unit: z.enum(UNITS).optional().describe('m², m³, m, each, hours or sum'),
+                    unit: z.enum(UNITS).optional().describe('m², m³, m, each, hours, day or sum'),
                     unit_cost: z.number().min(0).optional().describe('Internal cost per unit'),
                     markup_pct: z.number().optional(),
                     unit_price: z.number().min(0).optional().describe('Selling price per unit excl. VAT'),
@@ -360,7 +361,7 @@ export function buildServer(admin: SupabaseClient, user: ConnectorUser): McpServ
     },
     async (a) => {
       if (!user.canWrite) return denyWrite()
-      const { data: settings } = await admin.from('company_settings').select('vat_rate, quote_terms').eq('id', true).maybeSingle()
+      const { data: settings } = await admin.from('company_settings').select('vat_rate, quote_terms, management_fee_pct').eq('id', true).maybeSingle()
       const today = saToday()
       const valid = new Date(`${today}T12:00:00Z`)
       valid.setUTCDate(valid.getUTCDate() + (a.valid_days ?? 30))
@@ -373,7 +374,7 @@ export function buildServer(admin: SupabaseClient, user: ConnectorUser): McpServ
             ? 0
             : it.markup_pct ?? (cost && it.unit_price !== undefined ? round2((it.unit_price / cost - 1) * 100) : 0)
           const price = round2(cost * (1 + markup / 100))
-          return { section: s.name?.trim() || null, description: it.description.trim(), details: it.details?.trim() || null, quantity: it.quantity, unit: it.unit ?? 'each', unit_cost: cost, markup_pct: markup, unit_price: price }
+          return { section: s.name?.trim() || null, description: it.description.trim(), details: it.details?.trim() || null, kind: it.kind ?? 'material', quantity: it.quantity, unit: it.unit ?? 'each', unit_cost: cost, markup_pct: markup, unit_price: price }
         }),
       )
       if (lines.some((l) => Math.abs(l.markup_pct) > 99999)) return fail('A markup is unrealistically large; check the cost and price.')
@@ -387,6 +388,7 @@ export function buildServer(admin: SupabaseClient, user: ConnectorUser): McpServ
           notes: a.notes ?? null,
           terms: settings?.quote_terms ?? null,
           vat_rate: Number(settings?.vat_rate ?? 15),
+          management_fee_pct: Number(settings?.management_fee_pct ?? 0),
           discount: a.discount ?? 0,
           issue_date: today,
           valid_until: valid.toISOString().slice(0, 10),

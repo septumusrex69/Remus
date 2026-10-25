@@ -26,6 +26,7 @@ import type {
   Quote,
   QuoteAttachment,
   QuoteItem,
+  QuoteStage,
   QuoteTotalsRow,
   SiteDiaryEntry,
   Variation,
@@ -94,8 +95,19 @@ export async function getSettings(): Promise<CompanySettings> {
     next_quote_number: 1,
     invoice_prefix: 'INV',
     next_invoice_number: 1,
+    labour_day_rate_senior: 0,
+    labour_day_rate_junior: 0,
+    markup_material: 20,
+    markup_labour: 20,
+    markup_subcontractor: 10,
+    management_fee_pct: 0,
   }
-  return row ? nums(row, ['vat_rate', 'next_quote_number', 'next_invoice_number']) : fallback
+  return row
+    ? nums({ ...fallback, ...row }, [
+        'vat_rate', 'next_quote_number', 'next_invoice_number', 'labour_day_rate_senior', 'labour_day_rate_junior',
+        'markup_material', 'markup_labour', 'markup_subcontractor', 'management_fee_pct',
+      ])
+    : fallback
 }
 
 export async function updateSettings(values: Partial<Omit<CompanySettings, 'id'>>): Promise<CompanySettings> {
@@ -217,14 +229,14 @@ export function clientLabel(dir: ClientDirectory | null, ref: { company_id: ID |
 
 // ---------- Quotes ----------
 
-const QUOTE_NUM: (keyof Quote)[] = ['discount', 'vat_rate']
+const QUOTE_NUM: (keyof Quote)[] = ['discount', 'vat_rate', 'management_fee_pct', 'approved_total']
 const ITEM_NUM: (keyof QuoteItem)[] = ['quantity', 'unit_cost', 'markup_pct', 'unit_price', 'sort_order']
 export const quotes = crud<Quote>('quotes', QUOTE_NUM)
 
 export async function listQuoteTotals(): Promise<Map<ID, QuoteTotalsRow>> {
   const rows = unwrap<QuoteTotalsRow[]>(await supabase.from('quote_totals').select('*'))
   return new Map(
-    rows.map((r) => [r.quote_id, nums(r, ['subtotal', 'estimated_cost', 'discount', 'total_excl', 'vat', 'total_incl'])]),
+    rows.map((r) => [r.quote_id, nums(r, ['subtotal', 'estimated_cost', 'discount', 'total_excl', 'vat', 'total_incl', 'management_fee'])]),
   )
 }
 
@@ -249,6 +261,8 @@ export async function saveQuoteItems(quoteId: ID, items: QuoteItemDraft[]): Prom
       section: it.section || null,
       description: it.description,
       details: it.details?.trim() || null,
+      kind: it.kind ?? 'material',
+      labour_grade: it.kind === 'labour' ? it.labour_grade ?? 'senior' : null,
       unit: it.unit,
       quantity: it.quantity,
       unit_cost: it.unit_cost,
@@ -261,10 +275,40 @@ export async function saveQuoteItems(quoteId: ID, items: QuoteItemDraft[]): Prom
   return saved.map((r) => nums(r, ITEM_NUM)).sort((a, b) => a.sort_order - b.sort_order)
 }
 
+// ---------- Quote stages (migration 0011) ----------
+
+const STAGE_NUM: (keyof QuoteStage)[] = ['sort_order', 'duration_days', 'lag_days']
+export type QuoteStageDraft = Omit<QuoteStage, 'id' | 'quote_id' | 'sort_order'>
+
+export async function listQuoteStages(quoteId: ID): Promise<QuoteStage[]> {
+  const rows = unwrap<QuoteStage[]>(await supabase.from('quote_stages').select('*').eq('quote_id', quoteId).order('sort_order'))
+  return rows.map((r) => nums(r, STAGE_NUM))
+}
+
+/** Replaces a quote's stages, in order. Upsert by name first, then remove the ones gone. */
+export async function saveQuoteStages(quoteId: ID, stages: QuoteStageDraft[]): Promise<void> {
+  if (stages.length > 0) {
+    const rows = stages.map((s, i) => ({
+      quote_id: quoteId,
+      name: s.name,
+      sort_order: i,
+      duration_days: Math.max(0, Math.round(Number(s.duration_days) || 0)),
+      start_mode: s.start_mode,
+      start_ref: s.start_ref,
+      lag_days: Math.round(Number(s.lag_days) || 0),
+    }))
+    unwrap(await supabase.from('quote_stages').upsert(rows, { onConflict: 'quote_id,name' }))
+  }
+  const keep = new Set(stages.map((s) => s.name))
+  const old = unwrap<{ id: ID; name: string }[]>(await supabase.from('quote_stages').select('id, name').eq('quote_id', quoteId))
+  const gone = old.filter((s) => !keep.has(s.name)).map((s) => s.id)
+  if (gone.length) unwrap(await supabase.from('quote_stages').delete().in('id', gone))
+}
+
 export async function duplicateQuote(id: ID): Promise<Quote> {
   const q = await quotes.get(id)
   if (!q) throw new Error('Quote not found')
-  const items = await listQuoteItems(id)
+  const [items, stages] = await Promise.all([listQuoteItems(id), listQuoteStages(id)])
   const copy = await quotes.create({
     company_id: q.company_id,
     contact_id: q.contact_id,
@@ -275,8 +319,10 @@ export async function duplicateQuote(id: ID): Promise<Quote> {
     terms: q.terms,
     discount: q.discount,
     vat_rate: q.vat_rate,
+    management_fee_pct: q.management_fee_pct,
   })
   await saveQuoteItems(copy.id, items)
+  await saveQuoteStages(copy.id, stages)
   return copy
 }
 
@@ -285,7 +331,7 @@ export async function convertQuoteToProject(id: ID): Promise<Project> {
   const q = await quotes.get(id)
   if (!q) throw new Error('Quote not found')
   const items = await listQuoteItems(id)
-  const t = quoteTotals(items, q.discount, q.vat_rate)
+  const t = quoteTotals(items, q.discount, q.vat_rate, q.management_fee_pct)
   const values: Patch<Project> = {
     name: q.title || `Project from ${q.number ?? 'quote'}`,
     code: q.number ? `P-${q.number.replace(/^.*?(\d+)$/, '$1')}` : null,

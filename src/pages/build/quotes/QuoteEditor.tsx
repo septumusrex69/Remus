@@ -4,6 +4,7 @@ import {
   ArrowDown,
   ArrowLeft,
   ArrowUp,
+  BadgeCheck,
   Check,
   Copy,
   FolderPlus,
@@ -21,35 +22,74 @@ import {
   convertQuoteToProject,
   duplicateQuote,
   listQuoteItems,
+  listQuoteStages,
   clientAddress,
   loadClientDirectory,
   openQuotePdf,
   quoteAttachments,
   quotes as quotesApi,
   saveQuoteItems,
+  saveQuoteStages,
   type ClientDirectory,
   type QuoteItemDraft,
 } from '../../../lib/api'
 import { formatDateTime, formatPct, formatZAR, round2, todayYmd } from '../../../lib/format'
-import { applyLineEdit, applyMarkup, lockedPriceLine, MAX_MARKUP_PCT, quoteTotals, quoteValidationError, type EditableLine } from '../../../lib/quoteMath'
+import {
+  applyLineEdit, applyMarkup, approvalCurrent, defaultStage, lockedPriceLine, MAX_MARKUP_PCT, quoteTotals, quoteValidationError, scheduleStages,
+  type EditableLine, type StagePlan,
+} from '../../../lib/quoteMath'
 import { QUOTE_FILES_BUCKET, supabase } from '../../../lib/supabase'
 import { Button, Card, ErrorBanner, Field, PageHeader, Spinner, StatusBadge } from '../../../components/ui'
 import { DictateButton } from '../../../components/ui/Dictate'
-import { QUOTE_STATUSES, UNITS, type Quote, type QuoteAttachment, type QuoteStatus, type Unit } from '../../../types'
+import { LABOUR_GRADES, LINE_KINDS, QUOTE_STATUSES, UNITS, type CompanySettings, type LabourGrade, type LineKind, type Quote, type QuoteAttachment, type QuoteStatus, type Unit } from '../../../types'
+import { useAuth } from '../../../store/AuthContext'
 import { ClientPicker } from '../components/ClientPicker'
 import { paths } from '../paths'
 import { useBuild } from '../BuildContext'
 import { QuoteAttachmentsPanel } from './QuoteAttachmentsPanel'
 import { SendQuoteModal } from './SendQuoteModal'
+import { QuotePlanCard, StageControls } from './QuotePlan'
 
 type Line = QuoteItemDraft & EditableLine & { key: string }
 
 let keySeq = 0
 const newKey = () => `l${++keySeq}`
 
-function blankLine(section: string | null, markup: number): Line {
-  return { key: newKey(), sort_order: 0, section, description: '', details: null, unit: 'each', quantity: 1, unit_cost: 0, markup_pct: markup, unit_price: 0 }
+const KIND_LABEL: Record<LineKind, string> = { material: 'Material', labour: 'Labour', subcontractor: 'Subcontractor' }
+const KIND_TAG: Record<LineKind, string> = { material: 'MAT', labour: 'LAB', subcontractor: 'SUB' }
+const KIND_TONE: Record<LineKind, string> = {
+  material: 'bg-slate-100 text-slate-600',
+  labour: 'bg-brand-50 text-brand-700',
+  subcontractor: 'bg-emerald-50 text-emerald-700',
 }
+
+/** Default markup for a kind of line, from Settings → Quotes & Invoices. */
+function kindMarkup(kind: LineKind, s: CompanySettings | null | undefined): number {
+  if (!s) return 20
+  return Number(kind === 'labour' ? s.markup_labour : kind === 'subcontractor' ? s.markup_subcontractor : s.markup_material)
+}
+
+const dayRate = (grade: LabourGrade, s: CompanySettings | null | undefined) =>
+  Number((grade === 'junior' ? s?.labour_day_rate_junior : s?.labour_day_rate_senior) ?? 0)
+
+/**
+ * A new line. Labour is counted in worker-days at the senior rate, starting from the stage's
+ * length (one worker for the whole stage); change the days or the grade on the line.
+ */
+function blankLine(section: string | null, kind: LineKind, s: CompanySettings | null | undefined, days = 1): Line {
+  const markup = kindMarkup(kind, s)
+  const base: Line = {
+    key: newKey(), sort_order: 0, section, description: '', details: null, kind, labour_grade: null,
+    unit: 'each', quantity: 1, unit_cost: 0, markup_pct: markup, unit_price: 0,
+  }
+  if (kind !== 'labour') return base
+  return applyLineEdit(
+    { ...base, description: 'Labour (senior)', labour_grade: 'senior', unit: 'day', quantity: Math.max(1, days) },
+    { unit_cost: dayRate('senior', s) },
+  )
+}
+
+const stageKey = (section: string | null) => section ?? ''
 
 /** Sections in order of first appearance; lines with no section form an unnamed first group. */
 function groupBySection(lines: Line[]): { section: string | null; lines: Line[] }[] {
@@ -100,16 +140,19 @@ export function QuoteEditor() {
   const [savedAt, setSavedAt] = useState<string | null>(null)
   /** Lines whose details box was opened by hand; a line that already has details always shows it. */
   const [detailsOpen, setDetailsOpen] = useState<Set<string>>(new Set())
-
-  const defaultMarkup = 20
+  /** Each section's plan, by section name ('' = General). A section with none uses defaultStage. */
+  const [stagePlans, setStagePlans] = useState<Map<string, StagePlan>>(new Map())
+  const { currentUser } = useAuth()
+  const canApprove = currentUser?.role === 'Administrator'
 
   useEffect(() => {
     let active = true
     setLoading(true)
-    Promise.all([quotesApi.get(id), listQuoteItems(id), loadClientDirectory(), quoteAttachments.list({ quote_id: id })])
-      .then(([q, items, d, att]) => {
+    Promise.all([quotesApi.get(id), listQuoteItems(id), loadClientDirectory(), quoteAttachments.list({ quote_id: id }), listQuoteStages(id)])
+      .then(([q, items, d, att, st]) => {
         if (!active) return
         setQuote(q)
+        setStagePlans(new Map(st.map((s) => [s.name, s])))
         setLines(items.map((i) => ({ ...lockedPriceLine(i), key: newKey() })))
         setDir(d)
         setAttachments(att)
@@ -130,13 +173,47 @@ export function QuoteEditor() {
     return () => window.removeEventListener('beforeunload', h)
   }, [dirty])
 
-  const totals = useMemo(() => quoteTotals(lines, quote?.discount ?? 0, quote?.vat_rate ?? 15), [lines, quote?.discount, quote?.vat_rate])
+  const totals = useMemo(
+    () => quoteTotals(lines, quote?.discount ?? 0, quote?.vat_rate ?? 15, quote?.management_fee_pct ?? 0),
+    [lines, quote?.discount, quote?.vat_rate, quote?.management_fee_pct],
+  )
   const groups = useMemo(() => groupBySection(lines), [lines])
+  /** The sections as stages, in order, with what is saved for each (or the default). */
+  const plans = useMemo(
+    () => groups.map((g, i) => ({ ...(stagePlans.get(stageKey(g.section)) ?? defaultStage(stageKey(g.section), i === 0)), name: stageKey(g.section) })),
+    [groups, stagePlans],
+  )
+  const schedule = useMemo(() => scheduleStages(plans), [plans])
 
   if (loading) return <Spinner page />
   if (!quote) return <ErrorBanner error={error ?? 'Quote not found'} />
 
   const showDetails = (l: Line) => l.details != null || detailsOpen.has(l.key)
+  const approved = approvalCurrent(quote, totals.totalExcl)
+
+  function updateStage(name: string, p: Partial<StagePlan>) {
+    setStagePlans((m) => {
+      const i = groups.findIndex((g) => stageKey(g.section) === name)
+      const next = new Map(m)
+      next.set(name, { ...(m.get(name) ?? defaultStage(name, i === 0)), ...p, name })
+      return next
+    })
+    setDirty(true)
+  }
+
+  /** A line's kind changed: labour is priced per worker-day by grade, the others start from their own markup. */
+  function changeKind(l: Line, kind: LineKind) {
+    if (kind === l.kind) return
+    if (kind === 'labour') {
+      const days = schedule.stages.find((s) => s.name === stageKey(l.section || null))?.duration_days ?? 1
+      updateLine(l.key, {
+        kind, labour_grade: 'senior', unit: 'day', quantity: l.unit === 'day' ? l.quantity : Math.max(1, days),
+        unit_cost: dayRate('senior', settings), markup_pct: kindMarkup('labour', settings),
+      })
+    } else {
+      updateLine(l.key, { kind, labour_grade: null, ...(l.kind === 'labour' ? { unit: 'each' as Unit, markup_pct: kindMarkup(kind, settings) } : {}) })
+    }
+  }
 
   const patchQuote = (p: Partial<Quote>) => {
     setQuote({ ...quote, ...p })
@@ -153,13 +230,14 @@ export function QuoteEditor() {
     setDirty(true)
   }
 
-  function addLine(section: string | null) {
+  function addLine(section: string | null, kind: LineKind = 'material') {
+    const days = schedule.stages.find((s) => s.name === stageKey(section))?.duration_days ?? 1
     setLines((ls) => {
       // Insert after the last line of this section so groups stay together.
       let idx = -1
       ls.forEach((l, i) => (l.section || null) === section && (idx = i))
       const copy = [...ls]
-      copy.splice(idx < 0 ? copy.length : idx + 1, 0, blankLine(section, defaultMarkup))
+      copy.splice(idx < 0 ? copy.length : idx + 1, 0, blankLine(section, kind, settings, days))
       return copy
     })
     setDirty(true)
@@ -168,14 +246,26 @@ export function QuoteEditor() {
   function addSection() {
     const name = window.prompt('Section name (e.g. Foundations, Brickwork, Roofing)')
     if (!name?.trim()) return
-    setLines((ls) => [...ls, blankLine(name.trim(), defaultMarkup)])
+    setLines((ls) => [...ls, blankLine(name.trim(), 'material', settings)])
     setDirty(true)
   }
 
   function renameSection(oldName: string | null) {
     const name = window.prompt('Rename section', oldName ?? '')
     if (name === null) return
-    setLines((ls) => ls.map((l) => ((l.section || null) === oldName ? { ...l, section: name.trim() || null } : l)))
+    const newName = name.trim() || null
+    setLines((ls) => ls.map((l) => ((l.section || null) === oldName ? { ...l, section: newName } : l)))
+    // The stage's plan, and any stage that starts off it, follow the new name.
+    const from = stageKey(oldName)
+    const to = stageKey(newName)
+    setStagePlans((m) => {
+      const next = new Map<string, StagePlan>()
+      for (const [k, v] of m) {
+        const moved = { ...v, start_ref: v.start_ref === from ? to : v.start_ref }
+        next.set(k === from ? to : k, k === from ? { ...moved, name: to } : moved)
+      }
+      return next
+    })
     setDirty(true)
   }
 
@@ -200,7 +290,7 @@ export function QuoteEditor() {
   }
 
   function applyMarkupToAll() {
-    const v = window.prompt('Markup % to apply to every line', String(defaultMarkup))
+    const v = window.prompt('Markup % to apply to every line', String(kindMarkup('material', settings)))
     if (v === null || v.trim() === '') return
     const m = Number(v)
     if (!Number.isFinite(m) || Math.abs(m) > MAX_MARKUP_PCT) {
@@ -216,7 +306,7 @@ export function QuoteEditor() {
     if (!quote) return false
     setError(null)
     const keep = linesToSave(lines)
-    const invalid = quoteValidationError(keep, Number(quote.discount || 0), Number(quote.vat_rate || 0))
+    const invalid = quoteValidationError(keep, Number(quote.discount || 0), Number(quote.vat_rate || 0), Number(quote.management_fee_pct || 0))
     if (invalid) {
       setError(invalid)
       return false
@@ -237,9 +327,13 @@ export function QuoteEditor() {
         terms: quote.terms,
         discount: Number(quote.discount || 0),
         vat_rate: Number(quote.vat_rate || 0),
+        management_fee_pct: Number(quote.management_fee_pct || 0),
         updated_at: now,
       })
       const items = await saveQuoteItems(quote.id, keep)
+      // Stages for the sections that are left after saving (an emptied section goes).
+      const left = new Set(keep.map((l) => stageKey(l.section || null)))
+      await saveQuoteStages(quote.id, plans.filter((p) => left.has(p.name)).map((p) => ({ ...p, start_ref: p.start_ref !== null && left.has(p.start_ref) ? p.start_ref : null })))
       setQuote(saved)
       setLines(items.map((i) => ({ ...i, key: newKey() })))
       setDirty(false)
@@ -251,6 +345,29 @@ export function QuoteEditor() {
     } finally {
       setSaving(false)
     }
+  }
+
+  /** The internal sign-off, at today's total excl. VAT. Saves first so it approves what is on screen. */
+  async function approve() {
+    if (!quote || !currentUser) return
+    setBusy('approve')
+    setError(null)
+    try {
+      if (dirty && !(await save())) return
+      const saved = await quotesApi.update(quote.id, { approved_at: new Date().toISOString(), approved_by: currentUser.id, approved_total: totals.totalExcl })
+      setQuote(saved)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  /** Sending (or marking sent) waits for the approval. */
+  function needsApproval(): boolean {
+    if (approved) return false
+    setError(canApprove ? 'Approve the quote first (Totals → Approve), then send it.' : 'This quote needs an Administrator to approve it before it is sent.')
+    return true
   }
 
   async function setStatus(status: QuoteStatus) {
@@ -352,7 +469,7 @@ export function QuoteEditor() {
             >
               <FileDown size={15} /> PDF
             </Button>
-            <Button onClick={() => setSending(true)}>
+            <Button onClick={() => !needsApproval() && setSending(true)}>
               <Mail size={15} /> Send to client
             </Button>
           </>
@@ -362,7 +479,7 @@ export function QuoteEditor() {
 
       <div className="mb-4 flex flex-wrap gap-2">
         {quote.status === 'draft' && (
-          <Button size="sm" onClick={() => setStatus('sent')} loading={busy === 'sent'}><Send size={13} /> Mark sent</Button>
+          <Button size="sm" onClick={() => !needsApproval() && setStatus('sent')} loading={busy === 'sent'}><Send size={13} /> Mark sent</Button>
         )}
         {(quote.status === 'sent' || quote.status === 'draft') && (
           <>
@@ -451,8 +568,9 @@ export function QuoteEditor() {
                 <button className="font-medium text-brand-700 underline" onClick={() => addLine(null)}>Add a line</button> or add a section.
               </div>
             )}
-            {groups.map((g) => {
+            {groups.map((g, gi) => {
               const sectionTotal = g.lines.reduce((s, l) => s + Number(l.quantity) * Number(l.unit_price), 0)
+              const plan = plans[gi]
               return (
                 <div key={g.section ?? '__none'} className="border-b border-slate-100 last:border-0">
                   <div className="flex items-center justify-between bg-slate-50 px-4 py-2">
@@ -464,14 +582,30 @@ export function QuoteEditor() {
                       <button className="text-slate-400 hover:text-red-600" onClick={() => removeSection(g.section)} aria-label="Delete section"><Trash2 size={14} /></button>
                     </div>
                   </div>
-                  <div className="hidden grid-cols-[1fr_70px_70px_100px_70px_100px_100px_56px] gap-2 px-4 pt-2 text-[11px] font-medium uppercase tracking-wide text-slate-400 md:grid">
+                  <div className="bg-slate-50">
+                    <StageControls stage={plan} earlier={plans.slice(0, gi).map((p) => p.name)} onChange={(p) => updateStage(plan.name, p)} />
+                  </div>
+                  <div className="hidden grid-cols-[1fr_84px_64px_96px_64px_96px_100px_56px] gap-2 px-4 pt-2 text-[11px] font-medium uppercase tracking-wide text-slate-400 md:grid">
                     <span>Description</span><span>Unit</span><span className="text-right">Qty</span><span className="text-right">Unit cost</span>
                     <span className="text-right">Markup</span><span className="text-right">Unit price</span><span className="text-right">Line total</span><span />
                   </div>
                   {g.lines.map((l) => (
-                    <div key={l.key} className="grid grid-cols-2 gap-2 border-t border-slate-50 px-4 py-2 md:grid-cols-[1fr_70px_70px_100px_70px_100px_100px_56px] md:items-center md:border-0">
+                    <div key={l.key} className="grid grid-cols-2 gap-2 border-t border-slate-50 px-4 py-2 md:grid-cols-[1fr_84px_64px_96px_64px_96px_100px_56px] md:items-center md:border-0">
                       <div className="relative col-span-2 md:col-span-1">
-                        <input className="input pr-9" placeholder="Description, e.g. Toilet" value={l.description} onChange={(e) => updateLine(l.key, { description: e.target.value })} />
+                        <input className="input pl-14 pr-9" placeholder="Description, e.g. Toilet" value={l.description} onChange={(e) => updateLine(l.key, { description: e.target.value })} />
+                        {/* The kind of cost, as a small tag inside the box; tap it for the full list. */}
+                        <span className={`pointer-events-none absolute inset-y-0 left-1.5 my-auto flex h-6 w-11 items-center justify-center rounded text-[10px] font-semibold tracking-wide ${KIND_TONE[l.kind ?? 'material']}`}>
+                          {KIND_TAG[l.kind ?? 'material']}
+                        </span>
+                        <select
+                          className="absolute inset-y-0 left-1.5 my-auto h-6 w-11 cursor-pointer opacity-0"
+                          value={l.kind ?? 'material'}
+                          onChange={(e) => changeKind(l, e.target.value as LineKind)}
+                          title={`${KIND_LABEL[l.kind ?? 'material']}: tap to change`}
+                          aria-label="Kind of cost"
+                        >
+                          {LINE_KINDS.map((k) => <option key={k} value={k}>{KIND_LABEL[k]}</option>)}
+                        </select>
                         {!showDetails(l) && (
                           <button
                             type="button"
@@ -484,10 +618,35 @@ export function QuoteEditor() {
                           </button>
                         )}
                       </div>
-                      <select className="input px-1" value={l.unit} onChange={(e) => updateLine(l.key, { unit: e.target.value as Unit })} aria-label="Unit">
-                        {UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
-                      </select>
-                      <input className="input text-right" type="number" inputMode="decimal" step="any" aria-label="Quantity" value={l.quantity} onChange={(e) => updateLine(l.key, { quantity: num(e.target.value) })} />
+                      {l.kind === 'labour' ? (
+                        // Labour: priced per worker-day; the grade sets the day rate.
+                        <select
+                          className="input px-1"
+                          value={l.labour_grade ?? 'senior'}
+                          onChange={(e) => {
+                            const grade = e.target.value as LabourGrade
+                            const renamed = /^Labour \((senior|junior)\)$/.test(l.description) || !l.description.trim()
+                            updateLine(l.key, { labour_grade: grade, unit: 'day', unit_cost: dayRate(grade, settings), ...(renamed ? { description: `Labour (${grade})` } : {}) })
+                          }}
+                          aria-label="Senior or junior"
+                        >
+                          {LABOUR_GRADES.map((gr) => <option key={gr} value={gr}>{gr === 'senior' ? 'Senior' : 'Junior'}</option>)}
+                        </select>
+                      ) : (
+                        <select className="input px-1" value={l.unit} onChange={(e) => updateLine(l.key, { unit: e.target.value as Unit })} aria-label="Unit">
+                          {UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
+                        </select>
+                      )}
+                      <input
+                        className="input text-right"
+                        type="number"
+                        inputMode="decimal"
+                        step="any"
+                        aria-label={l.kind === 'labour' ? 'Worker-days' : 'Quantity'}
+                        title={l.kind === 'labour' ? 'Worker-days: 2 workers for 3 days is 6' : undefined}
+                        value={l.quantity}
+                        onChange={(e) => updateLine(l.key, { quantity: num(e.target.value) })}
+                      />
                       <label className="md:contents">
                         <span className="label md:hidden">Unit cost</span>
                         <input className="input text-right" type="number" inputMode="decimal" step="0.01" aria-label="Unit cost" value={l.unit_cost} onChange={(e) => updateLine(l.key, { unit_cost: num(e.target.value) })} />
@@ -534,15 +693,23 @@ export function QuoteEditor() {
                       )}
                     </div>
                   ))}
-                  <div className="px-4 py-2">
-                    <button className="inline-flex items-center gap-1 text-xs font-medium text-brand-700 hover:text-brand-800" onClick={() => addLine(g.section)}>
-                      <Plus size={13} /> Add line
+                  <div className="flex flex-wrap gap-x-4 gap-y-1 px-4 py-2">
+                    <button className="inline-flex items-center gap-1 text-xs font-medium text-brand-700 hover:text-brand-800" onClick={() => addLine(g.section, 'material')}>
+                      <Plus size={13} /> Material
+                    </button>
+                    <button className="inline-flex items-center gap-1 text-xs font-medium text-brand-700 hover:text-brand-800" onClick={() => addLine(g.section, 'labour')}>
+                      <Plus size={13} /> Labour
+                    </button>
+                    <button className="inline-flex items-center gap-1 text-xs font-medium text-brand-700 hover:text-brand-800" onClick={() => addLine(g.section, 'subcontractor')}>
+                      <Plus size={13} /> Subcontractor
                     </button>
                   </div>
                 </div>
               )
             })}
           </Card>
+
+          <QuotePlanCard stages={schedule.stages} totalDays={schedule.totalDays} />
 
           <Card title="Notes & terms">
             <div className="grid gap-3">
@@ -564,6 +731,12 @@ export function QuoteEditor() {
             <dl className="tabular space-y-2 text-sm">
               <div className="flex justify-between"><dt className="text-slate-500">Subtotal</dt><dd>{formatZAR(totals.subtotal)}</dd></div>
               <div className="flex items-center justify-between gap-3">
+                <dt className="text-slate-500">
+                  Management fee <input className="input inline w-16 px-1.5 py-0.5 text-right" type="number" inputMode="decimal" step="0.5" min="0" max="100" value={quote.management_fee_pct} onChange={(e) => patchQuote({ management_fee_pct: num(e.target.value) })} aria-label="Management fee %" />%
+                </dt>
+                <dd>{formatZAR(totals.managementFee)}</dd>
+              </div>
+              <div className="flex items-center justify-between gap-3">
                 <dt className="text-slate-500">Discount (R)</dt>
                 <dd><input className="input w-32 py-1 text-right" type="number" inputMode="decimal" step="0.01" min="0" value={quote.discount} onChange={(e) => patchQuote({ discount: num(e.target.value) })} /></dd>
               </div>
@@ -576,9 +749,39 @@ export function QuoteEditor() {
             </dl>
             <div className="mt-4 rounded-lg bg-slate-50 p-3 text-sm">
               <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-slate-500">Internal — not on quote</p>
-              <div className="tabular flex justify-between"><span className="text-slate-500">Estimated cost</span><span>{formatZAR(totals.estimatedCost)}</span></div>
-              <div className={`tabular flex justify-between font-medium ${totals.margin < 0 ? 'text-red-600' : 'text-emerald-700'}`}>
-                <span>Estimated margin</span><span>{formatZAR(totals.margin)} ({formatPct(totals.marginPct)})</span>
+              <div className="tabular space-y-1">
+                <div className="flex justify-between"><span className="text-slate-500">Materials</span><span>{formatZAR(totals.costByKind.material)}</span></div>
+                <div className="flex justify-between"><span className="text-slate-500">Labour</span><span>{formatZAR(totals.costByKind.labour)}</span></div>
+                <div className="flex justify-between"><span className="text-slate-500">Subcontractors</span><span>{formatZAR(totals.costByKind.subcontractor)}</span></div>
+                <div className="flex justify-between border-t border-slate-200 pt-1"><span className="text-slate-500">Total cost</span><span>{formatZAR(totals.estimatedCost)}</span></div>
+                <div className="flex justify-between"><span className="text-slate-500">Markup</span><span>{formatZAR(round2(totals.subtotal - totals.estimatedCost))}</span></div>
+                <div className="flex justify-between"><span className="text-slate-500">Management fee</span><span>{formatZAR(totals.managementFee)}</span></div>
+                {totals.discount > 0 && <div className="flex justify-between"><span className="text-slate-500">Less discount</span><span>-{formatZAR(totals.discount)}</span></div>}
+                <div className={`flex justify-between border-t border-slate-200 pt-1 font-semibold ${totals.margin < 0 ? 'text-red-600' : 'text-emerald-700'}`}>
+                  <span>Estimated profit</span><span>{formatZAR(totals.margin)} ({formatPct(totals.marginPct)})</span>
+                </div>
+                <div className="flex justify-between"><span className="text-slate-500">Job length</span><span>{schedule.totalDays} working day{schedule.totalDays === 1 ? '' : 's'}</span></div>
+                {schedule.totalDays > 0 && (
+                  <div className="flex justify-between"><span className="text-slate-500">Profit per working day</span><span>{formatZAR(round2(totals.margin / schedule.totalDays))}</span></div>
+                )}
+              </div>
+              <div className="mt-3 border-t border-slate-200 pt-3">
+                {approved ? (
+                  <p className="flex items-center gap-1.5 text-xs font-medium text-emerald-700">
+                    <BadgeCheck size={15} /> Approved{quote.approved_at ? ` ${formatDateTime(quote.approved_at)}` : ''} at {formatZAR(Number(quote.approved_total))}
+                  </p>
+                ) : (
+                  <>
+                    <p className="mb-2 text-xs text-slate-500">
+                      {quote.approved_at ? 'The price changed since it was approved. ' : ''}Approve the numbers before the quote goes to the client.
+                    </p>
+                    {canApprove ? (
+                      <Button size="sm" variant="primary" onClick={approve} loading={busy === 'approve'}><BadgeCheck size={14} /> Approve at {formatZAR(totals.totalExcl)}</Button>
+                    ) : (
+                      <p className="text-xs text-slate-500">An Administrator approves quotes.</p>
+                    )}
+                  </>
+                )}
               </div>
             </div>
           </Card>

@@ -20,6 +20,7 @@ interface QuoteRow {
   notes: string | null
   terms: string | null
   discount: number
+  management_fee_pct?: number | null
   vat_rate: number
   company_id: string | null
   contact_id: string | null
@@ -85,7 +86,9 @@ export async function buildQuotePdf(db: SupabaseClient, quoteId: string, load: Q
 
   // Same arithmetic as the quote_totals view: VAT and total from the unrounded amount excl. VAT.
   const rawSubtotal = items.reduce((s, i) => s + Number(i.quantity) * Number(i.unit_price), 0)
-  const rawExcl = rawSubtotal - Number(quote.discount || 0)
+  const feePct = Number(quote.management_fee_pct || 0)
+  const managementFee = round2((rawSubtotal * feePct) / 100)
+  const rawExcl = rawSubtotal + managementFee - Number(quote.discount || 0)
   const rate = Number(quote.vat_rate || 0)
   const subtotal = round2(rawSubtotal)
   const totalExcl = round2(rawExcl)
@@ -308,6 +311,7 @@ export async function buildQuotePdf(db: SupabaseClient, quoteId: string, load: Q
   // ---------- Totals ----------
   const totals: [string, string, boolean][] = [
     ['Subtotal', zar(subtotal), false],
+    ...(managementFee > 0 ? ([[`Project management (${feePct}%)`, zar(managementFee), false]] as [string, string, boolean][]) : []),
     ...(Number(quote.discount) > 0 ? ([['Discount', `-${zar(Number(quote.discount))}`, false]] as [string, string, boolean][]) : []),
     ['Total excl. VAT', zar(totalExcl), false],
     [`VAT (${Number(quote.vat_rate)}%)`, zar(vat), false],

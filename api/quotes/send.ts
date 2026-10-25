@@ -127,7 +127,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     db.from('quote_attachments').select('*').eq('quote_id', body.quoteId).order('sort_order'),
   ])
   const quote = quoteRes.data as
-    | { id: string; number: string | null; title: string; site_address: string | null; status: string; valid_until: string | null; discount: number; vat_rate: number; company_id: string | null; contact_id: string | null }
+    | {
+        id: string; number: string | null; title: string; site_address: string | null; status: string; valid_until: string | null; discount: number; vat_rate: number
+        management_fee_pct: number | null; approved_at: string | null; approved_total: number | null; company_id: string | null; contact_id: string | null
+      }
     | null
   if (!quote) {
     res.status(404).json({ error: 'Quote not found.' })
@@ -138,11 +141,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const attachments = (attRes.data ?? []) as { file_path: string; file_name: string; mime_type: string | null; kind: string; show_on_quote: boolean }[]
 
   // Totals (same arithmetic as src/lib/quoteMath.ts and the quote_totals view).
-  const rawExcl = items.reduce((s, i) => s + Number(i.quantity) * Number(i.unit_price), 0) - Number(quote.discount || 0)
+  const rawSubtotal = items.reduce((s, i) => s + Number(i.quantity) * Number(i.unit_price), 0)
+  const feePct = Number(quote.management_fee_pct || 0)
+  const managementFee = round2((rawSubtotal * feePct) / 100)
+  const rawExcl = rawSubtotal + managementFee - Number(quote.discount || 0)
   const rate = Number(quote.vat_rate || 0)
   const totalExcl = round2(rawExcl)
   const vat = round2((rawExcl * rate) / 100)
   const totalIncl = round2(rawExcl * (1 + rate / 100))
+
+  // The internal sign-off (migration 0011): only a quote approved at this total goes out.
+  if (!quote.approved_at || quote.approved_total === null || round2(Number(quote.approved_total)) !== totalExcl) {
+    res.status(409).json({ error: 'This quote needs approving at its current total before it is sent (Totals → Approve).' })
+    return
+  }
 
   // Keep in step with src/pages/build/quotes/SendQuoteModal.tsx.
   const clientPdf = attachments.find((a) => a.kind === 'client_pdf')
@@ -199,6 +211,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   <tr><td colspan="2" style="padding:6px 0;font-weight:600;border-bottom:2px solid #ef6723">Quote ${esc(quote.number ?? '')} · ${esc(quote.title)}</td></tr>
   ${quote.site_address ? `<tr><td style="padding:4px 12px 4px 0;color:#64748b">Site</td><td>${esc(quote.site_address)}</td></tr>` : ''}
   ${[...sections].map(([name, amt]) => `<tr><td style="padding:4px 12px 4px 0;color:#64748b">${esc(name)}</td><td style="text-align:right">${zar(round2(amt))}</td></tr>`).join('')}
+  ${managementFee ? `<tr><td style="padding:4px 12px 4px 0;color:#64748b">Project management (${feePct}%)</td><td style="text-align:right">${zar(managementFee)}</td></tr>` : ''}
   ${Number(quote.discount) ? `<tr><td style="padding:4px 12px 4px 0;color:#64748b">Discount</td><td style="text-align:right">-${zar(Number(quote.discount))}</td></tr>` : ''}
   <tr><td style="padding:4px 12px 4px 0;color:#64748b;border-top:1px solid #e2e8f0">Total excl. VAT</td><td style="text-align:right;border-top:1px solid #e2e8f0">${zar(totalExcl)}</td></tr>
   <tr><td style="padding:4px 12px 4px 0;color:#64748b">VAT (${Number(quote.vat_rate)}%)</td><td style="text-align:right">${zar(vat)}</td></tr>

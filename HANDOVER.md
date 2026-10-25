@@ -26,6 +26,32 @@ trigger when a contact/company is added or its email changes, and once in the mi
 25 Oct: 27 messages, all on test client "Ferman Aanskaf", whose email is Stephan's old address
 stephan@bredellferreira.co.za). `unfiled_at`: set by "take off client", the automatic filing skips it.
 
+## Planning and profit from the quote, step 1 (25 Oct 2026, branch `claude/quote-line-details`)
+
+Stephan: plan the job from the quote (each part takes N days, starts after/with another, overlaps),
+see how long the job takes, price labour, add a management fee, and see the estimated profit
+internally before approving the quote. His answers: management fee as its own line on the quote;
+labour per worker per day, senior or junior; workers are individuals (step 2).
+Migration `0011_quote_planning.sql` (applied live 25 Oct; fee defaults to 0 so live totals are
+unchanged, checked on every quote):
+- `quote_items.kind` (material/labour/subcontractor), `labour_grade`, unit `day`.
+- `quote_stages`: one per section (name '' = General): `duration_days`, `start_mode`
+  (start/with/after), `start_ref`, `lag_days`. `scheduleStages` in `src/lib/quoteMath.ts`.
+- `quotes.management_fee_pct`, `approved_at/by/total`; `quote_totals` view includes the fee.
+- `company_settings`: senior/junior day rates, default markup per kind, default fee.
+Screens: each section heading has "Takes N working days · Starts … + N days"; line tag
+MAT/LAB/SUB (tap to change); labour lines pick Senior/Junior (sets the day rate); "+ Material /
++ Labour / + Subcontractor"; Plan card (timeline, `QuotePlan.tsx`); Totals card has the fee and an
+internal panel (cost by kind, markup, fee, estimated profit, job length, profit per day) and
+**Approve** (Administrators). Send / Mark sent need a current approval; `api/quotes/send.ts`
+refuses (409) otherwise. Fee shows as "Project management (N%)" on print, PDF and email.
+Also: Print and PDF now save first (Stephan's Toilet/Basin were missing from a PDF made before
+saving).
+
+**Step 2, next:** workers (senior/junior, day cost), converting an accepted quote into dated
+project stages from a start date, booking workers on stages, company schedule with
+double-booking warnings, Diary entries, and project profitability (quoted vs actual per stage).
+
 ## "Urban House" spelling cleaned out (25 Oct 2026)
 
 Stephan asked for every "Urban House" to become "Urban Haus". The code on every branch already

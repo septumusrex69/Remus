@@ -33,6 +33,7 @@ export function QuotesList() {
         status: 'draft',
         vat_rate: settings?.vat_rate ?? 15,
         terms: settings?.quote_terms ?? null,
+        management_fee_pct: settings?.management_fee_pct ?? 0,
         // Local dates: the column default (current_date) and toISOString are UTC, a day out before 02:00 SAST.
         issue_date: todayYmd(),
         valid_until: ymd(validUntil),

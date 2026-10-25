@@ -54,7 +54,7 @@ export function QuotePrint() {
   if (loading && !data) return <Spinner page />
   if (!data?.quote) return <ErrorBanner error={error ?? 'Quote not found'} />
   const { quote, items, dir } = data
-  const t = quoteTotals(items, quote.discount, quote.vat_rate)
+  const t = quoteTotals(items, quote.discount, quote.vat_rate, quote.management_fee_pct)
   const company = quote.company_id ? dir.companyById.get(quote.company_id) : null
   const contact = quote.contact_id ? dir.contactById.get(quote.contact_id) : null
   const showSections = groups.length > 1 || groups[0]?.section
@@ -148,6 +148,7 @@ export function QuotePrint() {
         <div className="print-avoid-break mt-6 flex justify-end">
           <dl className="tabular w-full max-w-xs space-y-1">
             <div className="flex justify-between"><dt className="text-slate-500">Subtotal</dt><dd>{formatZAR(t.subtotal)}</dd></div>
+            {t.managementFee > 0 && <div className="flex justify-between"><dt className="text-slate-500">Project management ({Number(quote.management_fee_pct)}%)</dt><dd>{formatZAR(t.managementFee)}</dd></div>}
             {t.discount > 0 && <div className="flex justify-between"><dt className="text-slate-500">Discount</dt><dd>-{formatZAR(t.discount)}</dd></div>}
             <div className="flex justify-between"><dt className="text-slate-500">Total excl. VAT</dt><dd>{formatZAR(t.totalExcl)}</dd></div>
             <div className="flex justify-between"><dt className="text-slate-500">VAT ({quote.vat_rate}%)</dt><dd>{formatZAR(t.vat)}</dd></div>
