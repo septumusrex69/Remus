@@ -270,7 +270,7 @@ export async function fileOnClient(input: {
   const contactId = input.client.kind === 'contact' ? input.client.id : null
   const { error } = await supabase
     .from('user_emails')
-    .update({ linked_company_id: companyId, linked_contact_id: contactId, linked_at: new Date().toISOString(), linked_by: input.userId })
+    .update({ linked_company_id: companyId, linked_contact_id: contactId, linked_at: new Date().toISOString(), linked_by: input.userId, unfiled_at: null })
     .eq('id', input.mail.id)
   fail(error)
   const direction = input.mail.isSent ? 'Email sent' : input.mail.isJunk ? 'Email received (was in Spam/Junk)' : 'Email received'
@@ -295,11 +295,14 @@ export async function fileOnClient(input: {
   changed()
 }
 
-/** Takes a message off the client it was filed on, in the mailbox and on the client's card. */
+/**
+ * Takes a message off the client it was filed on, in the mailbox and on the client's card.
+ * `unfiled_at` keeps it off: the automatic filing after each sync skips it.
+ */
 export async function unfileFromClient(userId: ID, mail: MailItem): Promise<void> {
   const { error } = await supabase
     .from('user_emails')
-    .update({ linked_company_id: null, linked_contact_id: null, linked_at: null, linked_by: null })
+    .update({ linked_company_id: null, linked_contact_id: null, linked_at: null, linked_by: null, unfiled_at: new Date().toISOString() })
     .eq('id', mail.id)
   fail(error)
   if (mail.messageId) await supabase.from('activities').delete().eq('user_id', userId).eq('email_message_id', mail.messageId)

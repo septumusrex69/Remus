@@ -15,6 +15,17 @@ Live (`main`, remus-xi.vercel.app) has the Remus skins. Two finished branches ar
   0009 is applied live (one nullable column, harmless to the old code).
 They touch different files except this one. Release each with a merge of `origin/main` first.
 
+## All client mail filed on the client (25 Oct 2026, branch `claude/quote-line-details`)
+
+Stephan: "file all the mails under a specific client, so it's all together" (not per project).
+Migration `0010_file_mail_on_clients.sql` (**NOT applied live yet**, waiting on Stephan's OK):
+`file_mail_on_clients(p_user, p_email)` files kept mail whose client-side address (sender for
+received, To/Cc for sent) is a contact's or company's email: links the `user_emails` row and adds
+the `activities` row the Emails card shows. Runs after every sync (`syncConnection`), from a
+trigger when a contact/company is added or its email changes, and once in the migration (dry run
+25 Oct: 27 messages, all on test client "Ferman Aanskaf", whose email is Stephan's old address
+stephan@bredellferreira.co.za). `unfiled_at`: set by "take off client", the automatic filing skips it.
+
 ## Quote line details + dictation (25 Oct 2026, branch `claude/quote-line-details`)
 
 Stephan: on a quote line like "Toilet" he wants to write out what's included ("installation of the

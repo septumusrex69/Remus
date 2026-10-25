@@ -458,7 +458,15 @@ export async function syncConnection(admin: SupabaseClient, conn: EmailConnectio
     const { error: watermarkError } = await admin.from('email_connections').update(patch).eq('user_id', conn.user_id)
     if (watermarkError) throw new Error(`Failed to save sync watermark: ${watermarkError.message}`)
 
-    return { logged: inbox.logged + junk.logged }
+    /*
+     * Everything with a client goes on that client: mail sent to them from Outlook or a phone,
+     * and mail that arrived before they were captured (migration 0010). Not fatal: the mailbox
+     * is synced either way, and the next sync files whatever this one missed.
+     */
+    const { data: filedLater, error: fileError } = await admin.rpc('file_mail_on_clients', { p_user: conn.user_id })
+    if (fileError) console.error(`[emailSync] filing on clients failed: ${fileError.message}`)
+
+    return { logged: inbox.logged + junk.logged + (Number(filedLater) || 0) }
   } finally {
     await client.logout().catch(() => {})
   }
