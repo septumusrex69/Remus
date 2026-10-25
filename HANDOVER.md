@@ -26,6 +26,14 @@ trigger when a contact/company is added or its email changes, and once in the mi
 25 Oct: 27 messages, all on test client "Ferman Aanskaf", whose email is Stephan's old address
 stephan@bredellferreira.co.za). `unfiled_at`: set by "take off client", the automatic filing skips it.
 
+## "Urban House" spelling cleaned out (25 Oct 2026)
+
+Stephan asked for every "Urban House" to become "Urban Haus". The code on every branch already
+had none. In the database it was only Settings → Company: name was "Urban House Group" and email
+"stephn@urbanhousegroup.com"; changed (with his instruction) to "Urban Haus Group" and
+stephan@urbanhausgroup.co.za. Every text column in public and auth was searched; no other
+hits. Vercel env EMAIL_FROM is already "Urban Haus Construction <quotes@urbanhausgroup.co.za>".
+
 ## Faster quote sending (25 Oct 2026, branch `claude/quote-line-details`)
 
 Stephan: "sending a quote takes super long". Q-0006 had three iPhone photos (7 MB): downloaded
