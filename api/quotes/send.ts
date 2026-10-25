@@ -4,6 +4,7 @@ import { requireCaller, supabaseEnv } from '../_lib/auth.js'
 import { credentialsKeyProblem } from '../_lib/crypto.js'
 import { adminClient, getConnection, logEmailActivity, sendFromOwnMailbox, type MailboxConnection } from '../_lib/mailbox.js'
 import { buildQuotePdf } from '../_lib/quotePdf.js'
+import { quoteFileLoader, shrinkPhoto } from '../_lib/quoteFiles.js'
 
 /**
  * Emails a quote to the client.
@@ -147,35 +148,42 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const clientPdf = attachments.find((a) => a.kind === 'client_pdf')
   const toAttach = clientPdf ? [clientPdf] : attachments.filter((a) => a.kind !== 'client_pdf' && a.show_on_quote)
 
-  const files: { filename: string; content: Buffer; contentType?: string }[] = []
-  let totalBytes = 0
-  if (!clientPdf) {
-    try {
-      const pdf = await buildQuotePdf(db, quote.id)
-      const content = Buffer.from(pdf.bytes)
-      totalBytes += content.length
-      files.push({ filename: pdf.filename, content, contentType: 'application/pdf' })
-    } catch (e) {
-      console.error('Quote PDF failed', e)
-      res.status(500).json({ error: 'Could not build the quote PDF, so the email was not sent. Try again, or upload a client PDF.' })
-      return
-    }
+  // Each file downloaded once (the PDF and the attachments share them), all at the same time, and
+  // photos shrunk before they go out (api/_lib/quoteFiles.ts). The client PDF goes as uploaded.
+  const load = quoteFileLoader(db)
+  const [pdfResult, attached] = await Promise.all([
+    clientPdf
+      ? Promise.resolve(null)
+      : buildQuotePdf(db, quote.id, load).catch((e: unknown) => {
+          console.error('Quote PDF failed', e)
+          return 'failed' as const
+        }),
+    Promise.all(
+      toAttach.map(async (a) => {
+        const buf = await load(a.file_path)
+        return { a, content: buf && a.kind !== 'client_pdf' ? await shrinkPhoto(buf, a.mime_type) : buf }
+      }),
+    ),
+  ])
+  if (pdfResult === 'failed') {
+    res.status(500).json({ error: 'Could not build the quote PDF, so the email was not sent. Try again, or upload a client PDF.' })
+    return
   }
-  for (const a of toAttach) {
-    const dl = await db.storage.from('quote-files').download(a.file_path)
-    if (dl.error || !dl.data) {
+
+  const files: { filename: string; content: Buffer; contentType?: string }[] = []
+  if (pdfResult) files.push({ filename: pdfResult.filename, content: Buffer.from(pdfResult.bytes), contentType: 'application/pdf' })
+  for (const { a, content } of attached) {
+    if (!content) {
       // Never send the email without a file the person expects to go out (above all the client PDF).
-      console.error('Quote attachment download failed', a.file_path, dl.error)
+      console.error('Quote attachment download failed', a.file_path)
       res.status(502).json({ error: `Could not load "${a.file_name}" from storage, so the email was not sent. Try again, or remove the file.` })
       return
     }
-    const content = Buffer.from(await dl.data.arrayBuffer())
-    totalBytes += content.length
-    if (totalBytes > MAX_ATTACHMENT_BYTES) {
-      res.status(413).json({ error: 'Attachments are larger than 20 MB in total. Remove some files or upload a smaller client PDF.' })
-      return
-    }
     files.push({ filename: a.file_name, content, contentType: a.mime_type ?? undefined })
+  }
+  if (files.reduce((n, f) => n + f.content.length, 0) > MAX_ATTACHMENT_BYTES) {
+    res.status(413).json({ error: 'Attachments are larger than 20 MB in total. Remove some files or upload a smaller client PDF.' })
+    return
   }
 
   // Body: the person's message, plus a summary when no polished client PDF is attached.

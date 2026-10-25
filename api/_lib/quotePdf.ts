@@ -1,5 +1,6 @@
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFImage, type PDFPage } from 'pdf-lib'
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { quoteFileLoader, shrinkPhoto, type QuoteFileLoader } from './quoteFiles.js'
 
 /**
  * Builds an A4 PDF of a quote, laid out like the in-app print view (src/pages/build/quotes/QuotePrint.tsx):
@@ -60,7 +61,8 @@ const MUTED = rgb(0.39, 0.45, 0.55)
 const ACCENT = rgb(0.937, 0.404, 0.137) // Urban Haus orange #EF6723
 const RULE = rgb(0.89, 0.91, 0.94)
 
-export async function buildQuotePdf(db: SupabaseClient, quoteId: string): Promise<QuotePdf> {
+/** `load` lets the email share its downloads with the PDF, so each photo is fetched once. */
+export async function buildQuotePdf(db: SupabaseClient, quoteId: string, load: QuoteFileLoader = quoteFileLoader(db)): Promise<QuotePdf> {
   const [quoteRes, itemsRes, settingsRes, attRes] = await Promise.all([
     db.from('quotes').select('*').eq('id', quoteId).maybeSingle(),
     db.from('quote_items').select('section, description, details, quantity, unit, unit_price').eq('quote_id', quoteId).order('sort_order'),
@@ -327,11 +329,15 @@ export async function buildQuotePdf(db: SupabaseClient, quoteId: string): Promis
   // ---------- Visuals ----------
   if (gallery.length > 0) {
     const images: { img: PDFImage; caption: string | null }[] = []
-    for (const a of gallery) {
-      const dl = await db.storage.from('quote-files').download(a.file_path)
-      if (dl.error || !dl.data) continue
+    // All downloaded and shrunk at once, then embedded in order.
+    const photos = await Promise.all(gallery.map(async (a) => {
+      const buf = await load(a.file_path)
+      return buf ? shrinkPhoto(buf, a.mime_type) : null
+    }))
+    for (const [i, a] of gallery.entries()) {
+      const buf = photos[i]
+      if (!buf) continue
       try {
-        const buf = new Uint8Array(await dl.data.arrayBuffer())
         images.push({ img: a.mime_type === 'image/png' ? await pdf.embedPng(buf) : await pdf.embedJpg(buf), caption: a.caption })
       } catch {
         // skip images pdf-lib can't read (e.g. progressive or CMYK JPEGs it rejects)

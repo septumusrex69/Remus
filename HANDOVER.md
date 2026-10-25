@@ -26,6 +26,14 @@ trigger when a contact/company is added or its email changes, and once in the mi
 25 Oct: 27 messages, all on test client "Ferman Aanskaf", whose email is Stephan's old address
 stephan@bredellferreira.co.za). `unfiled_at`: set by "take off client", the automatic filing skips it.
 
+## Faster quote sending (25 Oct 2026, branch `claude/quote-line-details`)
+
+Stephan: "sending a quote takes super long". Q-0006 had three iPhone photos (7 MB): downloaded
+twice, sent twice (in the PDF and attached), uploaded twice (SMTP send + copy to Sent): ~40 MB.
+`api/_lib/quoteFiles.ts`: each file downloaded once per request, in parallel, shared by the PDF
+and the attachments; JPEG/PNG shrunk with `sharp` to 1800 px on the long side (and turned upright
+from the iPhone rotation flag). Originals in Storage untouched; an uploaded client PDF goes as is.
+
 ## Unit price locked to cost × markup (25 Oct 2026, branch `claude/quote-line-details`)
 
 Stephan: unit cost and markup are typed, unit price is never typed (0% markup sells at cost).
