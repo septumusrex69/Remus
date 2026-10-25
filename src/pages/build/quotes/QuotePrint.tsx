@@ -130,8 +130,11 @@ export function QuotePrint() {
                 </tr>
               )}
               {g.items.map((it) => (
-                <tr key={it.id} className="border-b border-slate-100">
-                  <td className="py-1.5 pr-2">{it.description}</td>
+                <tr key={it.id} className="border-b border-slate-100 align-top">
+                  <td className="py-1.5 pr-2">
+                    {it.description}
+                    {it.details?.trim() && <p className="whitespace-pre-line text-[11px] leading-snug text-slate-500">{it.details.trim()}</p>}
+                  </td>
                   <td className="tabular py-1.5 px-2 text-right">{formatQty(Number(it.quantity))}</td>
                   <td className="py-1.5 px-2">{it.unit}</td>
                   <td className="tabular py-1.5 px-2 text-right">{formatZAR(it.unit_price)}</td>

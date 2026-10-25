@@ -11,6 +11,7 @@ import {
   Plus,
   Printer,
   FileDown,
+  ListPlus,
   Save,
   Send,
   Trash2,
@@ -33,6 +34,7 @@ import { formatDateTime, formatPct, formatZAR, round2, todayYmd } from '../../..
 import { applyLineEdit, applyMarkup, MAX_MARKUP_PCT, quoteTotals, quoteValidationError, type EditableLine } from '../../../lib/quoteMath'
 import { QUOTE_FILES_BUCKET, supabase } from '../../../lib/supabase'
 import { Button, Card, ErrorBanner, Field, PageHeader, Spinner, StatusBadge } from '../../../components/ui'
+import { DictateButton } from '../../../components/ui/Dictate'
 import { QUOTE_STATUSES, UNITS, type Quote, type QuoteAttachment, type QuoteStatus, type Unit } from '../../../types'
 import { ClientPicker } from '../components/ClientPicker'
 import { paths } from '../paths'
@@ -46,7 +48,7 @@ let keySeq = 0
 const newKey = () => `l${++keySeq}`
 
 function blankLine(section: string | null, markup: number): Line {
-  return { key: newKey(), sort_order: 0, section, description: '', unit: 'each', quantity: 1, unit_cost: 0, markup_pct: markup, unit_price: 0 }
+  return { key: newKey(), sort_order: 0, section, description: '', details: null, unit: 'each', quantity: 1, unit_cost: 0, markup_pct: markup, unit_price: 0 }
 }
 
 /** Sections in order of first appearance; lines with no section form an unnamed first group. */
@@ -64,7 +66,7 @@ function groupBySection(lines: Line[]): { section: string | null; lines: Line[] 
   return groups
 }
 
-const hasContent = (l: Line) => Boolean(l.description.trim() || Number(l.unit_price) || Number(l.unit_cost))
+const hasContent = (l: Line) => Boolean(l.description.trim() || l.details?.trim() || Number(l.unit_price) || Number(l.unit_cost))
 
 /**
  * Lines worth saving: blank lines are dropped, except that a section with nothing in it yet keeps
@@ -96,6 +98,8 @@ export function QuoteEditor() {
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
   const [savedAt, setSavedAt] = useState<string | null>(null)
+  /** Lines whose details box was opened by hand; a line that already has details always shows it. */
+  const [detailsOpen, setDetailsOpen] = useState<Set<string>>(new Set())
 
   const defaultMarkup = 20
 
@@ -131,6 +135,8 @@ export function QuoteEditor() {
 
   if (loading) return <Spinner page />
   if (!quote) return <ErrorBanner error={error ?? 'Quote not found'} />
+
+  const showDetails = (l: Line) => l.details != null || detailsOpen.has(l.key)
 
   const patchQuote = (p: Partial<Quote>) => {
     setQuote({ ...quote, ...p })
@@ -464,7 +470,20 @@ export function QuoteEditor() {
                   </div>
                   {g.lines.map((l) => (
                     <div key={l.key} className="grid grid-cols-2 gap-2 border-t border-slate-50 px-4 py-2 md:grid-cols-[1fr_70px_70px_100px_70px_100px_100px_56px] md:items-center md:border-0">
-                      <input className="input col-span-2 md:col-span-1" placeholder="Description" value={l.description} onChange={(e) => updateLine(l.key, { description: e.target.value })} />
+                      <div className="relative col-span-2 md:col-span-1">
+                        <input className="input pr-9" placeholder="Description, e.g. Toilet" value={l.description} onChange={(e) => updateLine(l.key, { description: e.target.value })} />
+                        {!showDetails(l) && (
+                          <button
+                            type="button"
+                            className="absolute inset-y-0 right-1 my-auto h-7 rounded px-1.5 text-slate-400 hover:bg-slate-100 hover:text-brand-700"
+                            onClick={() => setDetailsOpen((s) => new Set(s).add(l.key))}
+                            title="Add details: what this line includes"
+                            aria-label="Add details"
+                          >
+                            <ListPlus size={15} />
+                          </button>
+                        )}
+                      </div>
                       <select className="input px-1" value={l.unit} onChange={(e) => updateLine(l.key, { unit: e.target.value as Unit })} aria-label="Unit">
                         {UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
                       </select>
@@ -487,6 +506,31 @@ export function QuoteEditor() {
                         <button className="rounded p-1 text-slate-400 hover:bg-slate-100" onClick={() => moveLine(l.key, 1)} aria-label="Move down"><ArrowDown size={13} /></button>
                         <button className="rounded p-1 text-slate-400 hover:bg-red-50 hover:text-red-600" onClick={() => { setLines((ls) => ls.filter((x) => x.key !== l.key)); setDirty(true) }} aria-label="Delete line"><Trash2 size={13} /></button>
                       </span>
+                      {showDetails(l) && (
+                        <div className="col-span-2 md:col-span-full">
+                          <textarea
+                            className="input min-h-16 text-sm"
+                            placeholder="Details shown under the description, e.g. Remove old suite, supply and install new close-coupled toilet, connect to existing waste and water supply."
+                            value={l.details ?? ''}
+                            onChange={(e) => updateLine(l.key, { details: e.target.value })}
+                            aria-label="Details"
+                            autoFocus={!l.details && detailsOpen.has(l.key)}
+                          />
+                          <div className="mt-1 flex flex-wrap items-center gap-2">
+                            <DictateButton size="small" value={l.details ?? ''} onChange={(next) => updateLine(l.key, { details: next })} />
+                            <button
+                              type="button"
+                              className="text-xs text-slate-400 hover:text-red-600"
+                              onClick={() => {
+                                updateLine(l.key, { details: null })
+                                setDetailsOpen((s) => { const n = new Set(s); n.delete(l.key); return n })
+                              }}
+                            >
+                              Remove details
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   ))}
                   <div className="px-4 py-2">
@@ -504,6 +548,7 @@ export function QuoteEditor() {
               <Field label="Notes (shown on quote)">
                 <textarea className="input min-h-20" value={quote.notes ?? ''} onChange={(e) => patchQuote({ notes: e.target.value })} />
               </Field>
+              <DictateButton size="small" value={quote.notes ?? ''} onChange={(next) => patchQuote({ notes: next })} />
               <Field label="Terms" hint={!quote.terms && settings?.quote_terms ? <button className="text-brand-700 underline" onClick={() => patchQuote({ terms: settings.quote_terms })}>Use default terms from settings</button> : undefined}>
                 <textarea className="input min-h-28" value={quote.terms ?? ''} onChange={(e) => patchQuote({ terms: e.target.value })} />
               </Field>

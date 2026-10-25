@@ -10,7 +10,22 @@ Live (`main`, remus-xi.vercel.app) has the Remus skins. Two finished branches ar
   waiting for Stephan's "go live".
 - `claude/mail-picture-store`: **mail pictures saved once** (section below). Migration 0008 is
   applied live; the code is not merged.
+- `claude/quote-line-details` (built on `claude/remus-skins`, so it carries the Raptor-style
+  Settings too): **details under each quote line, and dictation** (section below). Migration
+  0009 is applied live (one nullable column, harmless to the old code).
 They touch different files except this one. Release each with a merge of `origin/main` first.
+
+## Quote line details + dictation (25 Oct 2026, branch `claude/quote-line-details`)
+
+Stephan: on a quote line like "Toilet" he wants to write out what's included ("installation of the
+toilet, this, that"), and to talk instead of type, "like in Raptor".
+- `quote_items.details` (migration `0009_quote_item_details.sql`): optional longer text. In the
+  editor a list-plus icon in the description box opens it; it shows under the line. Printed in
+  small grey under the description on the print view, the PDF (`api/_lib/quotePdf.ts`) and
+  returned/accepted by the Claude connector (`get_quote`, `create_quote`).
+- Dictation copied from Raptor: `src/lib/dictation.ts`, `src/components/ui/Dictate.tsx` (browser
+  speech recognition, free, en-ZA / Afrikaans / en-GB, keeps listening through pauses). On every
+  line's details box and on the quote Notes.
 
 ## Lean Mail (24 Oct 2026) — mail pictures saved once, Outlook-style
 

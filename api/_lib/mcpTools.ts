@@ -170,7 +170,7 @@ export function buildServer(admin: SupabaseClient, user: ConnectorUser): McpServ
       const { data: q } = await admin.from('quotes').select('*').eq(byId ? 'id' : 'number', quote.trim()).maybeSingle()
       if (!q) return fail(`No quote ${quote}.`)
       const [items, totals] = await Promise.all([
-        admin.from('quote_items').select('section, description, quantity, unit, unit_cost, markup_pct, unit_price').eq('quote_id', q.id).order('sort_order'),
+        admin.from('quote_items').select('section, description, details, quantity, unit, unit_cost, markup_pct, unit_price').eq('quote_id', q.id).order('sort_order'),
         admin.from('quote_totals').select('*').eq('quote_id', q.id).maybeSingle(),
       ])
       return ok({ quote: q, items: items.data, totals: totals.data, link: appUrl(`/quotes/${q.id}`) })
@@ -343,6 +343,7 @@ export function buildServer(admin: SupabaseClient, user: ConnectorUser): McpServ
                 .array(
                   z.object({
                     description: z.string().min(1),
+                    details: z.string().optional().describe('What the line includes, shown under the description, e.g. "Remove old suite, supply and fit toilet, connect waste"'),
                     quantity: z.number().positive(),
                     unit: z.enum(UNITS).optional().describe('m², m³, m, each, hours or sum'),
                     unit_cost: z.number().min(0).optional().describe('Internal cost per unit'),
@@ -368,7 +369,7 @@ export function buildServer(admin: SupabaseClient, user: ConnectorUser): McpServ
           const cost = round2(it.unit_cost ?? 0)
           const price = it.unit_price !== undefined ? round2(it.unit_price) : round2(cost * (1 + (it.markup_pct ?? 0) / 100))
           const markup = it.markup_pct ?? (cost ? round2((price / cost - 1) * 100) : 0)
-          return { section: s.name?.trim() || null, description: it.description.trim(), quantity: it.quantity, unit: it.unit ?? 'each', unit_cost: cost, markup_pct: markup, unit_price: price }
+          return { section: s.name?.trim() || null, description: it.description.trim(), details: it.details?.trim() || null, quantity: it.quantity, unit: it.unit ?? 'each', unit_cost: cost, markup_pct: markup, unit_price: price }
         }),
       )
       if (lines.some((l) => Math.abs(l.markup_pct) > 99999)) return fail('A markup is unrealistically large; check the cost and price.')

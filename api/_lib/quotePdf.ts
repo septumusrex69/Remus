@@ -23,7 +23,7 @@ interface QuoteRow {
   company_id: string | null
   contact_id: string | null
 }
-interface ItemRow { section: string | null; description: string; quantity: number; unit: string; unit_price: number }
+interface ItemRow { section: string | null; description: string; details: string | null; quantity: number; unit: string; unit_price: number }
 interface Settings { name?: string; address?: string | null; phone?: string | null; email?: string | null; reg_no?: string | null; vat_no?: string | null; logo_url?: string | null; bank_details?: string | null }
 
 export class QuotePdfError extends Error {}
@@ -63,7 +63,7 @@ const RULE = rgb(0.89, 0.91, 0.94)
 export async function buildQuotePdf(db: SupabaseClient, quoteId: string): Promise<QuotePdf> {
   const [quoteRes, itemsRes, settingsRes, attRes] = await Promise.all([
     db.from('quotes').select('*').eq('id', quoteId).maybeSingle(),
-    db.from('quote_items').select('section, description, quantity, unit, unit_price').eq('quote_id', quoteId).order('sort_order'),
+    db.from('quote_items').select('section, description, details, quantity, unit, unit_price').eq('quote_id', quoteId).order('sort_order'),
     db.from('company_settings').select('*').eq('id', true).maybeSingle(),
     db.from('quote_attachments').select('file_path, file_name, mime_type, caption, show_on_quote').eq('quote_id', quoteId).order('sort_order'),
   ])
@@ -278,7 +278,10 @@ export async function buildQuotePdf(db: SupabaseClient, quoteId: string): Promis
     }
     for (const it of g.items) {
       const lines = wrap(it.description || ' ', 9, regular, descWidth)
-      if (y - lines.length * 11.5 - 6 < MARGIN) {
+      // The details sit under the description, smaller and grey.
+      const detail = it.details?.trim() ? wrap(it.details.trim(), 8, regular, descWidth) : []
+      const height = lines.length * 11.5 + detail.length * 10
+      if (y - height - 6 < MARGIN) {
         page = pdf.addPage([A4.w, A4.h])
         y = A4.h - MARGIN
         tableHeader()
@@ -291,7 +294,10 @@ export async function buildQuotePdf(db: SupabaseClient, quoteId: string): Promis
       draw(it.unit, cols.unit, 9)
       draw(zar(Number(it.unit_price)), cols.rate, 9, { align: 'right' })
       draw(zar(round2(Number(it.quantity) * Number(it.unit_price))), cols.amount, 9, { align: 'right' })
-      y = rowTop - (lines.length - 1) * 11.5 - 6
+      detail.forEach((l, i) => {
+        if (l) page.drawText(clean(l, regular), { x: MARGIN, y: rowTop - lines.length * 11.5 - i * 10 + 1, size: 8, font: regular, color: MUTED })
+      })
+      y = rowTop - (lines.length - 1) * 11.5 - detail.length * 10 - 6
       page.drawRectangle({ x: MARGIN, y, width, height: 0.5, color: RULE })
       y -= 12
     }

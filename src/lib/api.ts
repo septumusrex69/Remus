@@ -248,6 +248,7 @@ export async function saveQuoteItems(quoteId: ID, items: QuoteItemDraft[]): Prom
       sort_order: i,
       section: it.section || null,
       description: it.description,
+      details: it.details?.trim() || null,
       unit: it.unit,
       quantity: it.quantity,
       unit_cost: it.unit_cost,

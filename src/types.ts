@@ -140,6 +140,8 @@ export interface QuoteItem {
   sort_order: number
   section: string | null
   description: string
+  /** Longer write-up under the description: what the line includes. Optional. */
+  details: string | null
   unit: Unit
   quantity: number
   unit_cost: number
