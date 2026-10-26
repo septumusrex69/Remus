@@ -54,6 +54,11 @@ in api.ts; owed to us; open quotes = draft + sent not expired; this month); Toda
 (jobs on site, diary events, project starts and finishes, quotes expiring, invoices due); Next job
 to start; later this fortnight; then profit per project, active projects, recent spending. The
 live bank account's imported statement has no balance column, so "In the bank" shows a hint.
+Restyled the same day after Stephan's "it looks weird": unread email removed from Needs attention;
+attention items are tinted tiles (red = late, amber = waiting) with the number, one line, and the
+action under it; section headings (What is happening / Money / How the jobs are doing); Today and
+Tomorrow cards with a coloured band and coloured time tags by kind; Next job card with its own
+band; money tiles with coloured icons, each a link.
 
 **Number boxes (26 Oct, same branch):** `components/ui/NumInput.tsx` replaces `<input type="number">`
 on the quote screen and Plan card: it keeps its own text so a leading 0 is dropped as you type

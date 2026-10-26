@@ -21,9 +21,8 @@ import { formatDate, formatPct, formatZAR, labelize, ymd } from '../../../lib/fo
 import { outstandingInvoices } from '../../../lib/finance'
 import { approvalCurrent } from '../../../lib/quoteMath'
 import { useLoad } from '../../../hooks/useLoad'
-import { useUnreadMail } from '../../../lib/unreadMail'
 import { useAuth } from '../../../store/AuthContext'
-import { Card, EmptyState, ErrorBanner, Spinner, StatTile } from '../../../components/ui'
+import { Card, EmptyState, ErrorBanner, Spinner } from '../../../components/ui'
 import type { DiaryEvent, Project } from '../../../types'
 import { paths } from '../paths'
 import { LazyProfitPerProjectChart } from '../components/LazyCharts'
@@ -64,8 +63,24 @@ function onSite(p: Project, day: string): boolean {
   return (!p.start_date || p.start_date <= day) && (!p.end_date || p.end_date >= day)
 }
 
+/** The colour of an item's time tag, by what it is. */
+type Tone = 'site' | 'visit' | 'delivery' | 'meeting' | 'money' | 'deadline' | 'plain'
+
+const TONE: Record<Tone, string> = {
+  site: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
+  visit: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
+  delivery: 'bg-sky-50 text-sky-700 ring-sky-200',
+  meeting: 'bg-brand-50 text-brand-700 ring-brand-200',
+  money: 'bg-red-50 text-red-700 ring-red-200',
+  deadline: 'bg-amber-50 text-amber-800 ring-amber-200',
+  plain: 'bg-slate-100 text-slate-600 ring-slate-200',
+}
+
+const EVENT_TONE: Record<string, Tone> = { site_visit: 'visit', inspection: 'visit', delivery: 'delivery', meeting: 'meeting', quote_appointment: 'meeting' }
+
 interface DayItem {
   key: string
+  tone: Tone
   when: string
   title: string
   sub?: string
@@ -75,7 +90,6 @@ interface DayItem {
 export function DashboardPage() {
   const { data, error, loading } = useLoad(load, [], 'dashboard')
   const { needsLinking } = useBuild()
-  const unread = useUnreadMail()
   const { currentUser } = useAuth()
 
   if (loading && !data) return <Spinner page />
@@ -117,6 +131,7 @@ export function DashboardPage() {
     for (const e of data!.events.filter((ev: DiaryEvent) => ymd(new Date(ev.start_at)) === day)) {
       items.push({
         key: `e:${e.id}`,
+        tone: EVENT_TONE[e.type] ?? 'plain',
         when: e.all_day ? 'All day' : format(new Date(e.start_at), 'HH:mm'),
         title: e.title,
         sub: [labelize(e.type), e.project_id ? projectName.get(e.project_id) : null, e.location].filter(Boolean).join(' · '),
@@ -124,16 +139,16 @@ export function DashboardPage() {
       })
     }
     for (const p of data!.projects.filter((x) => x.start_date === day && (x.status === 'planned' || x.status === 'active'))) {
-      items.push({ key: `s:${p.id}`, when: 'Starts', title: p.name, sub: p.site_address ?? undefined, to: paths.project(p.id) })
+      items.push({ key: `s:${p.id}`, tone: 'site', when: 'Starts', title: p.name, sub: p.site_address ?? undefined, to: paths.project(p.id) })
     }
     for (const p of data!.projects.filter((x) => x.end_date === day && x.status === 'active')) {
-      items.push({ key: `f:${p.id}`, when: 'Due to finish', title: p.name, sub: p.site_address ?? undefined, to: paths.project(p.id) })
+      items.push({ key: `f:${p.id}`, tone: 'plain', when: 'Finishes', title: p.name, sub: p.site_address ?? undefined, to: paths.project(p.id) })
     }
     for (const q of data!.quotes.filter((x) => (x.status === 'sent' || x.status === 'draft') && x.valid_until === day)) {
-      items.push({ key: `q:${q.id}`, when: 'Quote expires', title: `${q.number ?? ''} ${q.title}`.trim(), to: paths.quote(q.id) })
+      items.push({ key: `q:${q.id}`, tone: 'deadline', when: 'Quote ends', title: `${q.number ?? ''} ${q.title}`.trim(), to: paths.quote(q.id) })
     }
     for (const o of outstanding.filter((x) => x.invoice.due_date === day)) {
-      items.push({ key: `i:${o.invoice.id}`, when: 'Invoice due', title: `${o.invoice.number ?? 'Invoice'} · ${formatZAR(o.outstanding, { decimals: 0 })}`, to: paths.finance() })
+      items.push({ key: `i:${o.invoice.id}`, tone: 'money', when: 'Payment due', title: `${o.invoice.number ?? 'Invoice'} · ${formatZAR(o.outstanding, { decimals: 0 })}`, to: paths.finance() })
     }
     return items
   }
@@ -150,7 +165,6 @@ export function DashboardPage() {
     { label: noAnswer.length === 1 ? 'quote sent a week ago, no answer' : 'quotes sent a week ago, no answer', detail: 'Phone the client', count: noAnswer.length, to: paths.quotes() },
     { label: draftInvoices.length === 1 ? 'draft invoice not sent' : 'draft invoices not sent', detail: 'Check and send', count: draftInvoices.length, to: paths.finance() },
     { label: needsLinking === 1 ? 'bank line to link' : 'bank lines to link', detail: 'Reconcile the bank', count: needsLinking, to: paths.bank() },
-    { label: unread.count === 1 ? 'unread email' : 'unread emails', detail: 'Read your mail', count: unread.count, to: paths.mail() },
   ]
 
   const hour = now.getHours()
@@ -191,62 +205,92 @@ export function DashboardPage() {
 
       <NeedsAttention items={attention} />
 
+      {/* ---------- Today, tomorrow, next job ---------- */}
+      <SectionLabel>What is happening</SectionLabel>
+      <div className="grid gap-4 lg:grid-cols-3">
+        <DayCard title="Today" date={now} sites={sitesToday} items={dayItems(today)} empty="Nothing booked for today." accent="bg-brand-600" />
+        <DayCard title="Tomorrow" date={addDays(now, 1)} sites={sitesTomorrow} items={dayItems(tomorrow)} empty="Nothing booked for tomorrow." accent="bg-ink-900" />
+        <section className="card overflow-hidden">
+          <header className="flex items-center justify-between bg-emerald-700 px-5 py-3 text-white">
+            <span>
+              <span className="block text-[15px] font-semibold">Next job to start</span>
+              <span className="block text-xs text-white/70">{upcoming.length ? `${upcoming.length} coming up` : 'Nothing dated yet'}</span>
+            </span>
+            <Link to={paths.projects()} className="text-xs text-white/80 hover:text-white">Projects →</Link>
+          </header>
+          <div className="p-4">
+            {next ? (
+              <Link to={paths.project(next.id)} className="block rounded-xl bg-emerald-50 p-3.5 ring-1 ring-emerald-100 hover:ring-emerald-300">
+                <p className="text-xs font-bold tracking-wide text-emerald-800 uppercase">
+                  {formatDate(next.start_date, 'EEE d MMM')} · in {daysUntil(next.start_date!, now)} day{daysUntil(next.start_date!, now) === 1 ? '' : 's'}
+                </p>
+                <p className="mt-1 text-sm font-semibold text-slate-900">{next.name}</p>
+                {next.site_address && <p className="text-xs text-slate-600">{next.site_address}</p>}
+                <p className="tabular mt-1.5 text-xs text-slate-600">{formatZAR(next.contract_value, { decimals: 0 })} contract{next.end_date ? ` · until ${formatDate(next.end_date, 'd MMM')}` : ''}</p>
+              </Link>
+            ) : (
+              <p className="text-sm text-slate-500">No project has a start date coming up.</p>
+            )}
+            {upcoming.length > 1 && (
+              <ul className="mt-3 divide-y divide-slate-100 text-sm">
+                {upcoming.slice(1, 4).map((p) => (
+                  <li key={p.id} className="flex justify-between gap-2 py-1.5">
+                    <Link to={paths.project(p.id)} className="truncate text-slate-700 hover:text-brand-700">{p.name}</Link>
+                    <span className="shrink-0 text-xs font-medium text-slate-500">{formatDate(p.start_date, 'd MMM')}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {plannedNoDate.length > 0 && (
+              <p className="mt-3 text-xs text-slate-500">
+                {plannedNoDate.length} planned project{plannedNoDate.length === 1 ? ' has' : 's have'} no start date yet.
+              </p>
+            )}
+          </div>
+        </section>
+      </div>
+
       {/* ---------- Money ---------- */}
+      <SectionLabel>Money</SectionLabel>
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatTile
+        <MoneyTile
           label="In the bank"
+          icon={<Wallet size={18} />}
+          chip="bg-emerald-100 text-emerald-700"
           value={data.bank && data.bank.known > 0 ? formatZAR(data.bank.total, { decimals: 0 }) : '—'}
           hint={
             data.bank && data.bank.known > 0
-              ? `On ${formatDate(data.bank.asAt)} statement${data.bank.unknown ? ` · ${data.bank.unknown} account${data.bank.unknown === 1 ? '' : 's'} without a balance` : ''}`
-              : 'Import a statement that has a Balance column'
+              ? `On the ${formatDate(data.bank.asAt, 'd MMM')} statement${data.bank.unknown ? ` · ${data.bank.unknown} account${data.bank.unknown === 1 ? '' : 's'} without a balance` : ''}`
+              : 'Import a statement with a Balance column'
           }
-          icon={<Wallet size={16} />}
+          to={paths.bank()}
         />
-        <StatTile label="Owed to us" value={formatZAR(outstandingTotal, { decimals: 0 })} hint={`${outstanding.length} unpaid invoice${outstanding.length === 1 ? '' : 's'}${overdue.length ? `, ${overdue.length} overdue` : ''}`} tone={overdue.length ? 'bad' : 'default'} icon={<AlertCircle size={16} />} />
-        <StatTile label="Open quotes" value={formatZAR(openValue, { decimals: 0 })} hint={`${live.length} open (draft or sent), excl. VAT`} icon={<FileText size={16} />} />
-        <StatTile
+        <MoneyTile
+          label="Owed to us"
+          icon={<AlertCircle size={18} />}
+          chip={overdue.length ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}
+          value={formatZAR(outstandingTotal, { decimals: 0 })}
+          valueClass={overdue.length ? 'text-red-700' : undefined}
+          hint={`${outstanding.length} unpaid invoice${outstanding.length === 1 ? '' : 's'}${overdue.length ? `, ${overdue.length} overdue` : ''}`}
+          to={paths.finance()}
+        />
+        <MoneyTile
+          label="Open quotes"
+          icon={<FileText size={18} />}
+          chip="bg-brand-100 text-brand-700"
+          value={formatZAR(openValue, { decimals: 0 })}
+          hint={`${live.length} open (draft or sent), excl. VAT`}
+          to={paths.quotes()}
+        />
+        <MoneyTile
           label="This month"
+          icon={<Receipt size={18} />}
+          chip={income - spend >= 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}
           value={formatZAR(income - spend, { decimals: 0 })}
-          tone={income - spend >= 0 ? 'good' : 'bad'}
-          hint={<span>In {formatZAR(income, { decimals: 0 })} · Spent {formatZAR(spend, { decimals: 0 })}</span>}
-          icon={<Receipt size={16} />}
+          valueClass={income - spend >= 0 ? 'text-emerald-700' : 'text-red-700'}
+          hint={`In ${formatZAR(income, { decimals: 0 })} · Spent ${formatZAR(spend, { decimals: 0 })}`}
+          to={paths.finance()}
         />
-      </div>
-
-      {/* ---------- Today, tomorrow, next job ---------- */}
-      <div className="grid gap-4 lg:grid-cols-3">
-        <DayCard title="Today" date={now} sites={sitesToday} items={dayItems(today)} empty="Nothing booked for today." />
-        <DayCard title="Tomorrow" date={addDays(now, 1)} sites={sitesTomorrow} items={dayItems(tomorrow)} empty="Nothing booked for tomorrow." />
-        <Card title="Next job to start" actions={<Link to={paths.projects()} className="text-xs text-slate-500 hover:text-slate-800">Projects →</Link>}>
-          {next ? (
-            <Link to={paths.project(next.id)} className="block rounded-xl border border-slate-100 p-3 hover:border-slate-200 hover:bg-slate-50/60">
-              <p className="text-xs font-semibold tracking-wide text-brand-700 uppercase">
-                {formatDate(next.start_date, 'EEE d MMM')} · in {differenceInCalendarDays(new Date(`${next.start_date}T00:00:00`), startOfDay(now))} day{differenceInCalendarDays(new Date(`${next.start_date}T00:00:00`), startOfDay(now)) === 1 ? '' : 's'}
-              </p>
-              <p className="mt-1 text-sm font-semibold text-slate-800">{next.name}</p>
-              {next.site_address && <p className="text-xs text-slate-500">{next.site_address}</p>}
-              <p className="tabular mt-1 text-xs text-slate-500">{formatZAR(next.contract_value, { decimals: 0 })} contract{next.end_date ? ` · until ${formatDate(next.end_date)}` : ''}</p>
-            </Link>
-          ) : (
-            <p className="text-sm text-slate-500">No project has a start date coming up.</p>
-          )}
-          {upcoming.length > 1 && (
-            <ul className="mt-3 space-y-1.5 text-sm">
-              {upcoming.slice(1, 4).map((p) => (
-                <li key={p.id} className="flex justify-between gap-2">
-                  <Link to={paths.project(p.id)} className="truncate text-slate-700 hover:text-brand-700">{p.name}</Link>
-                  <span className="shrink-0 text-xs text-slate-500">{formatDate(p.start_date, 'd MMM')}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-          {plannedNoDate.length > 0 && (
-            <p className="mt-3 text-xs text-slate-500">
-              {plannedNoDate.length} planned project{plannedNoDate.length === 1 ? ' has' : 's have'} no start date yet.
-            </p>
-          )}
-        </Card>
       </div>
 
       {later.length > 0 && (
@@ -269,6 +313,7 @@ export function DashboardPage() {
       )}
 
       {/* ---------- How the jobs are doing ---------- */}
+      <SectionLabel>How the jobs are doing</SectionLabel>
       <div className="grid gap-4 lg:grid-cols-3">
         <Card title="Profit per active project" className="lg:col-span-2">
           {profitData.length === 0 ? (
@@ -329,20 +374,58 @@ export function DashboardPage() {
   )
 }
 
-/** One day: the jobs on site, then what is booked or due, in time order. */
-function DayCard({ title, date, sites, items, empty }: { title: string; date: Date; sites: Project[]; items: DayItem[]; empty: string }) {
+/** Whole days from today to a date. */
+function daysUntil(day: string, now: Date): number {
+  return differenceInCalendarDays(new Date(`${day}T00:00:00`), startOfDay(now))
+}
+
+/** A quiet heading between the dashboard's groups, so each block reads as its own part. */
+function SectionLabel({ children }: { children: ReactNode }) {
   return (
-    <Card title={title} subtitle={format(date, 'EEEE d MMMM')} padded={false}>
-      {sites.length === 0 && items.length === 0 ? (
-        <p className="px-5 pb-5 text-sm text-slate-500">{empty}</p>
+    <div className="flex items-center gap-3 pt-2">
+      <h3 className="text-xs font-bold tracking-[0.08em] text-slate-500 uppercase">{children}</h3>
+      <span className="h-px flex-1 bg-slate-200" />
+    </div>
+  )
+}
+
+function MoneyTile({ label, icon, chip, value, valueClass, hint, to }: { label: string; icon: ReactNode; chip: string; value: string; valueClass?: string; hint: string; to: string }) {
+  return (
+    <Link to={to} className="card group block p-4 transition hover:shadow-md sm:p-5">
+      <div className="flex items-center gap-2.5">
+        <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${chip}`}>{icon}</span>
+        <span className="text-sm font-medium text-slate-600">{label}</span>
+      </div>
+      <p className={`tabular mt-3 text-xl font-bold sm:text-2xl ${valueClass ?? 'text-slate-900'}`}>{value}</p>
+      <p className="mt-1 text-xs text-slate-500">{hint}</p>
+    </Link>
+  )
+}
+
+/** One day: the jobs on site, then what is booked or due, each with a coloured tag. */
+function DayCard({ title, date, sites, items, empty, accent }: { title: string; date: Date; sites: Project[]; items: DayItem[]; empty: string; accent: string }) {
+  const count = sites.length + items.length
+  return (
+    <section className="card overflow-hidden">
+      <header className={`flex items-center justify-between px-5 py-3 text-white ${accent}`}>
+        <span>
+          <span className="block text-[15px] font-semibold">{title}</span>
+          <span className="block text-xs text-white/70">{format(date, 'EEEE d MMMM')}</span>
+        </span>
+        <span className="rounded-full bg-white/15 px-2.5 py-0.5 text-xs font-semibold">{count}</span>
+      </header>
+      {count === 0 ? (
+        <p className="px-5 py-5 text-sm text-slate-500">{empty}</p>
       ) : (
         <ul className="divide-y divide-slate-100">
           {sites.map((p) => (
             <li key={`site:${p.id}`}>
-              <Link to={paths.project(p.id)} className="flex items-start gap-3 px-5 py-2.5 hover:bg-slate-50">
-                <HardHat size={15} className="mt-0.5 shrink-0 text-emerald-600" />
+              <Link to={paths.project(p.id)} className="flex items-start gap-3 px-4 py-2.5 hover:bg-slate-50">
+                <span className={`mt-0.5 inline-flex w-[5.5rem] shrink-0 items-center justify-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-semibold ring-1 ${TONE.site}`}>
+                  <HardHat size={12} /> On site
+                </span>
                 <span className="min-w-0">
-                  <span className="block truncate text-sm font-medium text-slate-800">On site: {p.name}</span>
+                  <span className="block truncate text-sm font-medium text-slate-800">{p.name}</span>
                   {p.site_address && <span className="block truncate text-xs text-slate-500">{p.site_address}</span>}
                 </span>
               </Link>
@@ -350,8 +433,8 @@ function DayCard({ title, date, sites, items, empty }: { title: string; date: Da
           ))}
           {items.map((i) => (
             <li key={i.key}>
-              <Link to={i.to} className="flex items-start gap-3 px-5 py-2.5 hover:bg-slate-50">
-                <span className="w-16 shrink-0 pt-0.5 text-xs font-semibold text-brand-700">{i.when}</span>
+              <Link to={i.to} className="flex items-start gap-3 px-4 py-2.5 hover:bg-slate-50">
+                <span className={`mt-0.5 inline-flex w-[5.5rem] shrink-0 justify-center rounded-md px-1.5 py-0.5 text-[11px] font-semibold ring-1 ${TONE[i.tone]}`}>{i.when}</span>
                 <span className="min-w-0">
                   <span className="block truncate text-sm text-slate-800">{i.title}</span>
                   {i.sub && <span className="block truncate text-xs text-slate-500">{i.sub}</span>}
@@ -361,7 +444,7 @@ function DayCard({ title, date, sites, items, empty }: { title: string; date: Da
           ))}
         </ul>
       )}
-    </Card>
+    </section>
   )
 }
 
@@ -377,42 +460,46 @@ interface AttentionItem {
 
 /**
  * Raptor's "Needs attention": everything waiting on us, worst first, each a link to the list.
- * Late items (past a date) lead whatever their size; clear ones are left out, and when nothing
- * is waiting it says so.
+ * Late items (past a date) are red and lead; waiting ones are amber; clear ones are left out.
  */
 function NeedsAttention({ items }: { items: AttentionItem[] }) {
   const problems = items.filter((i) => i.count > 0).sort((a, b) => (a.severity === 'late' ? 0 : 1) - (b.severity === 'late' ? 0 : 1) || b.count - a.count)
   return (
-    <Card title="Needs attention" subtitle="What is waiting on you">
+    <section className="card p-5">
+      <div className="mb-3 flex items-baseline justify-between gap-3">
+        <h2 className="text-[15px] font-semibold text-slate-800">Needs attention</h2>
+        {problems.length > 0 && <span className="text-xs text-slate-500">{problems.length} thing{problems.length === 1 ? '' : 's'} waiting on you</span>}
+      </div>
       {problems.length === 0 ? (
-        <div className="flex items-center gap-2.5 text-sm text-slate-500">
-          <CheckCircle2 size={20} className="shrink-0 text-emerald-600" />
+        <div className="flex items-center gap-2.5 rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+          <CheckCircle2 size={20} className="shrink-0" />
           All clear. Nothing is late or waiting on you.
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(12.5rem,1fr))] gap-3">
           {problems.map((item) => (
             <AttentionTile key={item.label} item={item} />
           ))}
         </div>
       )}
-    </Card>
+    </section>
   )
 }
 
-function AttentionTile({ item }: { item: AttentionItem }): ReactNode {
+function AttentionTile({ item }: { item: AttentionItem }) {
   const late = item.severity === 'late'
   return (
-    <Link to={item.to} title={item.detail} className="group flex items-center gap-3 rounded-xl border border-slate-100 px-3.5 py-3 hover:border-slate-200 hover:bg-slate-50/60">
-      <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${late ? 'bg-red-50 text-red-700' : 'bg-amber-50 text-amber-700'}`}>
-        {late ? <AlertCircle size={17} /> : <AlertTriangle size={16} />}
+    <Link
+      to={item.to}
+      className={`group flex flex-col rounded-xl border-l-4 p-3.5 transition hover:shadow-sm ${late ? 'border-red-500 bg-red-50 hover:bg-red-100/70' : 'border-amber-400 bg-amber-50 hover:bg-amber-100/70'}`}
+    >
+      <span className="flex items-center gap-2">
+        <span className={late ? 'text-red-600' : 'text-amber-600'}>{late ? <AlertCircle size={18} /> : <AlertTriangle size={17} />}</span>
+        <span className="text-2xl leading-none font-extrabold text-slate-900 tabular-nums">{item.count}</span>
       </span>
-      <span className="min-w-0 flex-1">
-        <span className="block text-lg leading-none font-extrabold text-slate-800 tabular-nums">{item.count}</span>
-        <span className="mt-1 block text-[11.5px] leading-snug text-slate-500">{item.label}</span>
-      </span>
-      <span className={`inline-flex shrink-0 items-center gap-0.5 text-[11px] font-semibold whitespace-nowrap ${late ? 'text-red-700' : 'text-amber-700'}`}>
-        {item.detail} <ChevronRight size={12} className="transition-transform group-hover:translate-x-0.5" />
+      <span className="mt-1.5 text-sm leading-snug text-slate-700">{item.label}</span>
+      <span className={`mt-2 inline-flex items-center gap-0.5 text-xs font-semibold ${late ? 'text-red-700' : 'text-amber-800'}`}>
+        {item.detail} <ChevronRight size={13} className="transition-transform group-hover:translate-x-0.5" />
       </span>
     </Link>
   )
