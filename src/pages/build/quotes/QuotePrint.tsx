@@ -1,10 +1,11 @@
 import { useEffect, useMemo } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { ArrowLeft, Printer } from 'lucide-react'
-import { contactName, listQuoteItems, loadClientDirectory, quoteAttachments, quotes as quotesApi, signedUrls } from '../../../lib/api'
+import { contactName, listQuoteItems, listQuoteStages, loadClientDirectory, quoteAttachments, quotes as quotesApi, signedUrls } from '../../../lib/api'
 import { QUOTE_FILES_BUCKET } from '../../../lib/supabase'
 import { formatDate, formatZAR, round2 } from '../../../lib/format'
-import { quoteTotals } from '../../../lib/quoteMath'
+import { quoteTotals, scheduleStages } from '../../../lib/quoteMath'
+import { PlanBars } from './QuotePlan'
 import { useLoad } from '../../../hooks/useLoad'
 import { Button, ErrorBanner, Spinner } from '../../../components/ui'
 import { paths } from '../paths'
@@ -25,12 +26,12 @@ export function QuotePrint() {
   const { id = '' } = useParams()
   const { settings } = useBuild()
   const { data, error, loading } = useLoad(async () => {
-    const [quote, items, dir, attachments] = await Promise.all([quotesApi.get(id), listQuoteItems(id), loadClientDirectory(), quoteAttachments.list({ quote_id: id })])
+    const [quote, items, dir, attachments, stages] = await Promise.all([quotesApi.get(id), listQuoteItems(id), loadClientDirectory(), quoteAttachments.list({ quote_id: id }), listQuoteStages(id)])
     // HEIC/HEIF photos don't render in most browsers: leave them out rather than print a broken image.
     const gallery = attachments.filter((a) => a.show_on_quote && a.mime_type?.startsWith('image/') && !/^image\/hei[cf]/i.test(a.mime_type))
     // 24 h so a print view left open (or a PDF saved later) still has its images.
     const urls = await signedUrls(QUOTE_FILES_BUCKET, gallery.map((a) => a.file_path), 24 * 60 * 60)
-    return { quote, items, dir, gallery, urls }
+    return { quote, items, dir, gallery, urls, stages }
   }, [id])
 
   useEffect(() => {
@@ -58,6 +59,9 @@ export function QuotePrint() {
   const company = quote.company_id ? dir.companyById.get(quote.company_id) : null
   const contact = quote.contact_id ? dir.contactById.get(quote.contact_id) : null
   const showSections = groups.length > 1 || groups[0]?.section
+  // The estimated timeline, for the sections that have lines (as the PDF draws it).
+  const planned = scheduleStages(data.stages.filter((s) => items.some((i) => !isPlaceholder(i) && (i.section || '') === s.name)))
+  const plan = quote.show_plan !== false && planned.totalDays > 0 ? planned : null
 
   return (
     <div className="min-h-dvh bg-slate-100 py-6 print:bg-white print:py-0">
@@ -181,6 +185,17 @@ export function QuotePrint() {
                 </figure>
               ))}
             </div>
+          </section>
+        )}
+
+        {plan && (
+          <section className="print-avoid-break mt-8 text-[12px]">
+            <div className="mb-2 flex justify-between">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Estimated timeline</p>
+              <p className="text-[11px] text-slate-500">About {plan.totalDays} working day{plan.totalDays === 1 ? '' : 's'}</p>
+            </div>
+            <PlanBars stages={plan.stages} totalDays={plan.totalDays} />
+            <p className="mt-2 text-[11px] leading-snug text-slate-500">{settings?.plan_disclaimer}</p>
           </section>
         )}
 

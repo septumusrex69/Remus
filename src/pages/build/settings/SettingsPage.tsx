@@ -293,6 +293,7 @@ function QuotesTab() {
       markup_labour: Number(form.markup_labour) || 0,
       markup_subcontractor: Number(form.markup_subcontractor) || 0,
       management_fee_pct: Math.min(100, Math.max(0, Number(form.management_fee_pct) || 0)),
+      plan_disclaimer: (form.plan_disclaimer ?? '').trim() || 'This timeline is an estimate and may change.',
       ...counters,
     })
   }
@@ -344,6 +345,10 @@ function QuotesTab() {
           <input className="input" type="number" min={0} max={100} step="0.5" inputMode="decimal" value={form.management_fee_pct ?? 0} onChange={(e) => set('management_fee_pct', Number(e.target.value))} />
         </Field>
       </div>
+
+      <SectionLabel className="mt-6">Estimated timeline clause</SectionLabel>
+      <p className="mb-2 max-w-2xl text-xs text-slate-500">Printed under the estimated timeline on every quote that shows one.</p>
+      <textarea className="input min-h-24 max-w-2xl" value={form.plan_disclaimer ?? ''} onChange={(e) => set('plan_disclaimer', e.target.value)} />
 
       <SectionLabel className="mt-6">Default quote terms</SectionLabel>
       <textarea className="input min-h-36 max-w-2xl" value={form.quote_terms ?? ''} onChange={(e) => set('quote_terms', e.target.value)} placeholder={'e.g. 50% deposit on acceptance, balance on completion.\nQuote valid for 30 days.'} />

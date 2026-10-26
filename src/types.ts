@@ -118,6 +118,8 @@ export interface CompanySettings {
   markup_subcontractor: number
   /** Default management fee % for a new quote. */
   management_fee_pct: number
+  /** Printed under the estimated timeline on every quote that shows one (migration 0015). */
+  plan_disclaimer: string
 }
 
 export const QUOTE_STATUSES = ['draft', 'sent', 'accepted', 'declined', 'expired'] as const
@@ -150,6 +152,8 @@ export interface Quote extends ClientRef {
   management_fee_pct: number
   /** Deposit asked for on acceptance, % of the total (migration 0014). */
   deposit_pct: number
+  /** Print the estimated timeline (and its clause) on the quote (migration 0015). */
+  show_plan: boolean
   /** Internal sign-off before sending; void once the total excl. VAT differs from approved_total. */
   approved_at: string | null
   approved_by: ID | null

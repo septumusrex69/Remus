@@ -36,6 +36,14 @@ project and/or a DRAFT deposit invoice (deposit % of total excl., VAT at the quo
 opens the project's Invoices tab. Line details: empty box can be **Hidden**; typed details stay
 (Remove asks first).
 
+**Estimated timeline on the quote (26 Oct, same branch):** Stephan wants the plan on the quotation,
+always with a clause that it is only an estimate (weather and the like can change it). Migration
+`0015_plan_on_quote.sql` (applied live): `quotes.show_plan` (default on; switch in the Plan card)
+and `company_settings.plan_disclaimer` (editable in Settings → Quotes & Invoices). Print view
+(`PlanBars`) and PDF draw "Estimated timeline" + the clause above Notes/Terms. The PDF has its own
+copy of the arithmetic (`api/_lib/quoteSchedule.ts`, since api/ can't import src/);
+`src/lib/quoteSchedule.test.ts` holds it equal to `scheduleStages` (checked to fail when broken).
+
 **Still NOT on `main`:** `claude/mail-picture-store` (mail pictures saved once, Outlook-style;
 section below). Migration 0008 is applied live; the code is not merged. It touches different files
 except this one. Release with a merge of `origin/main` first, when Stephan says so.

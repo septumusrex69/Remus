@@ -1,6 +1,7 @@
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFImage, type PDFPage } from 'pdf-lib'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { quoteFileLoader, shrinkPhoto, type QuoteFileLoader } from './quoteFiles.js'
+import { scheduleStageRows, type StageRow } from './quoteSchedule.js'
 
 /**
  * Builds an A4 PDF of a quote, laid out like the in-app print view (src/pages/build/quotes/QuotePrint.tsx):
@@ -22,12 +23,13 @@ interface QuoteRow {
   terms: string | null
   discount: number
   management_fee_pct?: number | null
+  show_plan?: boolean | null
   vat_rate: number
   company_id: string | null
   contact_id: string | null
 }
 interface ItemRow { section: string | null; description: string; details: string | null; quantity: number; unit: string; unit_price: number }
-interface Settings { name?: string; address?: string | null; phone?: string | null; email?: string | null; reg_no?: string | null; vat_no?: string | null; logo_url?: string | null; bank_details?: string | null }
+interface Settings { plan_disclaimer?: string | null; name?: string; address?: string | null; phone?: string | null; email?: string | null; reg_no?: string | null; vat_no?: string | null; logo_url?: string | null; bank_details?: string | null }
 
 export class QuotePdfError extends Error {}
 
@@ -65,11 +67,12 @@ const RULE = rgb(0.89, 0.91, 0.94)
 
 /** `load` lets the email share its downloads with the PDF, so each photo is fetched once. */
 export async function buildQuotePdf(db: SupabaseClient, quoteId: string, load: QuoteFileLoader = quoteFileLoader(db)): Promise<QuotePdf> {
-  const [quoteRes, itemsRes, settingsRes, attRes] = await Promise.all([
+  const [quoteRes, itemsRes, settingsRes, attRes, stagesRes] = await Promise.all([
     db.from('quotes').select('*').eq('id', quoteId).maybeSingle(),
     db.from('quote_items').select('section, description, details, quantity, unit, unit_price').eq('quote_id', quoteId).order('sort_order'),
     db.from('company_settings').select('*').eq('id', true).maybeSingle(),
     db.from('quote_attachments').select('file_path, file_name, mime_type, caption, show_on_quote').eq('quote_id', quoteId).order('sort_order'),
+    db.from('quote_stages').select('name, duration_days, start_mode, start_ref, lag_days').eq('quote_id', quoteId).order('sort_order'),
   ])
   const quote = quoteRes.data as QuoteRow | null
   if (!quote) throw new QuotePdfError('Quote not found.')
@@ -377,6 +380,40 @@ export async function buildQuotePdf(db: SupabaseClient, quoteId: string, load: Q
         }
         y -= cellH + 22
       }
+    }
+  }
+
+  // ---------- Estimated timeline, always with the clause that it is only an estimate ----------
+  const plan = scheduleStageRows(((stagesRes.data ?? []) as StageRow[]).filter((s) => items.some((i) => (i.section || '') === s.name)))
+  if (quote.show_plan !== false && plan.totalDays > 0) {
+    const rowH = 15
+    const nameW = 120
+    const trackX = MARGIN + nameW
+    const trackW = width - nameW
+    const days = plan.totalDays
+    ensure(40 + plan.stages.length * rowH + 50)
+    y -= 14
+    draw('ESTIMATED TIMELINE', MARGIN, 7.5, { font: bold, color: MUTED })
+    draw(`About ${days} working day${days === 1 ? '' : 's'}`, right, 8, { color: MUTED, align: 'right' })
+    y -= 14
+    for (const st of plan.stages) {
+      draw(wrap(st.name || 'General', 8.5, regular, nameW - 8)[0], MARGIN, 8.5)
+      const top = y - 3
+      page.drawRectangle({ x: trackX, y: top, width: trackW, height: 10, color: rgb(0.95, 0.96, 0.97) })
+      if (st.duration_days > 0) {
+        page.drawRectangle({ x: trackX + (st.startDay / days) * trackW, y: top, width: (st.duration_days / days) * trackW, height: 10, color: ACCENT })
+      }
+      y -= rowH
+    }
+    // Day numbers under the bars; every day for a short job, every 5th for a long one.
+    const every = days <= 15 ? 1 : days <= 40 ? 5 : 10
+    for (let d = 0; d < days; d += every) draw(`Day ${d + 1}`, trackX + (d / days) * trackW, 6.5, { color: MUTED })
+    y -= 12
+    const clause = (settings.plan_disclaimer ?? '').trim() || 'This timeline is an estimate and may change.'
+    for (const l of wrap(clause, 7.5, regular, width)) {
+      ensure(11)
+      draw(l, MARGIN, 7.5, { color: MUTED })
+      y -= 10
     }
   }
 

@@ -103,6 +103,7 @@ export async function getSettings(): Promise<CompanySettings> {
     markup_labour: 20,
     markup_subcontractor: 10,
     management_fee_pct: 0,
+    plan_disclaimer: 'This timeline is an estimate and may change because of weather, site conditions and other circumstances outside our control.',
   }
   return row
     ? nums({ ...fallback, ...row }, [
@@ -325,6 +326,7 @@ export async function duplicateQuote(id: ID): Promise<Quote> {
     vat_rate: q.vat_rate,
     management_fee_pct: q.management_fee_pct,
     deposit_pct: q.deposit_pct,
+    show_plan: q.show_plan,
   })
   await saveQuoteItems(copy.id, items)
   await saveQuoteStages(copy.id, stages)

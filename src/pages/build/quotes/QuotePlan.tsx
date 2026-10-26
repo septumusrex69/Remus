@@ -85,16 +85,23 @@ export function QuotePlanCard({
   stages,
   totalDays,
   onChange,
+  showOnQuote,
+  onShowOnQuote,
+  disclaimer,
 }: {
   stages: ScheduledStage[]
   totalDays: number
   onChange: (name: string, p: Partial<StagePlan>) => void
+  showOnQuote: boolean
+  onShowOnQuote: (v: boolean) => void
+  /** The company's clause, printed under the timeline on the quote. */
+  disclaimer: string
 }) {
   const days = Math.max(totalDays, 1)
   // A label on every day for a short job, every 5th on a long one, so they never crowd.
   const every = days <= 15 ? 1 : days <= 40 ? 5 : 10
   return (
-    <Card title="Plan" subtitle={`How long the job takes: ${describeDuration(totalDays)}. For you only; not on the quote.`}>
+    <Card title="Plan" subtitle={`How long the job takes: ${describeDuration(totalDays)}.`}>
       {stages.length === 0 ? (
         <p className="text-sm text-slate-500">Add lines to the quote; each section becomes a stage of the work.</p>
       ) : (
@@ -131,8 +138,46 @@ export function QuotePlanCard({
               ) : null,
             )}
           </div>
+          {/* On the quote as "Estimated timeline", always with the company's clause under it. */}
+          <div className="border-t border-slate-100 pt-3">
+            <label className="flex items-center gap-2 text-sm text-slate-700">
+              <input type="checkbox" checked={showOnQuote} onChange={(e) => onShowOnQuote(e.target.checked)} />
+              Show this timeline on the quote
+            </label>
+            {showOnQuote && disclaimer && (
+              <p className="mt-1.5 text-xs text-slate-500">
+                Printed under it: <span className="italic">“{disclaimer}”</span> (change the wording in Settings → Quotes & Invoices)
+              </p>
+            )}
+          </div>
         </div>
       )}
     </Card>
+  )
+}
+
+/** The timeline as printed on the quote: bars only, no controls. */
+export function PlanBars({ stages, totalDays }: { stages: ScheduledStage[]; totalDays: number }) {
+  const days = Math.max(totalDays, 1)
+  const every = days <= 15 ? 1 : days <= 40 ? 5 : 10
+  return (
+    <div className="space-y-1">
+      {stages.map((s) => (
+        <div key={s.name} className="grid grid-cols-[9rem_1fr] items-center gap-3">
+          <span className="truncate">{stageLabel(s.name)}</span>
+          <div className="relative h-3 rounded-sm bg-slate-100 print:bg-slate-100">
+            {s.duration_days > 0 && (
+              <div className="absolute inset-y-0 rounded-sm bg-brand-500" style={{ left: `${(s.startDay / days) * 100}%`, width: `${(s.duration_days / days) * 100}%` }} />
+            )}
+          </div>
+        </div>
+      ))}
+      <div className="grid grid-cols-[9rem_1fr] gap-3">
+        <span />
+        <div className="relative h-4 text-[10px] text-slate-400">
+          {Array.from({ length: days }, (_, d) => (d % every === 0 ? <span key={d} className="absolute" style={{ left: `${(d / days) * 100}%` }}>Day {d + 1}</span> : null))}
+        </div>
+      </div>
+    </div>
   )
 }

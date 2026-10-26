@@ -358,6 +358,7 @@ export function QuoteEditor() {
         vat_rate: Number(quote.vat_rate || 0),
         management_fee_pct: Number(quote.management_fee_pct || 0),
         deposit_pct: Math.min(100, Math.max(0, Number(quote.deposit_pct ?? 50))),
+        show_plan: quote.show_plan ?? true,
         updated_at: now,
       })
       const items = await saveQuoteItems(quote.id, keep)
@@ -803,6 +804,9 @@ export function QuoteEditor() {
             stages={schedule.stages}
             totalDays={schedule.totalDays}
             onChange={(name, p) => updateStage(name, p)}
+            showOnQuote={quote.show_plan ?? true}
+            onShowOnQuote={(v) => patchQuote({ show_plan: v })}
+            disclaimer={settings?.plan_disclaimer ?? ''}
           />
 
           <Card title="Notes & terms">
