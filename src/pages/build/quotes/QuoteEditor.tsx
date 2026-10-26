@@ -699,6 +699,8 @@ export function QuoteEditor() {
                           </button>
                         )}
                       </div>
+                      <label className="@lg:contents">
+                        <span className="label @lg:hidden">{l.kind === 'labour' ? 'Senior or junior' : 'Unit'}</span>
                       {l.kind === 'labour' ? (
                         // Labour: priced per worker-day; the grade sets the day rate.
                         <select
@@ -718,6 +720,9 @@ export function QuoteEditor() {
                           {UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
                         </select>
                       )}
+                      </label>
+                      <label className="@lg:contents">
+                        <span className="label @lg:hidden">{l.kind === 'labour' ? 'Worker-days' : 'Quantity'}</span>
                       <NumInput
                         className="text-right"
                         aria-label={l.kind === 'labour' ? 'Worker-days' : 'Quantity'}
@@ -725,6 +730,7 @@ export function QuoteEditor() {
                         value={l.quantity}
                         onValue={(n) => updateLine(l.key, { quantity: n })}
                       />
+                      </label>
                       <label className="@lg:contents">
                         <span className="label @lg:hidden">Cost per unit</span>
                         <NumInput prefix="R" className="text-right" aria-label="Cost per unit" value={l.unit_cost} onValue={(n) => updateLine(l.key, { unit_cost: n })} />

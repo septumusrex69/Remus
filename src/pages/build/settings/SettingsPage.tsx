@@ -44,9 +44,15 @@ export function SettingsPage() {
     <div className="flex flex-col gap-4 md:flex-row md:gap-6">
       {!navCollapsed && (
         <nav className="shrink-0 md:w-52">
-          {/* On a phone the menu is a row you scroll sideways, above the tab, rather than a
-              column eating half the screen. */}
-          <div className="-mx-1 flex gap-1 overflow-x-auto px-1 pb-1 md:mx-0 md:block md:space-y-0.5 md:overflow-visible md:p-0">
+          {/* On a phone the menu is a dropdown above the tab: a row scrolling sideways hid half the
+              tabs off the edge, and a column would eat half the screen. */}
+          <label className="flex items-center gap-2 md:hidden">
+            <span className="text-sm font-medium text-slate-500">Settings:</span>
+            <select className="input flex-1 font-medium" value={tab} onChange={(e) => setTab(e.target.value as (typeof TABS)[number])} aria-label="Settings section">
+              {TABS.map((t) => <option key={t} value={t}>{t}</option>)}
+            </select>
+          </label>
+          <div className="hidden md:block md:space-y-0.5">
             {TABS.map((t) => (
               <button
                 key={t}

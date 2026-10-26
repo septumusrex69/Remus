@@ -476,7 +476,7 @@ function NeedsAttention({ items }: { items: AttentionItem[] }) {
           All clear. Nothing is late or waiting on you.
         </div>
       ) : (
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(12.5rem,1fr))] gap-3">
+        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-[repeat(auto-fill,minmax(12.5rem,1fr))] sm:gap-3">
           {problems.map((item) => (
             <AttentionTile key={item.label} item={item} />
           ))}
@@ -491,13 +491,13 @@ function AttentionTile({ item }: { item: AttentionItem }) {
   return (
     <Link
       to={item.to}
-      className={`group flex flex-col rounded-xl border-l-4 p-3.5 transition hover:shadow-sm ${late ? 'border-red-500 bg-red-50 hover:bg-red-100/70' : 'border-amber-400 bg-amber-50 hover:bg-amber-100/70'}`}
+      className={`group flex flex-col rounded-xl border-l-4 p-3 transition sm:p-3.5 hover:shadow-sm ${late ? 'border-red-500 bg-red-50 hover:bg-red-100/70' : 'border-amber-400 bg-amber-50 hover:bg-amber-100/70'}`}
     >
       <span className="flex items-center gap-2">
         <span className={late ? 'text-red-600' : 'text-amber-600'}>{late ? <AlertCircle size={18} /> : <AlertTriangle size={17} />}</span>
         <span className="text-2xl leading-none font-extrabold text-slate-900 tabular-nums">{item.count}</span>
       </span>
-      <span className="mt-1.5 text-sm leading-snug text-slate-700">{item.label}</span>
+      <span className="mt-1.5 text-[13px] leading-snug text-slate-700 sm:text-sm">{item.label}</span>
       <span className={`mt-2 inline-flex items-center gap-0.5 text-xs font-semibold ${late ? 'text-red-700' : 'text-amber-800'}`}>
         {item.detail} <ChevronRight size={13} className="transition-transform group-hover:translate-x-0.5" />
       </span>

@@ -1,4 +1,5 @@
 import { Suspense, useEffect, useState } from 'react'
+import { UpdateBanner } from './UpdateBanner'
 import { Link, Outlet, useLocation } from 'react-router-dom'
 import { clsx } from 'clsx'
 import { Camera } from 'lucide-react'
@@ -77,16 +78,17 @@ export function AppLayout() {
       {drawer && (
         <div className="no-print fixed inset-0 z-40 lg:hidden">
           <div className="absolute inset-0 bg-slate-950/50" onClick={() => setDrawer(false)} />
-          <div className="absolute inset-y-0 left-0 shadow-xl">
+          <div className="absolute inset-y-0 left-0 pb-[env(safe-area-inset-bottom)] shadow-xl">
             <Sidebar drawer onNavigate={() => setDrawer(false)} />
           </div>
         </div>
       )}
 
       <div className="flex min-w-0 flex-1 flex-col">
+        <UpdateBanner />
         <Topbar title={title} onMenu={() => setDrawer(true)} />
         <main className="flex-1 overflow-y-auto">
-          <div className="mx-auto max-w-7xl px-4 py-5 pb-24 sm:px-6 lg:p-6 lg:pb-10">
+          <div className="mx-auto max-w-7xl px-4 py-5 pb-[calc(6rem+env(safe-area-inset-bottom))] sm:px-6 lg:p-6 lg:pb-10">
             <ErrorBoundary resetKey={location.pathname}>
               <Suspense fallback={<Spinner page />}>
                 <Outlet />
@@ -100,10 +102,11 @@ export function AppLayout() {
       {!isCapture && (
         <Link
           to={paths.capture()}
-          className="no-print fixed right-4 bottom-4 z-30 flex items-center gap-2 rounded-full bg-brand-500 px-5 py-3.5 text-sm font-semibold text-white shadow-lg shadow-brand-500/30 lg:hidden"
+          style={{ bottom: 'calc(1rem + env(safe-area-inset-bottom))' }}
+          className="no-print fixed right-4 z-30 flex items-center gap-2 rounded-full bg-brand-500 p-4 sm:px-5 sm:py-3.5 text-sm font-semibold text-white shadow-lg shadow-brand-500/30 lg:hidden"
           aria-label="Snap slip"
         >
-          <Camera size={18} /> Snap slip
+          <Camera size={18} /> <span className="hidden sm:inline">Snap slip</span>
         </Link>
       )}
     </div>

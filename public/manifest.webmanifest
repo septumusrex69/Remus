@@ -1,0 +1,20 @@
+{
+  "name": "Remus · Urban Haus",
+  "short_name": "Remus",
+  "description": "Quotes, projects, slips, bank and client mail for Urban Haus.",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#3e4448",
+  "theme_color": "#3e4448",
+  "icons": [
+    { "src": "/brand/remus-icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/brand/remus-icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ],
+  "shortcuts": [
+    { "name": "Snap slip", "url": "/expenses/capture", "icons": [{ "src": "/brand/remus-icon-192.png", "sizes": "192x192" }] },
+    { "name": "New quote", "url": "/quotes?new=1", "icons": [{ "src": "/brand/remus-icon-192.png", "sizes": "192x192" }] }
+  ]
+}

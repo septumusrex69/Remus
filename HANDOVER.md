@@ -81,6 +81,19 @@ file name, so an iPad asks "Download?" and saves to Files → Downloads), and, w
 share files, Share or save to Files (`shareQuotePdf`: the share sheet; falls back to a download if
 the browser refuses because the PDF took long to build). All three save the quote first.
 
+**Remus as a phone app (26 Oct, same branch):** Stephan asked for Remus on a phone. Not in Raptor;
+done as an installable web app (no App Store): `public/manifest.webmanifest` (name, icons,
+shortcuts to Snap slip and New quote), iOS meta tags in `index.html`, `public/sw.js` (caches NO app
+code, only `offline.html` for a "No connection" page), `vercel.json` rewrites/headers for them
+(index.html and sw.js not cached). Chrome reports no installability errors.
+`components/layout/UpdateBanner.tsx`: compares the running build's script name with the server's
+(on focus and every 5 min) and shows "Remus has been updated · Reload"; also registers the SW.
+Phone fixes after checking every main page at 390 px: Settings menu is a dropdown on phones, card
+headers wrap, quote line boxes are labelled on phones, Snap slip floats as a round camera button,
+Needs attention is two tiles per row, room for the iPhone home bar.
+A real App Store / Play Store app (Capacitor wrapper) is possible later; it needs an Apple developer
+account (USD 99/yr) and store review.
+
 **Still NOT on `main`:** `claude/mail-picture-store` (mail pictures saved once, Outlook-style;
 section below). Migration 0008 is applied live; the code is not merged. It touches different files
 except this one. Release with a merge of `origin/main` first, when Stephan says so.
