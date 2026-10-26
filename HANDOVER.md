@@ -24,7 +24,12 @@ the Feedback Centre and the build queue, `claude/sales-raptor-review-p1pzx2` at 
   Reading needs an active member; only an Administrator moves a request. Tested end to end in a
   rolled-back transaction (send, approve, release, test, every notification), then the number
   counter was reset so the first real request is R-1.
-- **Not switched on yet: the nightly review and the builder.** They are scheduled Claude sessions
+- **The nightly review is scheduled** (Stephan asked, 26 Oct): scheduled task "Remus · nightly
+  change-request review" (`trig_013KQ3P3VwozMYLoxsFi9koA`), 01:53 Johannesburg every night, a fresh
+  session that runs Job 1 of the skill on `main` (or `claude/requests` until it is live). **The
+  Supabase connector has to be attached by Stephan in Scheduled -> Edit** (a session cannot attach
+  one) -- without it the run stops and says so. **The builder is still not scheduled.**
+- Earlier note: **Not switched on yet: the nightly review and the builder.** They are scheduled Claude sessions
   following `.claude/skills/change-requests/SKILL.md`. Remus has one database and it is live, and
   `main` is live, so the skill's builder only ever pushes a preview branch and marks a request
   "released" with the preview link; going live stays Stephan's "go live". Ask Stephan before
