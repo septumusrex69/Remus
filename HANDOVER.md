@@ -5,6 +5,11 @@ then this file, then do the Raptor check below **before** waiting for Stephan's 
 
 ## Released 26 Oct, and what is still waiting
 
+**Second release, 26 Oct (Stephan's second "go live"):** everything listed below under "After the
+release" up to Remus as a phone app is now on `main` too (scope of work, section cards, simpler
+line items, subcontractors, deposit on acceptance, timeline on the quote, number boxes, PDF menu,
+the new dashboard, installable phone app). Migrations up to 0015 applied live.
+
 **Live on `main` (26 Oct, Stephan's "go live"):** branch `claude/quote-line-details`, which carries
 `claude/remus-skins` too. So these are all live: Settings in Raptor's layout; details under quote
 lines with dictation; unit price locked to cost × markup; faster quote sending (photos shrunk);
