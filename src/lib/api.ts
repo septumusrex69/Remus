@@ -452,6 +452,35 @@ export async function listPaymentsBetween(from: string, to: string): Promise<Pay
   return rows.map((r) => nums(r, ['amount']))
 }
 
+/**
+ * Money in the bank, as far as Remus knows: each account's balance on its newest imported
+ * statement line that carries one (CSV statements often have a Balance column). Accounts whose
+ * statements have no balance are counted in `unknown`, so the dashboard can say so instead of
+ * showing a figure that leaves them out.
+ */
+export async function loadBankBalances(): Promise<{ total: number; asAt: string | null; known: number; unknown: number }> {
+  const [accounts, rows] = await Promise.all([
+    supabase.from('bank_accounts').select('id').then((r) => unwrap<{ id: ID }[]>(r)),
+    supabase
+      .from('bank_transactions')
+      .select('bank_account_id, date, balance')
+      .not('balance', 'is', null)
+      .order('date', { ascending: false })
+      .order('created_at', { ascending: false })
+      .limit(1000)
+      .then((r) => unwrap<{ bank_account_id: ID; date: string; balance: number }[]>(r)),
+  ])
+  const latest = new Map<ID, { date: string; balance: number }>()
+  for (const r of rows) if (!latest.has(r.bank_account_id)) latest.set(r.bank_account_id, { date: r.date, balance: Number(r.balance) })
+  const known = [...latest.values()]
+  return {
+    total: known.reduce((s, b) => s + b.balance, 0),
+    asAt: known.reduce<string | null>((m, b) => (m === null || b.date < m ? b.date : m), null),
+    known: known.length,
+    unknown: accounts.filter((a) => !latest.has(a.id)).length,
+  }
+}
+
 export async function listRecentExpenses(limit = 8): Promise<Expense[]> {
   const rows = unwrap<Expense[]>(
     await supabase.from('expenses').select('*').order('date', { ascending: false }).order('created_at', { ascending: false }).limit(limit),

@@ -44,6 +44,17 @@ and `company_settings.plan_disclaimer` (editable in Settings → Quotes & Invoic
 copy of the arithmetic (`api/_lib/quoteSchedule.ts`, since api/ can't import src/);
 `src/lib/quoteSchedule.test.ts` holds it equal to `scheduleStages` (checked to fail when broken).
 
+**Dashboard: "what do we have to do?" (26 Oct, same branch):** Stephan wants today, tomorrow,
+the next job, open quotes, money in the bank and spending up front. `DashboardPage.tsx` now: a
+hero band (greeting, date, jobs on site today, open quotes, next start); Raptor's **Needs
+attention** (overdue invoices, expired sent quotes, quotes waiting for approval, expiring this
+week, sent a week ago with no answer, draft invoices, bank lines to link, unread mail; late items
+first); money tiles (In the bank from the newest statement line with a balance, `loadBankBalances`
+in api.ts; owed to us; open quotes = draft + sent not expired; this month); Today / Tomorrow cards
+(jobs on site, diary events, project starts and finishes, quotes expiring, invoices due); Next job
+to start; later this fortnight; then profit per project, active projects, recent spending. The
+live bank account's imported statement has no balance column, so "In the bank" shows a hint.
+
 **Still NOT on `main`:** `claude/mail-picture-store` (mail pictures saved once, Outlook-style;
 section below). Migration 0008 is applied live; the code is not merged. It touches different files
 except this one. Release with a merge of `origin/main` first, when Stephan says so.
