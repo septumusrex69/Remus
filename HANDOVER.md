@@ -65,6 +65,11 @@ ports); `allowEmpty` keeps "empty means work it out" where that matters (a slip'
 subcontractor's rate). Only chart axes still say type="number". Use NumInput for any new box.
 Totals rows are label | box | amount so the deposit no longer wraps.
 
+**Sections as cards (26 Oct, same branch):** Stephan couldn't tell sections apart. Each section of
+the line items is now its own bordered card with a fold arrow; folded, it shows one summary line
+(name, lines, working days, labour/subcontractor, total). "Fold all / Open all" in the card
+header. Column titles sit inside each open card. (Delete a line: the line's ⋯ menu.)
+
 **Still NOT on `main`:** `claude/mail-picture-store` (mail pictures saved once, Outlook-style;
 section below). Migration 0008 is applied live; the code is not merged. It touches different files
 except this one. Release with a merge of `origin/main` first, when Stephan says so.

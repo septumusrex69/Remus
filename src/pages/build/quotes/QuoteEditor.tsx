@@ -6,6 +6,8 @@ import {
   ArrowUp,
   BadgeCheck,
   Check,
+  ChevronDown,
+  ChevronRight,
   Copy,
   FolderPlus,
   Mail,
@@ -154,6 +156,8 @@ export function QuoteEditor() {
   /** The line asking for a new subcontractor (opens the form), if any. */
   const [newSubFor, setNewSubFor] = useState<string | null>(null)
   const [accepting, setAccepting] = useState(false)
+  /** Sections folded down to their summary line, by section name ('' = General). */
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
   useEffect(() => {
     subsApi.list().then(setSubs).catch(() => {})
   }, [])
@@ -601,6 +605,11 @@ export function QuoteEditor() {
             padded={false}
             actions={
               <>
+                {groups.length > 1 && (
+                  <Button size="sm" variant="ghost" onClick={() => setCollapsed(collapsed.size >= groups.length ? new Set() : new Set(groups.map((g) => stageKey(g.section))))}>
+                    {collapsed.size >= groups.length ? 'Open all' : 'Fold all'}
+                  </Button>
+                )}
                 <Button size="sm" variant="ghost" onClick={applyMarkupToAll}>Set markup</Button>
                 <Button size="sm" onClick={addSection}><Plus size={13} /> Section</Button>
               </>
@@ -621,27 +630,50 @@ export function QuoteEditor() {
               Sized by the card's own width, not the screen's. Wide card: one row per line. Medium
               (an iPad): the description on its own row, the numbers under it. Phone: two columns.
             */}
-            <div className="@container">
-            {lines.length > 0 && (
-              <>
-                <div className="hidden grid-cols-[88px_64px_96px_64px_1fr_36px] gap-2 border-b border-slate-100 px-4 py-2 text-[11px] font-medium uppercase tracking-wide text-slate-400 @lg:grid @3xl:hidden">
-                  <span>Unit</span><span className="text-right">Qty</span><span className="text-right">Cost</span><span className="text-right">Markup</span><span className="text-right">Total</span><span />
-                </div>
-                <div className="hidden grid-cols-[1fr_88px_64px_96px_64px_120px_36px] gap-2 border-b border-slate-100 px-4 py-2 text-[11px] font-medium uppercase tracking-wide text-slate-400 @3xl:grid">
-                  <span>Description</span><span>Unit</span><span className="text-right">Qty</span><span className="text-right">Cost</span><span className="text-right">Markup %</span><span className="text-right">Total</span><span />
-                </div>
-              </>
-            )}
+            {/*
+              Each section is a card of its own (Stephan, 26 Oct: "I can't distinguish between the two
+              things... one thing should be a card"), and folds down to a one-line summary once done.
+            */}
+            <div className="@container space-y-3 bg-slate-50/60 p-3">
             {groups.map((g) => {
               const sectionTotal = g.lines.reduce((s, l) => s + Number(l.quantity) * Number(l.unit_price), 0)
+              const key = stageKey(g.section)
+              const folded = collapsed.has(key)
+              const days = schedule.stages.find((s) => s.name === key)?.duration_days ?? 0
+              const priced = g.lines.filter((l) => l.description.trim() || Number(l.unit_price)).length
               return (
-                <div key={g.section ?? '__none'} className="border-b border-slate-100 last:border-0">
-                  <div className="flex items-center justify-between gap-3 bg-slate-50 px-4 py-2">
-                    <SectionName name={g.section} onRename={(next) => renameSection(g.section, next)} />
-                    <div className="flex items-center gap-2">
-                      <span className="tabular text-sm font-medium text-slate-600">{formatZAR(sectionTotal)}</span>
-                      <button className="rounded p-1 text-slate-400 hover:bg-red-50 hover:text-red-600" onClick={() => removeSection(g.section)} aria-label="Delete section" title="Delete section"><Trash2 size={14} /></button>
-                    </div>
+                <section key={g.section ?? '__none'} className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+                  <div className={`flex items-center gap-2 px-3 py-2.5 ${folded ? '' : 'border-b border-slate-100 bg-slate-50'}`}>
+                    <button
+                      type="button"
+                      className="rounded p-1 text-slate-500 hover:bg-slate-100 hover:text-slate-800"
+                      onClick={() => setCollapsed((s) => { const n = new Set(s); if (n.has(key)) n.delete(key); else n.add(key); return n })}
+                      aria-label={folded ? 'Open section' : 'Fold section'}
+                      title={folded ? 'Open' : 'Fold away'}
+                    >
+                      {folded ? <ChevronRight size={18} /> : <ChevronDown size={18} />}
+                    </button>
+                    {folded ? (
+                      <button type="button" className="min-w-0 flex-1 text-left" onClick={() => setCollapsed((s) => { const n = new Set(s); n.delete(key); return n })}>
+                        <span className="block truncate text-sm font-semibold text-slate-800">{g.section ?? 'General'}</span>
+                        <span className="block truncate text-xs text-slate-500">
+                          {priced} line{priced === 1 ? '' : 's'}{days ? ` · ${days} working day${days === 1 ? '' : 's'}` : ''}
+                          {g.lines.some((l) => l.kind === 'labour') ? ' · labour' : ''}{g.lines.some((l) => l.kind === 'subcontractor') ? ' · subcontractor' : ''}
+                        </span>
+                      </button>
+                    ) : (
+                      <SectionName name={g.section} onRename={(next) => renameSection(g.section, next)} />
+                    )}
+                    <span className="tabular shrink-0 text-sm font-semibold text-slate-700">{formatZAR(sectionTotal)}</span>
+                    <button className="shrink-0 rounded p-1 text-slate-400 hover:bg-red-50 hover:text-red-600" onClick={() => removeSection(g.section)} aria-label="Delete section" title="Delete section"><Trash2 size={14} /></button>
+                  </div>
+                  {!folded && (
+                  <>
+                  <div className="hidden grid-cols-[88px_64px_96px_64px_1fr_36px] gap-2 px-4 pt-2 text-[11px] font-medium uppercase tracking-wide text-slate-400 @lg:grid @3xl:hidden">
+                    <span>Unit</span><span className="text-right">Qty</span><span className="text-right">Cost</span><span className="text-right">Markup</span><span className="text-right">Total</span><span />
+                  </div>
+                  <div className="hidden grid-cols-[1fr_88px_64px_96px_64px_120px_36px] gap-2 px-4 pt-2 text-[11px] font-medium uppercase tracking-wide text-slate-400 @3xl:grid">
+                    <span>Description</span><span>Unit</span><span className="text-right">Qty</span><span className="text-right">Cost</span><span className="text-right">Markup %</span><span className="text-right">Total</span><span />
                   </div>
                   {g.lines.map((l) => {
                     const lineTotal = round2(Number(l.quantity) * Number(l.unit_price))
@@ -786,12 +818,14 @@ export function QuoteEditor() {
                     </div>
                     )
                   })}
-                  <div className="px-4 pb-3 pt-1">
+                  <div className="border-t border-slate-100 px-4 py-2.5">
                     <button className="inline-flex items-center gap-1 text-sm font-medium text-brand-700 hover:text-brand-800" onClick={() => addLine(g.section, 'material')}>
                       <Plus size={14} /> Add line
                     </button>
                   </div>
-                </div>
+                  </>
+                  )}
+                </section>
               )
             })}
             </div>
