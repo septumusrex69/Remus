@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
+import { NumInput } from '../../../components/ui/NumInput'
 import { Link2, Mail, RefreshCw, Unlink } from 'lucide-react'
 import { connectMailbox, disconnectMailbox, mailboxStatus, syncMailbox, updateOwnProfile } from '../../../lib/api'
 import { formatDateTime } from '../../../lib/format'
@@ -190,13 +191,13 @@ export function MailboxCard() {
             <input className="input" required value={form.smtpHost} onChange={(e) => setForm({ ...form, smtpHost: e.target.value })} placeholder="mail.yourdomain.co.za" />
           </Field>
           <Field label="SMTP port">
-            <input className="input" type="number" required value={form.smtpPort} onChange={(e) => setForm({ ...form, smtpPort: e.target.value })} />
+            <NumInput allowEmpty required inputMode="numeric" value={form.smtpPort === '' ? null : Number(form.smtpPort)} onValue={(n) => setForm({ ...form, smtpPort: n === null ? '' : String(Math.round(n)) })} />
           </Field>
           <Field label="Incoming server (IMAP)">
             <input className="input" required value={form.imapHost} onChange={(e) => setForm({ ...form, imapHost: e.target.value })} placeholder="mail.yourdomain.co.za" />
           </Field>
           <Field label="IMAP port">
-            <input className="input" type="number" required value={form.imapPort} onChange={(e) => setForm({ ...form, imapPort: e.target.value })} />
+            <NumInput allowEmpty required inputMode="numeric" value={form.imapPort === '' ? null : Number(form.imapPort)} onValue={(n) => setForm({ ...form, imapPort: n === null ? '' : String(Math.round(n)) })} />
           </Field>
           <p className="text-xs text-slate-500 sm:col-span-2">Remus logs in once to check these work, then stores the password encrypted. Nobody, administrators included, can read it back.</p>
           <div className="flex gap-2 sm:col-span-2">

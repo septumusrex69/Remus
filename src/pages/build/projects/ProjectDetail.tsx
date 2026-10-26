@@ -1,4 +1,5 @@
 import { parseISO } from 'date-fns'
+import { NumInput } from '../../../components/ui/NumInput'
 import { useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { ArrowLeft, Camera, Check, Pencil, Plus, Trash2 } from 'lucide-react'
@@ -357,8 +358,8 @@ function InvoicesTab({ data, reload, act }: { data: Data; reload: () => void; ac
           <Field label="Description" className="sm:col-span-2"><input className="input" value={inv.description ?? ''} onChange={(e) => setInv({ ...inv, description: e.target.value })} /></Field>
           <Field label="Issue date"><input type="date" className="input" value={inv.issue_date ?? ''} onChange={(e) => setInv({ ...inv, issue_date: e.target.value })} /></Field>
           <Field label="Due date"><input type="date" className="input" value={inv.due_date ?? ''} onChange={(e) => setInv({ ...inv, due_date: e.target.value })} /></Field>
-          <Field label="Amount excl. VAT"><input type="number" step="0.01" className="input" value={inv.amount_excl ?? 0} onChange={(e) => setInv({ ...inv, amount_excl: Number(e.target.value), vat: round2((Number(e.target.value) * vatRate) / 100) })} /></Field>
-          <Field label={`VAT (${vatRate}%)`}><input type="number" step="0.01" className="input" value={inv.vat ?? 0} onChange={(e) => setInv({ ...inv, vat: Number(e.target.value) })} /></Field>
+          <Field label="Amount excl. VAT"><NumInput prefix="R" value={inv.amount_excl ?? 0} onValue={(n) => setInv({ ...inv, amount_excl: n, vat: round2((n * vatRate) / 100) })} /></Field>
+          <Field label={`VAT (${vatRate}%)`}><NumInput prefix="R" value={inv.vat ?? 0} onValue={(n) => setInv({ ...inv, vat: n })} /></Field>
           <Field label="Status">
             <select className="input" value={inv.status ?? 'draft'} onChange={(e) => setInv({ ...inv, status: e.target.value as InvoiceStatus })}>
               {INVOICE_STATUSES.map((s) => <option key={s} value={s}>{labelize(s)}</option>)}
@@ -381,7 +382,7 @@ function InvoicesTab({ data, reload, act }: { data: Data; reload: () => void; ac
             </select>
           </Field>
           <Field label="Date"><input type="date" className="input" value={pay.date ?? ''} onChange={(e) => setPay({ ...pay, date: e.target.value })} /></Field>
-          <Field label="Amount received"><input type="number" step="0.01" className="input" value={pay.amount ?? 0} onChange={(e) => setPay({ ...pay, amount: Number(e.target.value) })} /></Field>
+          <Field label="Amount received"><NumInput prefix="R" value={pay.amount ?? 0} onValue={(n) => setPay({ ...pay, amount: n })} /></Field>
           <Field label="Method">
             <select className="input" value={pay.method ?? 'eft'} onChange={(e) => setPay({ ...pay, method: e.target.value as PaymentMethod })}>
               {PAYMENT_METHODS.map((m) => <option key={m} value={m}>{m.toUpperCase()}</option>)}
@@ -425,7 +426,7 @@ function VariationsTab({ projectId, rows, reload, act }: { projectId: string; ro
     <Card title={`Variations · approved ${formatZAR(approved)} · pending ${formatZAR(pending)}`} padded={false}>
       <div className="grid gap-2 border-b border-slate-100 p-4 sm:grid-cols-[1fr_140px_150px_auto]">
         <input className="input" placeholder="Description (e.g. Extra window in bedroom 2)" value={desc} onChange={(e) => setDesc(e.target.value)} />
-        <input className="input" type="number" step="0.01" placeholder="Amount excl. VAT" value={amount} onChange={(e) => setAmount(e.target.value)} />
+        <NumInput allowEmpty prefix="R" placeholder="Amount excl. VAT" value={amount === '' ? null : Number(amount)} onValue={(n) => setAmount(n === null ? '' : String(n))} />
         <input className="input" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
         <Button variant="dark" onClick={add} loading={saving}><Plus size={14} /> Add</Button>
         {err && <p className="text-sm text-red-600 sm:col-span-4">{err}</p>}

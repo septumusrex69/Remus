@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { NumInput } from '../../../components/ui/NumInput'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { ArrowLeft, Camera, CheckCircle2, FileText, Images, Loader2, Sparkles, X } from 'lucide-react'
 import { expenses as expensesApi, extractReceipt, projects as projectsApi, uploadReceipt } from '../../../lib/api'
@@ -322,9 +323,9 @@ export function SlipCapture() {
                 <Field label="Supplier" className="col-span-2"><input className="input" value={form.supplier} onChange={(e) => set('supplier', e.target.value)} /></Field>
                 <Field label="Date"><input type="date" className="input" value={form.date} onChange={(e) => set('date', e.target.value)} /></Field>
                 <Field label="Slip / invoice no."><input className="input" value={form.receipt_number} onChange={(e) => set('receipt_number', e.target.value)} /></Field>
-                <Field label="Total incl. VAT"><input type="number" inputMode="decimal" step="0.01" className="input text-lg font-semibold" value={form.total_incl} onChange={(e) => set('total_incl', e.target.value)} /></Field>
+                <Field label="Total incl. VAT"><NumInput allowEmpty prefix="R" className="text-lg font-semibold" value={form.total_incl === '' ? null : Number(form.total_incl)} onValue={(n) => set('total_incl', n === null ? '' : String(n))} /></Field>
                 <Field label="VAT" hint={vatRate === 0 ? 'Not registered for VAT: the full amount is the cost.' : form.vat === '' ? `Calculated at ${vatRate}%` : undefined}>
-                  <input type="number" inputMode="decimal" step="0.01" className="input" value={form.vat} placeholder={String(splitInclusive(totalNum, vatRate).vat)} onChange={(e) => set('vat', e.target.value)} />
+                  <NumInput allowEmpty prefix="R" value={form.vat === '' ? null : Number(form.vat)} placeholder={String(splitInclusive(totalNum, vatRate).vat)} onValue={(n) => set('vat', n === null ? '' : String(n))} />
                 </Field>
                 <p className="col-span-2 -mt-1 text-xs text-slate-500">Excl. VAT {formatZAR(totalNum - vatNum)}</p>
                 <Field label="Category">

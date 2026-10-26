@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { NumInput } from '../../../components/ui/NumInput'
 import { siteDiary } from '../../../lib/api'
 import { todayYmd } from '../../../lib/format'
 import { Button, Field, Modal } from '../../../components/ui'
@@ -48,7 +49,7 @@ export function SiteDiaryForm({ open, onClose, onSaved, editing, projectId, proj
       <div className="grid gap-3 sm:grid-cols-2">
         {!projectId && <Field label="Project" className="sm:col-span-2"><ProjectSelect projects={projects} value={form.project_id ?? null} onChange={(v) => set('project_id', v ?? '')} allowOverhead={false} /></Field>}
         <Field label="Date"><input type="date" className="input" value={form.date ?? ''} onChange={(e) => set('date', e.target.value)} /></Field>
-        <Field label="Workers on site"><input type="number" inputMode="numeric" min={0} className="input" value={form.workers_on_site ?? ''} onChange={(e) => set('workers_on_site', e.target.value === '' ? null : Number(e.target.value))} /></Field>
+        <Field label="Workers on site"><NumInput allowEmpty inputMode="numeric" value={form.workers_on_site ?? null} onValue={(n) => set('workers_on_site', n === null ? null : Math.max(0, Math.round(n)))} /></Field>
         <Field label="Weather" className="sm:col-span-2"><input className="input" value={form.weather ?? ''} onChange={(e) => set('weather', e.target.value)} placeholder="Sunny, 28°C" /></Field>
         <Field label="Work done" className="sm:col-span-2"><textarea className="input min-h-20" value={form.work_done ?? ''} onChange={(e) => set('work_done', e.target.value)} /></Field>
         <Field label="Materials delivered" className="sm:col-span-2"><textarea className="input" value={form.materials_delivered ?? ''} onChange={(e) => set('materials_delivered', e.target.value)} /></Field>

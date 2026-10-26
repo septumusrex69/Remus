@@ -11,24 +11,30 @@ import { useEffect, useState, type InputHTMLAttributes } from 'react'
  *
  * `prefix` / `suffix` draw "R" or "%" inside the box, so it is plain what the number is.
  */
-export function NumInput({
-  value,
-  onValue,
-  prefix,
-  suffix,
-  className = '',
-  ...rest
-}: {
+type NumInputProps = {
   value: number | null | undefined
-  onValue: (n: number) => void
   prefix?: string
   suffix?: string
-} & Omit<InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange' | 'type' | 'prefix'>) {
-  const [text, setText] = useState(fmt(value))
+} & Omit<InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange' | 'type' | 'prefix'> &
+  (
+    | { allowEmpty?: false; onValue: (n: number) => void }
+    /** An empty box means "not filled in" (null), e.g. a slip's VAT left for Remus to work out. */
+    | { allowEmpty: true; onValue: (n: number | null) => void }
+  )
+
+export function NumInput(props: NumInputProps) {
+  const { value, prefix, suffix, allowEmpty = false, className = '', onValue: given, ...rest } = props
+  const onValue = given as (n: number | null) => void
+  const show = (v: number | null | undefined) => (allowEmpty && (v === null || v === undefined) ? '' : fmt(v))
+  const [text, setText] = useState(show(value))
   // Follow changes made elsewhere (Set markup, a picked rate), but never fight the person typing.
   useEffect(() => {
-    setText((t) => (Number(t || 0) === Number(value ?? 0) ? t : fmt(value)))
-  }, [value])
+    setText((t) => {
+      if (allowEmpty && (value === null || value === undefined)) return t === '' ? t : ''
+      return t !== '' && Number(t) === Number(value ?? 0) ? t : show(value)
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value, allowEmpty])
 
   const input = (
     <input
@@ -49,10 +55,10 @@ export function NumInput({
         setText(t)
         const n = Number(t)
         if (t !== '' && t !== '-' && t !== '.' && Number.isFinite(n)) onValue(n)
-        else if (t === '') onValue(0)
+        else if (t === '') onValue(allowEmpty ? null : 0)
       }}
       onBlur={(e) => {
-        setText(fmt(Number(text || 0)))
+        setText(allowEmpty && (text === '' || text === '-' || text === '.') ? '' : fmt(Number(text || 0)))
         rest.onBlur?.(e)
       }}
     />

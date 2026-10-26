@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { NumInput } from '../../../components/ui/NumInput'
 import { useSearchParams } from 'react-router-dom'
 import { HardHat, Plus, Search, Star } from 'lucide-react'
 import { subcontractors as subsApi } from '../../../lib/api'
@@ -159,7 +160,7 @@ export function SubcontractorModal({ initial, onClose, onSaved }: { initial: Par
         <Field label="Email"><input className="input" type="email" value={form.email ?? ''} onChange={(e) => set('email', e.target.value)} /></Field>
         <Field label="Usual rate (R)" hint="Fills in the cost when you pick them on a quote.">
           <div className="flex gap-2">
-            <input className="input" type="number" inputMode="decimal" min={0} step="0.01" value={form.rate_amount ?? ''} onChange={(e) => set('rate_amount', e.target.value === '' ? null : Number(e.target.value))} />
+            <NumInput allowEmpty prefix="R" value={form.rate_amount ?? null} onValue={(n) => set('rate_amount', n === null ? null : Math.max(0, n))} />
             <select className="input w-auto" value={form.rate_unit ?? 'job'} onChange={(e) => set('rate_unit', e.target.value as SubRateUnit)} aria-label="Rate per">
               {SUB_RATE_UNITS.map((u) => <option key={u} value={u}>{RATE_UNIT_LABEL[u]}</option>)}
             </select>

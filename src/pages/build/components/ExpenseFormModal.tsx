@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { NumInput } from '../../../components/ui/NumInput'
 import { expenses } from '../../../lib/api'
 import { round2, todayYmd } from '../../../lib/format'
 import { splitInclusive } from '../../../lib/quoteMath'
@@ -119,7 +120,7 @@ export function ExpenseFormModal({
           {inclMode ? (
             <div className="grid grid-cols-3 gap-3">
               <Field label="Total incl. VAT">
-                <input type="number" inputMode="decimal" step="0.01" className="input" value={incl} onChange={(e) => onIncl(e.target.value)} />
+                <NumInput allowEmpty prefix="R" value={incl === '' ? null : Number(incl)} onValue={(n) => onIncl(n === null ? '' : String(n))} />
               </Field>
               <Field label="Excl. VAT"><input className="input" disabled value={form.amount_excl ?? 0} /></Field>
               <Field label="VAT"><input className="input" disabled value={form.vat ?? 0} /></Field>
@@ -127,10 +128,10 @@ export function ExpenseFormModal({
           ) : (
             <div className="grid grid-cols-2 gap-3">
               <Field label="Amount excl. VAT">
-                <input type="number" inputMode="decimal" step="0.01" className="input" value={form.amount_excl ?? 0} onChange={(e) => set('amount_excl', Number(e.target.value))} />
+                <NumInput prefix="R" value={form.amount_excl ?? 0} onValue={(n) => set('amount_excl', n)} />
               </Field>
               <Field label="VAT" hint={vatRate === 0 ? 'Not registered for VAT: leave at 0, the full amount is the cost.' : <button className="text-brand-700 underline" onClick={() => set('vat', round2((Number(form.amount_excl ?? 0) * vatRate) / 100))}>Calculate at {vatRate}%</button>}>
-                <input type="number" inputMode="decimal" step="0.01" className="input" value={form.vat ?? 0} onChange={(e) => set('vat', Number(e.target.value))} />
+                <NumInput prefix="R" value={form.vat ?? 0} onValue={(n) => set('vat', n)} />
               </Field>
             </div>
           )}

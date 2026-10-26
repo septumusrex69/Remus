@@ -59,6 +59,10 @@ live bank account's imported statement has no balance column, so "In the bank" s
 on the quote screen and Plan card: it keeps its own text so a leading 0 is dropped as you type
 (Stephan got "032"), selects the number on tap so typing replaces it, and draws "R" / "%" inside
 the box. The Plan's "+ days" box uses the text keyboard because the iPad number pad has no minus.
+26 Oct, Stephan: "throughout the whole application". Every number box now uses `NumInput` (slips,
+expenses, project and invoice/payment forms, site diary, Settings, subcontractor rate, mailbox
+ports); `allowEmpty` keeps "empty means work it out" where that matters (a slip's VAT, a
+subcontractor's rate). Only chart axes still say type="number". Use NumInput for any new box.
 Totals rows are label | box | amount so the deposit no longer wraps.
 
 **Still NOT on `main`:** `claude/mail-picture-store` (mail pictures saved once, Outlook-style;
