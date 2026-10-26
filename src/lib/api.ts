@@ -89,6 +89,7 @@ export async function getSettings(): Promise<CompanySettings> {
     email: null,
     logo_url: null,
     vat_rate: 15,
+    vat_registered: true,
     quote_terms: null,
     bank_details: null,
     quote_prefix: 'Q',

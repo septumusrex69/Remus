@@ -150,8 +150,13 @@ export function QuotePrint() {
             <div className="flex justify-between"><dt className="text-slate-500">Subtotal</dt><dd>{formatZAR(t.subtotal)}</dd></div>
             {t.managementFee > 0 && <div className="flex justify-between"><dt className="text-slate-500">Project management ({Number(quote.management_fee_pct)}%)</dt><dd>{formatZAR(t.managementFee)}</dd></div>}
             {t.discount > 0 && <div className="flex justify-between"><dt className="text-slate-500">Discount</dt><dd>-{formatZAR(t.discount)}</dd></div>}
-            <div className="flex justify-between"><dt className="text-slate-500">Total excl. VAT</dt><dd>{formatZAR(t.totalExcl)}</dd></div>
-            <div className="flex justify-between"><dt className="text-slate-500">VAT ({quote.vat_rate}%)</dt><dd>{formatZAR(t.vat)}</dd></div>
+            {/* No VAT charged (not registered): just the total, no "excl. VAT" or a VAT line of R 0.00. */}
+            {Number(quote.vat_rate) > 0 && (
+              <>
+                <div className="flex justify-between"><dt className="text-slate-500">Total excl. VAT</dt><dd>{formatZAR(t.totalExcl)}</dd></div>
+                <div className="flex justify-between"><dt className="text-slate-500">VAT ({quote.vat_rate}%)</dt><dd>{formatZAR(t.vat)}</dd></div>
+              </>
+            )}
             <div className="flex justify-between border-t-2 border-slate-800 pt-1.5 text-base font-bold"><dt>Total</dt><dd>{formatZAR(t.totalIncl)}</dd></div>
           </dl>
         </div>

@@ -213,13 +213,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   ${[...sections].map(([name, amt]) => `<tr><td style="padding:4px 12px 4px 0;color:#64748b">${esc(name)}</td><td style="text-align:right">${zar(round2(amt))}</td></tr>`).join('')}
   ${managementFee ? `<tr><td style="padding:4px 12px 4px 0;color:#64748b">Project management (${feePct}%)</td><td style="text-align:right">${zar(managementFee)}</td></tr>` : ''}
   ${Number(quote.discount) ? `<tr><td style="padding:4px 12px 4px 0;color:#64748b">Discount</td><td style="text-align:right">-${zar(Number(quote.discount))}</td></tr>` : ''}
-  <tr><td style="padding:4px 12px 4px 0;color:#64748b;border-top:1px solid #e2e8f0">Total excl. VAT</td><td style="text-align:right;border-top:1px solid #e2e8f0">${zar(totalExcl)}</td></tr>
-  <tr><td style="padding:4px 12px 4px 0;color:#64748b">VAT (${Number(quote.vat_rate)}%)</td><td style="text-align:right">${zar(vat)}</td></tr>
+  ${rate > 0 ? `<tr><td style="padding:4px 12px 4px 0;color:#64748b;border-top:1px solid #e2e8f0">Total excl. VAT</td><td style="text-align:right;border-top:1px solid #e2e8f0">${zar(totalExcl)}</td></tr>
+  <tr><td style="padding:4px 12px 4px 0;color:#64748b">VAT (${Number(quote.vat_rate)}%)</td><td style="text-align:right">${zar(vat)}</td></tr>` : ''}
   <tr><td style="padding:6px 12px 6px 0;font-weight:700">Total</td><td style="text-align:right;font-weight:700">${zar(totalIncl)}</td></tr>
   ${quote.valid_until ? `<tr><td colspan="2" style="padding-top:8px;color:#64748b;font-size:12px">Valid until ${esc(quote.valid_until)}</td></tr>` : ''}
 </table>`
   const html = `<div style="font-family:Arial,Helvetica,sans-serif;color:#0f172a;line-height:1.5">${esc(message).replace(/\n/g, '<br>')}${summary}</div>`
-  const text = `${message}${clientPdf ? '' : `\n\nQuote ${quote.number ?? ''}: ${quote.title}\nTotal excl. VAT: ${zar(totalExcl)}\nVAT: ${zar(vat)}\nTotal: ${zar(totalIncl)}`}`
+  const text = `${message}${clientPdf ? '' : `\n\nQuote ${quote.number ?? ''}: ${quote.title}${rate > 0 ? `\nTotal excl. VAT: ${zar(totalExcl)}\nVAT: ${zar(vat)}` : ''}\nTotal: ${zar(totalIncl)}`}`
 
   let messageId: string | null = null
   try {

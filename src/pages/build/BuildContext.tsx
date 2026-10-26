@@ -38,8 +38,14 @@ export function useBuild() {
   return v
 }
 
-/** VAT rate from company settings, 15% until they load. */
+/**
+ * The VAT rate to charge and to split slips at: the company's rate, 15% until settings load, and
+ * 0 while the company is not registered for VAT (nothing is charged, and a slip's full amount is
+ * the cost because its VAT cannot be claimed back).
+ */
 // eslint-disable-next-line react/only-export-components
 export function useVatRate(): number {
-  return useBuild().settings?.vat_rate ?? 15
+  const s = useBuild().settings
+  if (s && !s.vat_registered) return 0
+  return s?.vat_rate ?? 15
 }

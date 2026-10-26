@@ -266,11 +266,17 @@ export function buildServer(admin: SupabaseClient, user: ConnectorUser): McpServ
         projectId = p.id
         projectLabel = p.code ? `${p.name} (${p.code})` : p.name
       }
-      const { data: settings } = await admin.from('company_settings').select('vat_rate').eq('id', true).maybeSingle()
+      const { data: settings } = await admin.from('company_settings').select('vat_rate, vat_registered').eq('id', true).maybeSingle()
       const rate = Number(settings?.vat_rate ?? 15)
       let excl: number
       let vat: number
-      if (a.amount_excl !== undefined) {
+      if (settings && settings.vat_registered === false) {
+        // Not registered for VAT: it can't be claimed back, so the whole amount paid is the cost.
+        const total = a.total_incl_vat ?? (a.amount_excl !== undefined ? a.amount_excl + (a.vat ?? (a.amount_excl * rate) / 100) : undefined)
+        if (total === undefined) return fail('Give total_incl_vat (the slip total) or amount_excl.')
+        excl = round2(total)
+        vat = 0
+      } else if (a.amount_excl !== undefined) {
         excl = round2(a.amount_excl)
         vat = round2(a.vat ?? (excl * rate) / 100)
       } else if (a.total_incl_vat !== undefined) {
@@ -361,7 +367,7 @@ export function buildServer(admin: SupabaseClient, user: ConnectorUser): McpServ
     },
     async (a) => {
       if (!user.canWrite) return denyWrite()
-      const { data: settings } = await admin.from('company_settings').select('vat_rate, quote_terms, management_fee_pct').eq('id', true).maybeSingle()
+      const { data: settings } = await admin.from('company_settings').select('vat_rate, vat_registered, quote_terms, management_fee_pct').eq('id', true).maybeSingle()
       const today = saToday()
       const valid = new Date(`${today}T12:00:00Z`)
       valid.setUTCDate(valid.getUTCDate() + (a.valid_days ?? 30))
@@ -387,7 +393,7 @@ export function buildServer(admin: SupabaseClient, user: ConnectorUser): McpServ
           site_address: a.site_address ?? null,
           notes: a.notes ?? null,
           terms: settings?.quote_terms ?? null,
-          vat_rate: Number(settings?.vat_rate ?? 15),
+          vat_rate: settings?.vat_registered === false ? 0 : Number(settings?.vat_rate ?? 15),
           management_fee_pct: Number(settings?.management_fee_pct ?? 0),
           discount: a.discount ?? 0,
           issue_date: today,

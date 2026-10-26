@@ -282,6 +282,7 @@ function QuotesTab() {
     if (Number(form.next_invoice_number) !== settings.next_invoice_number) counters.next_invoice_number = Math.max(1, Number(form.next_invoice_number) || 1)
     void save({
       vat_rate: Number(form.vat_rate ?? 15),
+      vat_registered: form.vat_registered ?? true,
       quote_terms: form.quote_terms || null,
       bank_details: form.bank_details || null,
       quote_prefix: form.quote_prefix || 'Q',
@@ -301,7 +302,20 @@ function QuotesTab() {
       <ErrorBanner error={error} />
       <SectionLabel>Tax & numbering</SectionLabel>
       <div className="grid max-w-2xl gap-3 sm:grid-cols-2">
-        <Field label="VAT rate (%)" hint="Default for new quotes, invoices and slips."><input className="input" type="number" step="0.01" value={form.vat_rate ?? 15} onChange={(e) => set('vat_rate', Number(e.target.value))} /></Field>
+        <label className="flex items-start gap-2.5 sm:col-span-2">
+          <input type="checkbox" className="mt-0.5 h-4 w-4 accent-[var(--color-brand-600)]" checked={form.vat_registered ?? true} onChange={(e) => set('vat_registered', e.target.checked)} />
+          <span>
+            <span className="block text-sm font-medium text-slate-700">Registered for VAT</span>
+            <span className="block text-xs text-slate-500">
+              {form.vat_registered ?? true
+                ? 'New quotes and invoices charge VAT at the rate below, and slips split the VAT out (you claim it back).'
+                : 'Not registered: new quotes and invoices charge no VAT, and slips are costed at the full amount paid (the VAT can\'t be claimed back). Tick this the day you register.'}
+            </span>
+          </span>
+        </label>
+        <Field label="VAT rate (%)" hint={form.vat_registered ?? true ? 'Default for new quotes, invoices and slips.' : 'Used once you are registered.'}>
+          <input className="input" type="number" step="0.01" value={form.vat_rate ?? 15} onChange={(e) => set('vat_rate', Number(e.target.value))} />
+        </Field>
         <div className="hidden sm:block" />
         <Field label="Quote prefix"><input className="input" value={form.quote_prefix ?? 'Q'} onChange={(e) => set('quote_prefix', e.target.value)} /></Field>
         <Field label="Next quote number"><input className="input" type="number" min={1} value={form.next_quote_number ?? 1} onChange={(e) => set('next_quote_number', Number(e.target.value))} /></Field>

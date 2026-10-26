@@ -31,7 +31,7 @@ export function QuotesList() {
       const quote = await quotesApi.create({
         title: 'New quote',
         status: 'draft',
-        vat_rate: settings?.vat_rate ?? 15,
+        vat_rate: settings && !settings.vat_registered ? 0 : settings?.vat_rate ?? 15,
         terms: settings?.quote_terms ?? null,
         management_fee_pct: settings?.management_fee_pct ?? 0,
         // Local dates: the column default (current_date) and toISOString are UTC, a day out before 02:00 SAST.
@@ -131,7 +131,7 @@ export function QuotesList() {
                     <th className={th}>Title</th>
                     <th className={th}>Client</th>
                     <th className={th}>Issued</th>
-                    <th className={`${th} text-right`}>Total incl. VAT</th>
+                    <th className={`${th} text-right`}>Total</th>
                     <th className={`${th} text-right`}>Est. margin</th>
                     <th className={th}>Status</th>
                   </tr>

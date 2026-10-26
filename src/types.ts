@@ -101,6 +101,8 @@ export interface CompanySettings {
   email: string | null
   logo_url: string | null
   vat_rate: number
+  /** Off: no VAT on quotes and invoices, and slips are costed at the full amount (migration 0012). */
+  vat_registered: boolean
   quote_terms: string | null
   bank_details: string | null
   quote_prefix: string

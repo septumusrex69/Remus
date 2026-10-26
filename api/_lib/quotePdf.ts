@@ -313,8 +313,13 @@ export async function buildQuotePdf(db: SupabaseClient, quoteId: string, load: Q
     ['Subtotal', zar(subtotal), false],
     ...(managementFee > 0 ? ([[`Project management (${feePct}%)`, zar(managementFee), false]] as [string, string, boolean][]) : []),
     ...(Number(quote.discount) > 0 ? ([['Discount', `-${zar(Number(quote.discount))}`, false]] as [string, string, boolean][]) : []),
-    ['Total excl. VAT', zar(totalExcl), false],
-    [`VAT (${Number(quote.vat_rate)}%)`, zar(vat), false],
+    // No VAT charged (not registered): just the total below, no VAT line of R 0.00.
+    ...(rate > 0
+      ? ([
+          ['Total excl. VAT', zar(totalExcl), false],
+          [`VAT (${Number(quote.vat_rate)}%)`, zar(vat), false],
+        ] as [string, string, boolean][])
+      : []),
   ]
   ensure(totals.length * 14 + 30)
   y -= 6

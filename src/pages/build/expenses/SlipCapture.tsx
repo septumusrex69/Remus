@@ -146,7 +146,8 @@ export function SlipCapture() {
   function prefill(x: ReceiptExtraction, s: ReceiptSuggestion | null) {
     const marks = new Set<keyof FormState>()
     const total = x.total_incl ?? (x.amount_excl !== null && x.vat !== null ? round2(x.amount_excl + x.vat) : null)
-    const vat = x.vat ?? (total !== null ? splitInclusive(total, vatRateRef.current).vat : null)
+    // Not registered for VAT (rate 0): the slip's VAT is part of the cost, so none is split out.
+    const vat = vatRateRef.current === 0 ? (total !== null ? 0 : null) : x.vat ?? (total !== null ? splitInclusive(total, vatRateRef.current).vat : null)
     const f = blankForm(presetProject)
     if (x.supplier) f.supplier = x.supplier
     if (x.date && YMD.test(x.date)) f.date = x.date
@@ -322,7 +323,7 @@ export function SlipCapture() {
                 <Field label="Date"><input type="date" className="input" value={form.date} onChange={(e) => set('date', e.target.value)} /></Field>
                 <Field label="Slip / invoice no."><input className="input" value={form.receipt_number} onChange={(e) => set('receipt_number', e.target.value)} /></Field>
                 <Field label="Total incl. VAT"><input type="number" inputMode="decimal" step="0.01" className="input text-lg font-semibold" value={form.total_incl} onChange={(e) => set('total_incl', e.target.value)} /></Field>
-                <Field label="VAT" hint={form.vat === '' ? `Calculated at ${vatRate}%` : undefined}>
+                <Field label="VAT" hint={vatRate === 0 ? 'Not registered for VAT: the full amount is the cost.' : form.vat === '' ? `Calculated at ${vatRate}%` : undefined}>
                   <input type="number" inputMode="decimal" step="0.01" className="input" value={form.vat} placeholder={String(splitInclusive(totalNum, vatRate).vat)} onChange={(e) => set('vat', e.target.value)} />
                 </Field>
                 <p className="col-span-2 -mt-1 text-xs text-slate-500">Excl. VAT {formatZAR(totalNum - vatNum)}</p>

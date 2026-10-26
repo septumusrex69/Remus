@@ -141,7 +141,7 @@ export function SendQuoteModal({
           ) : (
             <>
               <p className="text-slate-600">
-                A summary in the email body (total {formatZAR(totals.totalIncl)} incl. VAT), plus:
+                A summary in the email body (total {formatZAR(totals.totalIncl)}{quote.vat_rate > 0 ? ' incl. VAT' : ''}), plus:
               </p>
               <p className="flex items-center gap-1.5 text-slate-600"><FileText size={14} /> Quote {quote.number ?? ''} (PDF)</p>
               {files.map((f) => (

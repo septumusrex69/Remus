@@ -747,6 +747,12 @@ export function QuoteEditor() {
               </div>
               <div className="flex justify-between border-t border-slate-200 pt-2 text-base font-semibold"><dt>Total</dt><dd>{formatZAR(totals.totalIncl)}</dd></div>
             </dl>
+            {settings && !settings.vat_registered && Number(quote.vat_rate) > 0 && (
+              <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                The company is not registered for VAT (Settings), but this quote charges {Number(quote.vat_rate)}%.{' '}
+                <button className="font-medium underline" onClick={() => patchQuote({ vat_rate: 0 })}>Charge no VAT</button>
+              </p>
+            )}
             <div className="mt-4 rounded-lg bg-slate-50 p-3 text-sm">
               <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-slate-500">Internal — not on quote</p>
               <div className="tabular space-y-1">
