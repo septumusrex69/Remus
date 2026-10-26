@@ -70,6 +70,12 @@ the line items is now its own bordered card with a fold arrow; folded, it shows 
 (name, lines, working days, labour/subcontractor, total). "Fold all / Open all" in the card
 header. Column titles sit inside each open card. (Delete a line: the line's ⋯ menu.)
 
+**PDF menu (26 Oct, same branch):** the quote's PDF button is a menu (`quotes/PdfMenu.tsx`):
+Preview (new tab, as before), Download (`downloadQuotePdf`: an `<a download>` with the server's
+file name, so an iPad asks "Download?" and saves to Files → Downloads), and, where the device can
+share files, Share or save to Files (`shareQuotePdf`: the share sheet; falls back to a download if
+the browser refuses because the PDF took long to build). All three save the quote first.
+
 **Still NOT on `main`:** `claude/mail-picture-store` (mail pictures saved once, Outlook-style;
 section below). Migration 0008 is applied live; the code is not merged. It touches different files
 except this one. Release with a merge of `origin/main` first, when Stephan says so.

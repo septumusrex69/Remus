@@ -632,6 +632,73 @@ export async function openQuotePdf(quoteId: ID, beforeBuild?: () => Promise<bool
   setTimeout(() => URL.revokeObjectURL(url), 60_000)
 }
 
+/** The quote's PDF as a file, named as the server names it (e.g. Quote-Q-0006.pdf). */
+async function fetchQuotePdf(quoteId: ID): Promise<File> {
+  const res = await callApi(`/api/quotes/pdf?id=${encodeURIComponent(quoteId)}`, { headers: await authHeader() }, 'build the PDF')
+  if (!res.ok) {
+    const body = (await res.json().catch(() => null)) as { error?: string } | null
+    throw new Error(body?.error ?? `Could not build the PDF (HTTP ${res.status}).`)
+  }
+  const name = /filename="?([^";]+)"?/.exec(res.headers.get('Content-Disposition') ?? '')?.[1] ?? 'Quote.pdf'
+  return new File([await res.blob()], name, { type: 'application/pdf' })
+}
+
+/**
+ * Saves the PDF to the device's Downloads (Stephan, 26 Oct: preview only "opens a thing like in a
+ * second thing"; he wants it in his downloads). On an iPad Safari asks "Download?" and it lands in
+ * Files → Downloads. `beforeBuild` as for openQuotePdf.
+ */
+export async function downloadQuotePdf(quoteId: ID, beforeBuild?: () => Promise<boolean>): Promise<void> {
+  if (beforeBuild && !(await beforeBuild())) return
+  const file = await fetchQuotePdf(quoteId)
+  const url = URL.createObjectURL(file)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = file.name
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  setTimeout(() => URL.revokeObjectURL(url), 60_000)
+}
+
+/**
+ * The device's own share sheet with the PDF attached: WhatsApp, Mail, "Save to Files" on an iPad.
+ * Where the browser has no share sheet for files (most desktops), or refuses because building the
+ * PDF took too long after the tap, it downloads instead, so the press always gives you the file.
+ */
+export async function shareQuotePdf(quoteId: ID, beforeBuild?: () => Promise<boolean>): Promise<void> {
+  if (beforeBuild && !(await beforeBuild())) return
+  const file = await fetchQuotePdf(quoteId)
+  const nav = navigator as Navigator & { canShare?: (d: { files: File[] }) => boolean }
+  if (typeof nav.share === 'function' && nav.canShare?.({ files: [file] })) {
+    try {
+      await nav.share({ files: [file], title: file.name.replace(/\.pdf$/i, '') })
+      return
+    } catch (e) {
+      // Closing the share sheet is not a failure; a refusal (NotAllowedError) falls back to a download.
+      if (e instanceof DOMException && e.name === 'AbortError') return
+    }
+  }
+  const url = URL.createObjectURL(file)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = file.name
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  setTimeout(() => URL.revokeObjectURL(url), 60_000)
+}
+
+/** Can this device share a file (an iPad or phone can; most desktops cannot)? */
+export function canShareFiles(): boolean {
+  const nav = navigator as Navigator & { canShare?: (d: { files: File[] }) => boolean }
+  try {
+    return Boolean(typeof nav.share === 'function' && nav.canShare?.({ files: [new File([''], 'x.pdf', { type: 'application/pdf' })] }))
+  } catch {
+    return false
+  }
+}
+
 // ---------- Diary ----------
 
 export const diaryEvents = crud<DiaryEvent>('diary_events', [], 'start_at', true)

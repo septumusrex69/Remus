@@ -14,7 +14,6 @@ import {
   Pencil,
   Plus,
   Printer,
-  FileDown,
   ListPlus,
   Save,
   Send,
@@ -30,7 +29,6 @@ import {
   invoices as invoicesApi,
   clientAddress,
   loadClientDirectory,
-  openQuotePdf,
   quoteAttachments,
   quotes as quotesApi,
   saveQuoteItems,
@@ -57,6 +55,7 @@ import { QuoteAttachmentsPanel } from './QuoteAttachmentsPanel'
 import { SendQuoteModal } from './SendQuoteModal'
 import { QuotePlanCard } from './QuotePlan'
 import { AcceptQuoteModal } from './AcceptQuoteModal'
+import { PdfMenu } from './PdfMenu'
 import { SubcontractorModal, rateLabel } from '../subcontractors/SubcontractorsPage'
 
 type Line = QuoteItemDraft & EditableLine & { key: string }
@@ -497,13 +496,7 @@ export function QuoteEditor() {
             <Button onClick={async () => { if (!dirty || (await save())) navigate(paths.quotePrint(quote.id)) }}>
               <Printer size={15} /> Print
             </Button>
-            <Button
-              onClick={() => {
-                openQuotePdf(quote.id, async () => (dirty ? save() : true)).catch((e) => setError(e instanceof Error ? e.message : String(e)))
-              }}
-            >
-              <FileDown size={15} /> PDF
-            </Button>
+            <PdfMenu quoteId={quote.id} beforeBuild={async () => (dirty ? save() : true)} onError={setError} />
             <Button onClick={() => !needsApproval() && setSending(true)}>
               <Mail size={15} /> Send to client
             </Button>
