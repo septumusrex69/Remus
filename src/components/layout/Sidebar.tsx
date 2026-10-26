@@ -3,7 +3,7 @@ import { Link, NavLink } from 'react-router-dom'
 import { clsx } from 'clsx'
 import {
   Banknote, CalendarDays, Camera, ChevronDown, FileText, FolderKanban, HardHat, Inbox, LayoutDashboard, LineChart, LogOut,
-  PanelLeftClose, PanelLeftOpen, Receipt, Settings, Users, type LucideIcon,
+  Lightbulb, PanelLeftClose, PanelLeftOpen, Receipt, Settings, Users, type LucideIcon,
 } from 'lucide-react'
 import { useAuth } from '../../store/AuthContext'
 import { useBuild } from '../../pages/build/BuildContext'
@@ -32,6 +32,8 @@ const NAV: { to: string; label: string; icon: LucideIcon; end?: boolean; badge?:
   { to: paths.bank(), label: 'Bank', icon: Banknote, badge: 'bank' },
   { to: paths.diary(), label: 'Diary', icon: CalendarDays },
   { to: paths.finance(), label: 'Finance', icon: LineChart },
+  // Everybody's, at Raptor's firm's word: "anyone can see requests".
+  { to: paths.requests(), label: 'Requests', icon: Lightbulb },
   { to: paths.settings(), label: 'Settings', icon: Settings },
 ]
 

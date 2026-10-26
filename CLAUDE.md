@@ -4,6 +4,15 @@ Remus is the management app for **Urban Haus Construction** (Urban Haus Group): 
 projects, job costing, slips, bank, diary, finance, client email. Then read `HANDOVER.md` for where
 the work stands today, and update it before you finish.
 
+## Say which project and which handoff, on everything
+
+Stephan runs two projects (Raptor and Remus) and asked, 26 Oct 2026: *"for every little thing, just make
+sure that ... Remus or Raptor is mentioned clearly, and then the handoff number. Remus handoff 5 or ...
+Raptor handoff 6."* So every reply, commit subject (`Remus H1: ...`), branch note and handover section
+carries **"Remus · Handoff N"**, where N is the handoff the session started from. Numbering began at
+Handoff 1 on 26 Oct 2026; the number at the top of `HANDOVER.md` is the one you start from, and you
+write the next one.
+
 ## Spelling: it is Urban **Haus** (H-A-U-S), never "House"
 
 The owner has had to correct this more than once. Domain: `urbanhausgroup.co.za`. The owner is
@@ -45,13 +54,15 @@ How to apply it:
 
 - [x] **Collapsible sidebar** (folds to an icon rail, remembered per device: Raptor's
       `src/lib/sidebarCollapsed.ts` and `components/layout/Sidebar.tsx`).
-- [x] **Top bar** (no notifications bell yet: Remus has no notifications): page title, global search, unread-mail envelope, notifications, "+ New" quick add
+- [x] **Top bar**: page title, global search, the light bulb, the notifications bell (since Remus · Handoff 1), unread-mail envelope, "+ New" quick add
       (Raptor's `components/layout/Topbar.tsx`, `GlobalSearch`, `MessagesMenu`, `QuickAdd`).
 - [x] **Mail page with an Inbox** (Raptor's `src/pages/mail/MailPage.tsx`, `lib/userMail.ts`,
       `components/email/*`): each person's mailbox inside the app, mail filed onto clients.
 - [x] **Emails on every client page**, threaded, with reply and attachments.
 - [x] Each person connects their own mailbox in Settings; sends go out from it with their signature.
 - [x] **Settings in Raptor's layout**: tab menu on the left that folds, one tab at a time, Save per tab, `?tab=` links.
+- [x] **Change requests** (the light bulb, `/requests`, the bell, the nightly review): Raptor's
+      Feedback Centre, copied in Remus · Handoff 1. `.claude/skills/change-requests/SKILL.md`.
 - [ ] Record pages with Raptor's hero band, cards (`CardHeader` title + subtitle) and tabs.
 - [ ] Phone and iPad layouts that work (site managers use phones).
 

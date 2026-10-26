@@ -1,7 +1,36 @@
-# Remus handover (updated 26 Oct 2026)
+# Remus · Handoff 2 (written 26 Oct 2026 by the Remus · Handoff 1 session)
 
 For the next Claude Code session on `septumusrex69/Remus`. Read `CLAUDE.md` (the standing rules),
 then this file, then do the Raptor check below **before** waiting for Stephan's instructions.
+**You are the Remus · Handoff 2 session**: say so on every reply and commit (`Remus H2: ...`), and
+write Handoff 3 at the top of this file before you finish (CLAUDE.md, "Say which project").
+
+## Remus · Handoff 1: change requests, copied from Raptor (26 Oct 2026, branch `claude/requests`)
+
+Stephan: *"Raptor built something in where you have like a suggestions thing from the people who's
+using the app. Can we copy that exactly?"* Copied from Raptor's newest version (Raptor · Handoff 12,
+the Feedback Centre and the build queue, `claude/sales-raptor-review-p1pzx2` at 0370850):
+- **The light bulb** in the top bar on every page: what should change (typed or **dictated**), which
+  department (Quotes, Projects, Crew & schedule, Money, Clients & mail, Whole system; suggested from
+  the page), screenshots or PDFs (shrunk on the device before they are sent). It becomes **R-1, R-2...**
+- **Requests** in the sidebar (`/requests`): Overview (last night's review with four tiles, new
+  requests waiting), List and Board; each request opens in a **panel from the right** showing who
+  asked, the review's reading, the screenshots, and the history. Stephan approves, asks Claude to
+  build it, asks a question, assigns it, or declines (with a reason). The person who asked **tests**
+  it once released: It works, or Not right yet (back to Approved with what is wrong).
+- **The bell** (new to Remus): Raptor's notifications. New requests, decisions, questions and the
+  nightly review land there; it re-reads once a minute and when the app comes back into focus.
+- Database: `0017_change_requests.sql` (applied live 26 Oct; tables only added, nothing changed).
+  Reading needs an active member; only an Administrator moves a request. Tested end to end in a
+  rolled-back transaction (send, approve, release, test, every notification), then the number
+  counter was reset so the first real request is R-1.
+- **Not switched on yet: the nightly review and the builder.** They are scheduled Claude sessions
+  following `.claude/skills/change-requests/SKILL.md`. Remus has one database and it is live, and
+  `main` is live, so the skill's builder only ever pushes a preview branch and marks a request
+  "released" with the preview link; going live stays Stephan's "go live". Ask Stephan before
+  creating either schedule.
+- Tests: `src/lib/changeRequests.test.ts` (Raptor's check as vitest; the department list is held
+  against the migration and was seen failing when broken).
 
 ## Released 26 Oct, and what is still waiting
 
@@ -223,7 +252,12 @@ what Raptor gained since the last one:
 4. Tick off the Raptor checklist in `CLAUDE.md` as features land, and update the "Raptor last
    checked" line below.
 
-**Raptor last checked:** 24 Oct 2026 — Raptor S11 · Lean Mail (`claude/s11-lean-mail`) shipped one fix,
+**Raptor last checked:** 26 Oct 2026 (Remus · Handoff 1) — branch `claude/sales-raptor-review-p1pzx2`
+at 0370850 (Raptor · Handoff 12). Copied: change requests, the Feedback Centre, the bell. Raptor's
+own rule now is to say "Raptor · Handoff N" / "Remus · Handoff N" on everything (CLAUDE.md here too).
+Not for Remus: debtor campaigns from a central mailbox, written-off accounts.
+
+Earlier: 24 Oct 2026 — Raptor S11 · Lean Mail (`claude/s11-lean-mail`) shipped one fix,
 already ported here (see "Lean Mail" below). Before that: 23 Oct 2026, branch `claude/s10-clients-and-credits` (newest commit
 22 Oct 15:37, "Merge People: employee profiles, pay statements…"). New since 22 Oct:
 - **People: employee profiles and pay statements.** Relevant to Remus's planned Workforce phase

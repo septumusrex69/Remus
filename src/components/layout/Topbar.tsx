@@ -2,10 +2,12 @@ import { Menu } from 'lucide-react'
 import { GlobalSearch } from './GlobalSearch'
 import { MessagesMenu } from './MessagesMenu'
 import { QuickAdd } from './QuickAdd'
+import { NotificationsMenu } from './NotificationsMenu'
+import { RequestChangeButton } from '../requests/RequestChangeButton'
 
 /**
- * Raptor's top bar: which screen you are on, search across everything, unread client mail, and
- * "+ New". On a phone the title gives way to the menu button and the search to an icon.
+ * Raptor's top bar: which screen you are on, search across everything, "request a change" (the light
+ * bulb), the bell, unread client mail, and "+ New". On a phone the title gives way to the menu button and the search to an icon.
  */
 export function Topbar({ title, onMenu }: { title: string; onMenu: () => void }) {
   return (
@@ -23,6 +25,8 @@ export function Topbar({ title, onMenu }: { title: string; onMenu: () => void })
         <div className="md:hidden">
           <GlobalSearch compact />
         </div>
+        <RequestChangeButton title={title} />
+        <NotificationsMenu />
         <MessagesMenu />
         <QuickAdd />
       </div>
