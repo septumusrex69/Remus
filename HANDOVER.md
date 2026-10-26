@@ -1,19 +1,24 @@
-# Remus handover (updated 25 Oct 2026)
+# Remus handover (updated 26 Oct 2026)
 
 For the next Claude Code session on `septumusrex69/Remus`. Read `CLAUDE.md` (the standing rules),
 then this file, then do the Raptor check below **before** waiting for Stephan's instructions.
 
-## Two branches waiting to go live (25 Oct)
+## Released 26 Oct, and what is still waiting
 
-Live (`main`, remus-xi.vercel.app) has the Remus skins. Two finished branches are NOT on `main` yet:
-- `claude/remus-skins`: **Settings in Raptor's layout** (see "Where the work is"). On the preview,
-  waiting for Stephan's "go live".
-- `claude/mail-picture-store`: **mail pictures saved once** (section below). Migration 0008 is
-  applied live; the code is not merged.
-- `claude/quote-line-details` (built on `claude/remus-skins`, so it carries the Raptor-style
-  Settings too): **details under each quote line, and dictation** (section below). Migration
-  0009 is applied live (one nullable column, harmless to the old code).
-They touch different files except this one. Release each with a merge of `origin/main` first.
+**Live on `main` (26 Oct, Stephan's "go live"):** branch `claude/quote-line-details`, which carries
+`claude/remus-skins` too. So these are all live: Settings in Raptor's layout; details under quote
+lines with dictation; unit price locked to cost × markup; faster quote sending (photos shrunk);
+Print/PDF save first; all client mail filed on the client; planning and profit on the quote
+(stages, timeline, labour, management fee, approval); the "Registered for VAT" switch. Migrations
+0009–0012 are applied live.
+
+**Still NOT on `main`:** `claude/mail-picture-store` (mail pictures saved once, Outlook-style;
+section below). Migration 0008 is applied live; the code is not merged. It touches different files
+except this one. Release with a merge of `origin/main` first, when Stephan says so.
+
+**Next (step 2 of planning):** workers (senior/junior, day cost), accepted quote → dated project
+stages from a start date, booking workers on stages, company schedule with double-booking
+warnings, Diary entries, project profitability (quoted vs actual per stage).
 
 ## All client mail filed on the client (25 Oct 2026, branch `claude/quote-line-details`)
 
