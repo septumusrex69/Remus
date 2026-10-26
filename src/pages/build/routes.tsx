@@ -10,6 +10,8 @@ const pages = {
   ClientsList: () => import('./clients/ClientsList'),
   ClientDetail: () => import('./clients/ClientDetail'),
   SubcontractorsPage: () => import('./subcontractors/SubcontractorsPage'),
+  WorkersPage: () => import('./workers/WorkersPage'),
+  SchedulePage: () => import('./schedule/SchedulePage'),
   ProjectsList: () => import('./projects/ProjectsList'),
   ProjectDetail: () => import('./projects/ProjectDetail'),
   ExpensesPage: () => import('./expenses/ExpensesPage'),
@@ -28,6 +30,8 @@ const QuotePrint = lazy(() => pages.QuotePrint().then((x) => ({ default: x.Quote
 const ClientsList = lazy(() => pages.ClientsList().then((x) => ({ default: x.ClientsList })))
 const ClientDetail = lazy(() => pages.ClientDetail().then((x) => ({ default: x.ClientDetail })))
 const SubcontractorsPage = lazy(() => pages.SubcontractorsPage().then((x) => ({ default: x.SubcontractorsPage })))
+const WorkersPage = lazy(() => pages.WorkersPage().then((x) => ({ default: x.WorkersPage })))
+const SchedulePage = lazy(() => pages.SchedulePage().then((x) => ({ default: x.SchedulePage })))
 const ProjectsList = lazy(() => pages.ProjectsList().then((x) => ({ default: x.ProjectsList })))
 const ProjectDetail = lazy(() => pages.ProjectDetail().then((x) => ({ default: x.ProjectDetail })))
 const ExpensesPage = lazy(() => pages.ExpensesPage().then((x) => ({ default: x.ExpensesPage })))
@@ -64,6 +68,8 @@ export const buildRoutes = (
     <Route path="clients/company/:id" element={<ClientDetail kind="company" />} />
     <Route path="clients/contact/:id" element={<ClientDetail kind="contact" />} />
     <Route path="subcontractors" element={<SubcontractorsPage />} />
+    <Route path="workers" element={<WorkersPage />} />
+    <Route path="schedule" element={<SchedulePage />} />
     <Route path="projects" element={<ProjectsList />} />
     <Route path="projects/:id" element={<ProjectDetail />} />
     <Route path="expenses" element={<ExpensesPage />} />

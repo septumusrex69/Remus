@@ -292,6 +292,48 @@ export interface Expense {
   ai_suggestion: ReceiptSuggestion | null
   source: ExpenseSource
   paid: boolean
+  /** The project stage it was spent on (migration 0016), for quoted vs actual per stage. */
+  stage_id: ID | null
+  created_at: string
+}
+
+/** Someone on site (migration 0016). Not a login: most workers never sign in. */
+export interface Worker {
+  id: ID
+  name: string
+  trade: string | null
+  grade: LabourGrade
+  /** What a day of this person costs Urban Haus. */
+  day_cost: number
+  phone: string | null
+  notes: string | null
+  active: boolean
+  created_at: string
+}
+
+/** A stage of a project with real dates, and what the quote priced it at (excl. VAT). */
+export interface ProjectStage {
+  id: ID
+  project_id: ID
+  name: string
+  sort_order: number
+  start_date: string | null
+  /** Last working day, inclusive. */
+  end_date: string | null
+  quoted_sell: number
+  quoted_material: number
+  quoted_labour: number
+  quoted_subcontractor: number
+  created_at: string
+}
+
+/** A worker on a stage, for a run of days. */
+export interface StageBooking {
+  id: ID
+  stage_id: ID
+  worker_id: ID
+  start_date: string
+  end_date: string
   created_at: string
 }
 

@@ -3,6 +3,27 @@
 For the next Claude Code session on `septumusrex69/Remus`. Read `CLAUDE.md` (the standing rules),
 then this file, then do the Raptor check below **before** waiting for Stephan's instructions.
 
+## Workers, project plan and profit per stage (26 Oct 2026, branch `claude/workers-and-plan`)
+
+Planning step 2, Stephan's pick. Migration `0016_workers_and_project_plan.sql` (applied live):
+`workers` (name, trade, senior/junior, day_cost; NOT logins, unlike Raptor's People, because site
+workers never sign in and are paid by the day), `project_stages` (dated, with quoted sell and cost
+by kind), `stage_bookings` (worker on a stage for a run of days), `expenses.stage_id`.
+- `src/lib/workdays.ts`: SA working days (weekends, public holidays incl. Easter, Sunday → Monday).
+- `src/lib/projectPlan.ts`: `stagesFromQuote` (quote plan → dated stages), `stageActual` (slips on
+  the stage by category + labour from bookings = day cost × working days up to today),
+  `clashesFor` (double bookings). Tests in both.
+- Accepting a quote asks for a start date and makes the plan (`planProjectFromQuote` in api.ts).
+- Project page tab **Plan & crew** (`projects/PlanTab.tsx`): timeline, stage dates (bookings that
+  covered the whole stage follow it), crew per stage with double-booking warnings (allowed after a
+  confirm), quoted vs actual per stage, whole-project figures, slips not filed on a stage. The old
+  Schedule tab (diary events) is renamed Events.
+- **Schedule** page (`schedule/SchedulePage.tsx`): two working weeks, worker × day, red clashes,
+  stages with nobody booked. **Workers** page (`workers/WorkersPage.tsx`). Menu + "+ Add".
+- Slips and expenses have a Stage picker (`components/StageSelect.tsx`).
+- Dashboard Today/Tomorrow show who is on each site.
+Labour counts bookings AND labour slips on a stage: book wages or slip them, not both.
+
 ## Released 26 Oct, and what is still waiting
 
 **Second release, 26 Oct (Stephan's second "go live"):** everything listed below under "After the

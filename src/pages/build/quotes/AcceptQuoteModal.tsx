@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Check } from 'lucide-react'
 import { Button, Modal } from '../../../components/ui'
-import { formatZAR, round2 } from '../../../lib/format'
+import { formatZAR, round2, todayYmd } from '../../../lib/format'
+import { nextWorkingDay } from '../../../lib/workdays'
 import type { QuoteTotals } from '../../../lib/quoteMath'
 import type { Quote } from '../../../types'
 
@@ -24,17 +25,22 @@ export function AcceptQuoteModal({
   quote: Quote
   totals: QuoteTotals
   hasProject: boolean
-  onConfirm: (choice: { project: boolean; deposit: boolean }) => void
+  /** start: the project's first day, to put the quote's stages on the calendar (null = no plan yet). */
+  onConfirm: (choice: { project: boolean; deposit: boolean; start: string | null }) => void
 }) {
   const pct = Number(quote.deposit_pct || 0)
   const [project, setProject] = useState(true)
   const [deposit, setDeposit] = useState(pct > 0)
+  const [planIt, setPlanIt] = useState(true)
+  const [start, setStart] = useState(() => nextWorkingDay(todayYmd()))
   useEffect(() => {
     if (open) {
       setProject(true)
       setDeposit(pct > 0)
+      setPlanIt(true)
     }
   }, [open, pct])
+  const making = hasProject || project
   const depositIncl = round2((totals.totalIncl * pct) / 100)
 
   return (
@@ -45,7 +51,7 @@ export function AcceptQuoteModal({
       footer={
         <>
           <Button onClick={onClose}>Cancel</Button>
-          <Button variant="primary" onClick={() => onConfirm({ project: hasProject || project, deposit })}>
+          <Button variant="primary" onClick={() => onConfirm({ project: making, deposit, start: making && planIt && !hasProject ? start : null })}>
             <Check size={15} /> Accept
           </Button>
         </>
@@ -63,6 +69,20 @@ export function AcceptQuoteModal({
               <span className="block text-xs text-slate-500">Contract value {formatZAR(totals.totalExcl)}, budget {formatZAR(totals.estimatedCost)}.</span>
             </span>
           </label>
+        )}
+        {!hasProject && project && (
+          <div className="ml-6 rounded-lg bg-slate-50 p-3">
+            <label className="flex items-start gap-2.5">
+              <input type="checkbox" className="mt-0.5 h-4 w-4" checked={planIt} onChange={(e) => setPlanIt(e.target.checked)} />
+              <span className="text-sm font-medium text-slate-700">Put the stages on the calendar, starting</span>
+            </label>
+            {planIt && (
+              <div className="mt-2 ml-6">
+                <input type="date" className="input w-auto" value={start} onChange={(e) => setStart(e.target.value || todayYmd())} aria-label="Start date" />
+                <p className="mt-1 text-xs text-slate-500">Weekends and public holidays are skipped. Change it later on the project's Plan & crew tab.</p>
+              </div>
+            )}
+          </div>
         )}
         {pct > 0 ? (
           <label className="flex items-start gap-2.5">
