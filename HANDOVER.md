@@ -31,6 +31,18 @@ the Feedback Centre and the build queue, `claude/sales-raptor-review-p1pzx2` at 
   creating either schedule.
 - Tests: `src/lib/changeRequests.test.ts` (Raptor's check as vitest; the department list is held
   against the migration and was seen failing when broken).
+- **Brought up to Raptor's newest the same day** (Stephan: "update the recommendations part in Remus to
+  the newest on Raptor"; Raptor `claude/sales-raptor-review-p1pzx2` at ad9ea05): one **Open** list
+  (new, approved and in development together; it opens there, All last), each row marked with its
+  stage and "Needs feedback from <name>"; **questions with options to tick** (2-6, or Other in their
+  own words); a note written by Claude is named Claude. `0018_change_request_choices.sql`, applied live.
+- **A fault in Raptor's version, fixed here and NOT in Raptor:** Raptor's `change_request_choices`
+  policy reads `change_request_events` from inside that table's own insert policy, and Postgres
+  refuses every insert into such a table ("infinite recursion detected in policy"), so on Raptor no
+  note, question or answer can be added by a person. Remus asks the same question through a definer
+  function, `change_request_answers_ok` (end of 0018), proved in a rolled-back transaction. Raptor's
+  staging carries the faulty policy (checked read-only, 26 Oct); Stephan was told. When Raptor fixes
+  it, copy whatever it does if it differs.
 
 ## Released 26 Oct, and what is still waiting
 

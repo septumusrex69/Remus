@@ -85,6 +85,62 @@ export interface RequestEvent {
   to_status: RequestStatus | null
   by_id: string | null
   at: string
+  /** A question's options to tick (Raptor H12); null on a question that wants words. */
+  choices?: string[] | null
+  /** The question this comment answers, when it is a ticked answer. */
+  answers?: string | null
+}
+
+/*
+ * A QUESTION WITH OPTIONS TO TICK (Raptor H12). The firm, of the plain question on R-6: "Can't we
+ * build this like you have ... to choose the option by means of a tick. Or choose other. And then
+ * write other suggestion." So a question may carry two to six choices, and the person who asked
+ * answers by ticking one -- or Other, with their own words. The answer is an ordinary comment with
+ * `answers` pointing at the question, so it notifies the Administrators the way any reply does and
+ * reads in the history as what it is, and the builder finds it where it already looks.
+ */
+export const OTHER_CHOICE = 'Other'
+export const MAX_CHOICES = 6
+
+/** The choices typed one per line: numbering and bullets dropped, blanks and repeats gone, at most six. */
+export function parseChoices(text: string): string[] {
+  const out: string[] = []
+  for (const line of text.split(/\r?\n/)) {
+    const c = line.replace(/^\s*(?:\d+[.)]|[-•*])\s*/, '').trim()
+    if (c && c.toLowerCase() !== OTHER_CHOICE.toLowerCase() && !out.some((o) => o.toLowerCase() === c.toLowerCase())) out.push(c)
+  }
+  return out.slice(0, MAX_CHOICES)
+}
+
+/** One choice needs no more; at least two are what make it a choice. */
+export function choicesOk(choices: string[]): boolean {
+  return choices.length === 0 || choices.length >= 2
+}
+
+/** What a tick sends: the choice as written, or "Other: <their words>"; null while it says nothing. */
+export function answerBody(choice: string | null, other: string): string | null {
+  if (choice === null) return null
+  if (choice !== OTHER_CHOICE) return choice
+  const w = other.trim()
+  return w ? `${OTHER_CHOICE}: ${w}` : null
+}
+
+/** The answer given to a question, if any -- the latest, should two have crossed. */
+export function answerTo<E extends Pick<RequestEvent, 'kind' | 'answers' | 'at'>>(q: Pick<RequestEvent, 'id'>, events: E[]): E | null {
+  const a = events.filter((e) => e.kind === 'comment' && e.answers === q.id)
+  return a.length ? a.reduce((x, y) => (y.at > x.at ? y : x)) : null
+}
+
+/** Which tick the answer was: a listed choice, Other, or none of them (null). */
+export function tickedOf(choices: string[], body: string | null): string | null {
+  if (!body) return null
+  if (choices.includes(body)) return body
+  return body.startsWith(`${OTHER_CHOICE}:`) ? OTHER_CHOICE : null
+}
+
+/** The person who asked answers their own request's questions; an Administrator answers for nobody. */
+export function mayAnswer(user: Pick<User, 'id'> | null | undefined, r: Pick<ChangeRequest, 'created_by'>, q: Pick<RequestEvent, 'kind' | 'choices'>): boolean {
+  return !!user && user.id === r.created_by && q.kind === 'question' && (q.choices?.length ?? 0) >= 2
 }
 
 export interface RequestFileMeta {
@@ -179,12 +235,32 @@ export function titleOf(r: Pick<ChangeRequest, 'review_title' | 'description'>):
 }
 
 /* THE SHELVES OF THE LIST: what is waiting, what is moving, what is finished. */
-export type Shelf = 'all' | 'new' | 'progress' | 'done' | 'declined'
+/*
+ * OPEN IS ONE SHELF (Stephan, Raptor H12: "instead of separating new and in progress, make one. Open --
+ * then mark them inside as new or in progress. (Need feedback from) or whatever."). Everything not yet
+ * released or declined is Open; the row's own pill says where in the workflow it is, and a second one
+ * says when it waits on the person who asked (waitingOnAsker).
+ */
+export type Shelf = 'open' | 'done' | 'declined' | 'all'
 export function onShelf(r: Pick<ChangeRequest, 'status'>, shelf: Shelf): boolean {
   if (shelf === 'all') return true
-  if (shelf === 'new') return r.status === 'new'
-  if (shelf === 'progress') return r.status === 'accepted' || r.status === 'building'
+  if (shelf === 'open') return r.status === 'new' || r.status === 'accepted' || r.status === 'building'
   return r.status === shelf
+}
+
+/**
+ * Is an open request waiting for the person who asked to answer a question? A question with options
+ * waits until it is ticked; a question for words waits until they write anything after it. Questions
+ * answer themselves no other way -- an Administrator's own note does not answer for them.
+ */
+export function waitingOnAsker(
+  r: Pick<ChangeRequest, 'id' | 'created_by' | 'status'>,
+  events: Pick<RequestEvent, 'id' | 'request_id' | 'kind' | 'by_id' | 'at' | 'answers' | 'choices'>[],
+): boolean {
+  if (!onShelf(r, 'open')) return false
+  const mine = events.filter((e) => e.request_id === r.id)
+  return mine.some((q) => q.kind === 'question' && !mine.some((a) => a.kind === 'comment' && (
+    (q.choices?.length ?? 0) >= 2 ? a.answers === q.id : (a.by_id === r.created_by && a.at > q.at))))
 }
 
 /** A night's tiles: how many of the requests it read are ready, need a decision, or are blocked. */

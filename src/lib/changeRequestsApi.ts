@@ -42,17 +42,33 @@ export async function listReviews(): Promise<RequestReview[]> {
     .map((r) => ({ id: r.id, created_at: r.created_at, summary: r.summary, groups: parseReviewGroups(r.groups), request_ids: r.request_ids ?? [] }))
 }
 
+/** Every question and reply, without the words -- enough to say which requests wait on the person who asked. */
+export async function listQuestionThreads(): Promise<Pick<RequestEvent, 'id' | 'request_id' | 'kind' | 'by_id' | 'at' | 'answers' | 'choices'>[]> {
+  const { data, error } = await supabase.from('change_request_events').select('id, request_id, kind, by_id, at, answers, choices')
+    .in('kind', ['question', 'comment']).order('at').limit(5000)
+  if (error) throw new Error(error.message)
+  return (data ?? []) as Pick<RequestEvent, 'id' | 'request_id' | 'kind' | 'by_id' | 'at' | 'answers' | 'choices'>[]
+}
+
 /** One request's history, oldest first. */
 export async function listEvents(requestId: string): Promise<RequestEvent[]> {
-  const { data, error } = await supabase.from('change_request_events').select('id, request_id, kind, body, from_status, to_status, by_id, at')
+  const { data, error } = await supabase.from('change_request_events').select('id, request_id, kind, body, from_status, to_status, by_id, at, choices, answers')
     .eq('request_id', requestId).order('at')
   if (error) throw new Error(error.message)
   return (data ?? []) as RequestEvent[]
 }
 
 /** A comment, or (an Administrator's) question to the person who asked -- they are notified. */
-export async function addEvent(requestId: string, kind: 'comment' | 'question', body: string, byId: string): Promise<void> {
-  const { error } = await supabase.from('change_request_events').insert({ request_id: requestId, kind, body: body.trim(), by_id: byId })
+export async function addEvent(requestId: string, kind: 'comment' | 'question', body: string, byId: string, choices: string[] = []): Promise<void> {
+  const { error } = await supabase.from('change_request_events')
+    .insert({ request_id: requestId, kind, body: body.trim(), by_id: byId, ...(kind === 'question' && choices.length ? { choices } : {}) })
+  if (error) throw new Error(error.message)
+}
+
+/** The person who asked ticks an answer to a question with choices: a comment pointing at it. */
+export async function answerQuestion(requestId: string, questionId: string, body: string, byId: string): Promise<void> {
+  const { error } = await supabase.from('change_request_events')
+    .insert({ request_id: requestId, kind: 'comment', body: body.trim(), by_id: byId, answers: questionId })
   if (error) throw new Error(error.message)
 }
 

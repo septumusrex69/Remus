@@ -1,16 +1,17 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import {
-  ChevronLeft, ChevronRight, FileText, HelpCircle, Loader2, MessageSquare, Moon, Paperclip, X,
+  Check, ChevronLeft, ChevronRight, FileText, HelpCircle, Loader2, MessageSquare, Moon, Paperclip, X,
 } from 'lucide-react'
 import { Button } from '../ui'
 import { PersonAvatar, ZoomableImage } from './bits'
 import { formatDateTime } from '../../lib/format'
 import {
-  PRIORITY_LABEL, STATUS_LABEL, VERDICT_LABEL, mayDecide, mayTest, mayWithdraw, requestLabel, stageOf, testState, titleOf,
+  MAX_CHOICES, OTHER_CHOICE, waitingOnAsker, PRIORITY_LABEL, STATUS_LABEL, VERDICT_LABEL, answerBody, answerTo, choicesOk, mayAnswer, mayDecide, mayTest, mayWithdraw,
+  parseChoices, requestLabel, stageOf, testState, tickedOf, titleOf,
   type ChangeRequest, type RequestEvent, type RequestFileMeta, type RequestPriority, type RequestStatus,
 } from '../../lib/changeRequests'
-import { addEvent, answerTest, askClaude, fileDataUrl, listEvents, updateRequest, withdrawRequest } from '../../lib/changeRequestsApi'
+import { addEvent, answerQuestion, answerTest, askClaude, fileDataUrl, listEvents, updateRequest, withdrawRequest } from '../../lib/changeRequestsApi'
 import type { Profile } from '../../types'
 
 /**
@@ -48,15 +49,18 @@ export function RequestPanel({ r, files, users, me, onClose, onPrev, onNext, onC
   /* One box for words, used by whichever action needs them: a decline's reason, a question, how to test. */
   const [composing, setComposing] = useState<null | 'decline' | 'question' | 'comment' | 'sendback'>(null)
   const [words, setWords] = useState('')
+  /* A question's options, one per line; empty is a question that wants words. */
+  const [choiceWords, setChoiceWords] = useState('')
+  const choices = parseChoices(choiceWords)
 
   const loadEvents = useCallback(() => {
     listEvents(r.id).then(setEvents).catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)))
   }, [r.id])
-  useEffect(() => { setEvents(null); setComposing(null); setWords(''); setError(null); loadEvents() }, [loadEvents])
+  useEffect(() => { setEvents(null); setComposing(null); setWords(''); setChoiceWords(''); setError(null); loadEvents() }, [loadEvents])
 
   async function act(fn: () => Promise<void>) {
     setBusy(true); setError(null)
-    try { await fn(); setComposing(null); setWords(''); onChanged(); loadEvents() }
+    try { await fn(); setComposing(null); setWords(''); setChoiceWords(''); onChanged(); loadEvents() }
     catch (e) { setError(e instanceof Error ? e.message : String(e)) }
     finally { setBusy(false) }
   }
@@ -76,16 +80,16 @@ export function RequestPanel({ r, files, users, me, onClose, onPrev, onNext, onC
     const w = words.trim()
     if (!w || !me) return
     if (composing === 'decline') void move('declined', w)
-    else if (composing === 'question') void act(() => addEvent(r.id, 'question', w, me.id))
+    else if (composing === 'question') void act(() => addEvent(r.id, 'question', w, me.id, choices))
     else if (composing === 'comment') void act(() => addEvent(r.id, 'comment', w, me.id))
     else if (composing === 'sendback') void act(() => answerTest(r.number, false, w))
   }
 
   const PROMPT: Record<NonNullable<typeof composing>, { label: string; placeholder: string; button: string }> = {
     decline: { label: 'Why not? They are told.', placeholder: 'e.g. Covered by R-8, which does the same.', button: 'Decline' },
-    question: { label: `Ask ${asker?.name ?? 'them'} — they are notified and can answer here.`, placeholder: 'e.g. Which reference do you mean: ours or the client’s?', button: 'Send question' },
+    question: { label: `Ask ${asker?.name ?? 'them'} — they are notified and can answer here.`, placeholder: 'e.g. Should weekends show greyed out, or stay hidden?', button: 'Send question' },
     comment: { label: 'Add a note to the history.', placeholder: 'Write a note…', button: 'Add note' },
-    sendback: { label: 'What is still not right?', placeholder: 'e.g. The reference is still missing on disputes.', button: 'Send it back' },
+    sendback: { label: 'What is still not right?', placeholder: 'e.g. The deposit still does not show on the quote list.', button: 'Send it back' },
   }
 
   return (
@@ -93,7 +97,7 @@ export function RequestPanel({ r, files, users, me, onClose, onPrev, onNext, onC
       data-testid="request-panel" data-number={r.number} aria-label={`Request ${requestLabel(r)}`}>
       <div className="flex items-center gap-2 border-b border-slate-100 px-5 py-3">
         <span className="rounded-md bg-ink-950 px-2 py-1 font-mono text-xs font-bold text-white">{requestLabel(r)}</span>
-        <StagePill r={r} />
+        <StagePill r={r} feedbackFrom={events && waitingOnAsker(r, events) ? (asker?.name.split(' ')[0] ?? 'them') : null} />
         <div className="ml-auto flex items-center gap-1">
           <IconButton label="Previous request" disabled={!onPrev} onClick={() => onPrev?.()}><ChevronLeft size={16} /></IconButton>
           <IconButton label="Next request" disabled={!onNext} onClick={() => onNext?.()}><ChevronRight size={16} /></IconButton>
@@ -175,7 +179,14 @@ export function RequestPanel({ r, files, users, me, onClose, onPrev, onNext, onC
         <Section label="Activity">
           {events === null ? <p className="text-xs text-slate-400"><Loader2 size={12} className="inline animate-spin" /> Reading the history…</p> : (
             <ol className="space-y-2.5" data-testid="request-activity">
-              {events.map((e) => <EventLine key={e.id} e={e} who={userOf(e.by_id)?.name ?? null} />)}
+              {events.map((e) => (
+                <EventLine key={e.id} e={e} who={userOf(e.by_id)?.name ?? null}>
+                  {(e.choices?.length ?? 0) >= 2 && (
+                    <ChoiceAnswer q={e} answer={answerTo(e, events)} canAnswer={mayAnswer(me, r, e)} askerName={asker?.name ?? 'the person who asked'}
+                      busy={busy} onAnswer={(body) => { if (me) void act(() => answerQuestion(r.id, e.id, body, me.id)) }} />
+                  )}
+                </EventLine>
+              ))}
             </ol>
           )}
           {(admin || isAsker) && composing === null && (
@@ -190,8 +201,17 @@ export function RequestPanel({ r, files, users, me, onClose, onPrev, onNext, onC
             <p className="text-xs font-semibold text-slate-600">{PROMPT[composing].label}</p>
             <textarea value={words} onChange={(e) => setWords(e.target.value)} rows={3} autoFocus placeholder={PROMPT[composing].placeholder}
               className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" data-testid="request-compose-words" />
+            {composing === 'question' && (
+              <label className="block space-y-1">
+                <span className="text-xs text-slate-600">Options to tick, one per line (optional, up to {MAX_CHOICES}). They can always choose Other and write their own.</span>
+                <textarea value={choiceWords} onChange={(e) => setChoiceWords(e.target.value)} rows={3}
+                  placeholder={'e.g.\nShow them greyed out\nKeep them hidden'}
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" data-testid="request-compose-choices" />
+                {!choicesOk(choices) && <span className="text-xs text-amber-700">Add a second option, or leave this empty to ask for words.</span>}
+              </label>
+            )}
             <div className="flex gap-2">
-              <Button size="sm" variant={composing === 'decline' || composing === 'sendback' ? 'danger' : 'primary'} disabled={busy || !words.trim()}
+              <Button size="sm" variant={composing === 'decline' || composing === 'sendback' ? 'danger' : 'primary'} disabled={busy || !words.trim() || (composing === 'question' && !choicesOk(choices))}
                 onClick={submitWords} data-testid="request-compose-send">{PROMPT[composing].button}</Button>
               <Button size="sm" variant="ghost" onClick={() => setComposing(null)}>Cancel</Button>
             </div>
@@ -252,7 +272,7 @@ export function RequestPanel({ r, files, users, me, onClose, onPrev, onNext, onC
 }
 
 /** Where a request stands, with the asker's test beside it once it is released. */
-export function StagePill({ r }: { r: ChangeRequest }) {
+export function StagePill({ r, feedbackFrom }: { r: ChangeRequest; feedbackFrom?: string | null }) {
   const stage = stageOf(r)
   const tone = r.status === 'done' ? 'bg-emerald-50 text-emerald-700' : r.status === 'declined' ? 'bg-slate-100 text-slate-600'
     : r.status === 'building' ? 'bg-amber-50 text-amber-800' : r.status === 'accepted' ? 'bg-indigo-50 text-indigo-700'
@@ -262,6 +282,7 @@ export function StagePill({ r }: { r: ChangeRequest }) {
     <span className="inline-flex items-center gap-1">
       <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${tone}`} data-testid="request-status">{stage}</span>
       {r.status === 'accepted' && r.build_requested_at && <span className="rounded-full bg-violet-100 px-2 py-0.5 text-[11px] font-medium text-violet-800" data-testid="request-queued-pill">Queued for Claude</span>}
+      {feedbackFrom && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-900" data-testid="request-feedback">Needs feedback from {feedbackFrom}</span>}
       {test === 'works' && <span className="rounded-full bg-emerald-600 px-2 py-0.5 text-[11px] font-semibold text-white">Tested ✓</span>}
       {test === 'waiting' && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-800">To test</span>}
       {test === 'sent back' && <span className="rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-medium text-red-700">Sent back</span>}
@@ -269,7 +290,43 @@ export function StagePill({ r }: { r: ChangeRequest }) {
   )
 }
 
-function EventLine({ e, who }: { e: RequestEvent; who: string | null }) {
+/**
+ * A QUESTION'S OPTIONS: ticks for the person who asked until they answer, then the one they chose,
+ * ticked, for everybody. Other opens a box for their own words.
+ */
+function ChoiceAnswer({ q, answer, canAnswer, askerName, busy, onAnswer }: {
+  q: RequestEvent; answer: Pick<RequestEvent, 'body' | 'at'> | null; canAnswer: boolean; askerName: string; busy: boolean; onAnswer: (body: string) => void
+}) {
+  const [pick, setPick] = useState<string | null>(null)
+  const [other, setOther] = useState('')
+  const choices = q.choices ?? []
+  const open = canAnswer && !answer
+  const ticked = answer ? tickedOf(choices, answer.body) : pick
+  const send = answerBody(pick, other)
+  return (
+    <div className="mt-1.5 space-y-1" data-testid="request-choices" data-answered={answer ? 'yes' : 'no'}>
+      {[...choices, OTHER_CHOICE].map((c) => {
+        const on = ticked === c
+        return (
+          <button key={c} type="button" role="radio" aria-checked={on} disabled={!open || busy} onClick={() => setPick(c)} data-testid="request-choice"
+            className={`flex w-full items-start gap-2 rounded-lg border px-2.5 py-1.5 text-left text-[13px] ${on ? 'border-emerald-400 bg-emerald-50 text-emerald-900' : 'border-slate-200 text-slate-700'} ${open ? 'hover:border-slate-300' : 'cursor-default'}`}>
+            <span className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border ${on ? 'border-emerald-600 bg-emerald-600 text-white' : 'border-slate-300 bg-white'}`}>{on && <Check size={12} />}</span>
+            <span>{c}</span>
+          </button>
+        )
+      })}
+      {open && pick === OTHER_CHOICE && (
+        <textarea value={other} onChange={(e) => setOther(e.target.value)} rows={2} autoFocus placeholder="Your suggestion…"
+          className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" data-testid="request-choice-other" />
+      )}
+      {open && <Button size="sm" variant="primary" disabled={busy || !send} onClick={() => { if (send) onAnswer(send) }} data-testid="request-choice-send">Send answer</Button>}
+      {answer && ticked === OTHER_CHOICE && <p className="text-[13px] text-emerald-900" data-testid="request-choice-other-said">{answer.body}</p>}
+      {!answer && !canAnswer && <p className="text-xs text-slate-500">Waiting for {askerName} to choose.</p>}
+    </div>
+  )
+}
+
+function EventLine({ e, who, children }: { e: RequestEvent; who: string | null; children?: ReactNode }) {
   /* Nobody's name on a move is Claude's: the reviewer and the builder write as the database owner. */
   const name = who ?? (e.kind === 'reviewed' ? 'The nightly review' : 'Claude')
   const what = e.kind === 'sent' ? 'sent the request'
@@ -277,7 +334,7 @@ function EventLine({ e, who }: { e: RequestEvent; who: string | null }) {
       : e.kind === 'status' ? `moved it to ${e.to_status ? STATUS_LABEL[e.to_status] : '?'}`
         : e.kind === 'tested' ? 'tested it'
           : e.kind === 'assigned' ? (e.body ? `gave it to ${e.body}` : 'took it off everybody')
-            : e.kind === 'question' ? 'asked' : 'wrote'
+            : e.kind === 'question' ? 'asked' : e.answers ? 'answered' : 'wrote'
   const body = e.kind === 'assigned' ? null : e.body
   return (
     <li className="flex gap-2.5 text-sm" data-kind={e.kind}>
@@ -285,6 +342,7 @@ function EventLine({ e, who }: { e: RequestEvent; who: string | null }) {
       <div className="min-w-0">
         <p className="text-slate-700"><strong className="font-medium">{name}</strong> {what} <span className="text-xs text-slate-400">· {formatDateTime(e.at)}</span></p>
         {body && <p className={`mt-0.5 whitespace-pre-wrap rounded-md px-2 py-1 text-[13px] ${e.kind === 'question' ? 'bg-amber-50 text-amber-900' : 'bg-slate-50 text-slate-700'}`}>{body}</p>}
+        {children}
       </div>
     </li>
   )

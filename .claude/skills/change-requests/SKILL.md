@@ -134,6 +134,17 @@ request to In development and Released.
    select id, 'comment', $q$Claude needs an answer before building: <the question, one sentence>$q$, null from public.change_requests where number = 12;
    update public.change_requests set build_requested_at = null where number = 12;
    ```
+   **When the answer is one of a few, ask it with options to tick** (Raptor · Handoff 12 -- "choose the
+   option by means of a tick. Or choose other"): a `question` with 2-6 `choices`; the person who asked
+   ticks one or writes their own under Other, and the answer arrives as a comment with `answers` = the
+   question's id. One question per event; ask the person who ASKED (they are notified), not Stephan:
+   ```sql
+   insert into public.change_request_events (request_id, kind, body, choices, by_id)
+   select id, 'question', $q$Should weekends show on the schedule?$q$,
+          array[$c$Greyed out$c$, $c$Keep them hidden$c$], null
+     from public.change_requests where number = 12;
+   ```
+   Then stop. The answer comes back as a comment (read `answers`), and Stephan presses Ask Claude again.
 3. Otherwise: `update public.change_requests set status = 'building' where number = 12;` (the asker is told).
 4. Build it as in Job 2, on its own branch from `main`. A database change is applied to the live project, so
    it must be additive (new tables or columns, never a DROP -- CLAUDE.md) and mirrored as a numbered file in
