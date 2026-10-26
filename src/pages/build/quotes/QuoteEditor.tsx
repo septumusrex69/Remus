@@ -45,6 +45,7 @@ import { QUOTE_FILES_BUCKET, supabase } from '../../../lib/supabase'
 import { Button, Card, ErrorBanner, Field, PageHeader, Spinner, StatusBadge } from '../../../components/ui'
 import { DictateButton } from '../../../components/ui/Dictate'
 import { RowMenu } from '../../../components/ui/RowMenu'
+import { NumInput } from '../../../components/ui/NumInput'
 import { LABOUR_GRADES, LINE_KINDS, QUOTE_STATUSES, UNITS, type CompanySettings, type LabourGrade, type LineKind, type Subcontractor, type SubRateUnit, type Quote, type QuoteAttachment, type QuoteStatus, type Unit } from '../../../types'
 import { useAuth } from '../../../store/AuthContext'
 import { ClientPicker } from '../components/ClientPicker'
@@ -127,7 +128,6 @@ function linesToSave(lines: Line[]): Line[] {
   })
 }
 
-const num = (v: string) => (v === '' ? 0 : Number(v))
 
 export function QuoteEditor() {
   const { id = '' } = useParams()
@@ -693,23 +693,20 @@ export function QuoteEditor() {
                           {UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
                         </select>
                       )}
-                      <input
-                        className="input text-right"
-                        type="number"
-                        inputMode="decimal"
-                        step="any"
+                      <NumInput
+                        className="text-right"
                         aria-label={l.kind === 'labour' ? 'Worker-days' : 'Quantity'}
                         title={l.kind === 'labour' ? 'Worker-days: 2 workers for 3 days is 6' : undefined}
                         value={l.quantity}
-                        onChange={(e) => updateLine(l.key, { quantity: num(e.target.value) })}
+                        onValue={(n) => updateLine(l.key, { quantity: n })}
                       />
                       <label className="@lg:contents">
                         <span className="label @lg:hidden">Cost per unit</span>
-                        <input className="input text-right" type="number" inputMode="decimal" step="0.01" aria-label="Cost per unit" value={l.unit_cost} onChange={(e) => updateLine(l.key, { unit_cost: num(e.target.value) })} />
+                        <NumInput prefix="R" className="text-right" aria-label="Cost per unit" value={l.unit_cost} onValue={(n) => updateLine(l.key, { unit_cost: n })} />
                       </label>
                       <label className="@lg:contents">
                         <span className="label @lg:hidden">Markup %</span>
-                        <input className="input text-right" type="number" inputMode="decimal" step="any" aria-label="Markup %" value={l.markup_pct} onChange={(e) => updateLine(l.key, { markup_pct: num(e.target.value) })} />
+                        <NumInput suffix="%" className="text-right" aria-label="Markup %" value={l.markup_pct} onValue={(n) => updateLine(l.key, { markup_pct: n })} />
                       </label>
                       {/* The total, and under it the price per unit (cost plus markup; never typed). */}
                       <span className="self-center text-right">
@@ -828,27 +825,26 @@ export function QuoteEditor() {
           <Card title="Totals">
             <dl className="tabular space-y-2 text-sm">
               <div className="flex justify-between"><dt className="text-slate-500">Subtotal</dt><dd>{formatZAR(totals.subtotal)}</dd></div>
-              <div className="flex items-center justify-between gap-3">
-                <dt className="text-slate-500">
-                  Management fee <input className="input inline w-16 px-1.5 py-0.5 text-right" type="number" inputMode="decimal" step="0.5" min="0" max="100" value={quote.management_fee_pct} onChange={(e) => patchQuote({ management_fee_pct: num(e.target.value) })} aria-label="Management fee %" />%
-                </dt>
-                <dd>{formatZAR(totals.managementFee)}</dd>
+              <div className="flex items-center gap-2">
+                <dt className="flex-1 text-slate-500">Management fee</dt>
+                <span className="w-20"><NumInput suffix="%" className="py-1 text-right" value={quote.management_fee_pct} onValue={(n) => patchQuote({ management_fee_pct: Math.min(100, Math.max(0, n)) })} aria-label="Management fee %" /></span>
+                <dd className="w-28 text-right whitespace-nowrap">{formatZAR(totals.managementFee)}</dd>
               </div>
-              <div className="flex items-center justify-between gap-3">
-                <dt className="text-slate-500">Discount (R)</dt>
-                <dd><input className="input w-32 py-1 text-right" type="number" inputMode="decimal" step="0.01" min="0" value={quote.discount} onChange={(e) => patchQuote({ discount: num(e.target.value) })} /></dd>
+              <div className="flex items-center gap-2">
+                <dt className="flex-1 text-slate-500">Discount</dt>
+                <span className="w-32"><NumInput prefix="R" className="py-1 text-right" value={quote.discount} onValue={(n) => patchQuote({ discount: Math.max(0, n) })} aria-label="Discount in rand" /></span>
               </div>
               <div className="flex justify-between border-t border-slate-100 pt-2"><dt className="text-slate-500">Total excl. VAT</dt><dd>{formatZAR(totals.totalExcl)}</dd></div>
-              <div className="flex items-center justify-between gap-3">
-                <dt className="text-slate-500">VAT @ <input className="input inline w-16 px-1.5 py-0.5 text-right" type="number" step="0.01" min="0" max="100" value={quote.vat_rate} onChange={(e) => patchQuote({ vat_rate: num(e.target.value) })} />%</dt>
-                <dd>{formatZAR(totals.vat)}</dd>
+              <div className="flex items-center gap-2">
+                <dt className="flex-1 text-slate-500">VAT</dt>
+                <span className="w-20"><NumInput suffix="%" className="py-1 text-right" value={quote.vat_rate} onValue={(n) => patchQuote({ vat_rate: Math.min(100, Math.max(0, n)) })} aria-label="VAT %" /></span>
+                <dd className="w-28 text-right whitespace-nowrap">{formatZAR(totals.vat)}</dd>
               </div>
               <div className="flex justify-between border-t border-slate-200 pt-2 text-base font-semibold"><dt>Total</dt><dd>{formatZAR(totals.totalIncl)}</dd></div>
-              <div className="flex items-center justify-between gap-3">
-                <dt className="text-slate-500">
-                  Deposit on acceptance <input className="input inline w-16 px-1.5 py-0.5 text-right" type="number" inputMode="decimal" step="5" min="0" max="100" value={quote.deposit_pct} onChange={(e) => patchQuote({ deposit_pct: num(e.target.value) })} aria-label="Deposit %" />%
-                </dt>
-                <dd>{formatZAR(round2((totals.totalIncl * Number(quote.deposit_pct || 0)) / 100))}</dd>
+              <div className="flex items-center gap-2">
+                <dt className="flex-1 text-slate-500">Deposit</dt>
+                <span className="w-20"><NumInput suffix="%" className="py-1 text-right" value={quote.deposit_pct} onValue={(n) => patchQuote({ deposit_pct: Math.min(100, Math.max(0, n)) })} aria-label="Deposit %" /></span>
+                <dd className="w-28 text-right whitespace-nowrap">{formatZAR(round2((totals.totalIncl * Number(quote.deposit_pct || 0)) / 100))}</dd>
               </div>
             </dl>
             {settings && !settings.vat_registered && Number(quote.vat_rate) > 0 && (

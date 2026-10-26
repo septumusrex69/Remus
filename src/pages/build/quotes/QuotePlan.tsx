@@ -1,4 +1,5 @@
 import { Card } from '../../../components/ui'
+import { NumInput } from '../../../components/ui/NumInput'
 import { describeDuration, type ScheduledStage, type StagePlan } from '../../../lib/quoteMath'
 
 /**
@@ -28,16 +29,15 @@ function StageControls({
   const value = stage.start_mode === 'start' || ref === null ? 'start' : `${stage.start_mode}:${ref}`
   return (
     <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 text-xs text-slate-500">
-      <input
-        className="input w-14 px-1.5 py-1 text-right text-xs"
-        type="number"
-        inputMode="numeric"
-        min={0}
-        step={1}
-        value={stage.duration_days}
-        onChange={(e) => onChange({ duration_days: e.target.value === '' ? 0 : Math.max(0, Math.round(Number(e.target.value))) })}
-        aria-label={`Working days for ${stageLabel(stage.name)}`}
-      />
+      <span className="w-14">
+        <NumInput
+          className="px-1.5 py-1 text-right text-xs"
+          inputMode="numeric"
+          value={stage.duration_days}
+          onValue={(n) => onChange({ duration_days: Math.max(0, Math.round(n)) })}
+          aria-label={`Working days for ${stageLabel(stage.name)}`}
+        />
+      </span>
       <span>day{Number(stage.duration_days) === 1 ? '' : 's'},</span>
       <select
         className="input w-auto max-w-[14rem] px-1.5 py-1 text-xs"
@@ -64,15 +64,16 @@ function StageControls({
       {value !== 'start' && (
         <label className="inline-flex items-center gap-1" title="Days later; a minus number overlaps (-1 starts a day earlier).">
           +
-          <input
-            className="input w-12 px-1.5 py-1 text-right text-xs"
-            type="number"
-            inputMode="numeric"
-            step={1}
-            value={stage.lag_days}
-            onChange={(e) => onChange({ lag_days: e.target.value === '' ? 0 : Math.round(Number(e.target.value)) })}
-            aria-label="Days later"
-          />
+          <span className="w-12">
+            {/* Text keyboard on purpose: the iPad's number pad has no minus, and -1 is how you overlap. */}
+            <NumInput
+              className="px-1.5 py-1 text-right text-xs"
+              inputMode="text"
+              value={stage.lag_days}
+              onValue={(n) => onChange({ lag_days: Math.round(n) })}
+              aria-label="Days later"
+            />
+          </span>
           days
         </label>
       )}

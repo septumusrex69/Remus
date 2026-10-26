@@ -55,6 +55,12 @@ in api.ts; owed to us; open quotes = draft + sent not expired; this month); Toda
 to start; later this fortnight; then profit per project, active projects, recent spending. The
 live bank account's imported statement has no balance column, so "In the bank" shows a hint.
 
+**Number boxes (26 Oct, same branch):** `components/ui/NumInput.tsx` replaces `<input type="number">`
+on the quote screen and Plan card: it keeps its own text so a leading 0 is dropped as you type
+(Stephan got "032"), selects the number on tap so typing replaces it, and draws "R" / "%" inside
+the box. The Plan's "+ days" box uses the text keyboard because the iPad number pad has no minus.
+Totals rows are label | box | amount so the deposit no longer wraps.
+
 **Still NOT on `main`:** `claude/mail-picture-store` (mail pictures saved once, Outlook-style;
 section below). Migration 0008 is applied live; the code is not merged. It touches different files
 except this one. Release with a merge of `origin/main` first, when Stephan says so.
