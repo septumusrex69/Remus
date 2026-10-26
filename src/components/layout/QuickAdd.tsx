@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { CalendarPlus, Camera, ChevronDown, FileText, FolderKanban, Mail, Plus, UserPlus, type LucideIcon } from 'lucide-react'
+import { CalendarPlus, Camera, ChevronDown, FileText, FolderKanban, HardHat, Mail, Plus, UserPlus, type LucideIcon } from 'lucide-react'
 import { paths } from '../../pages/build/paths'
 
 /**
@@ -11,6 +11,7 @@ const OPTIONS: { label: string; icon: LucideIcon; to: () => string }[] = [
   { label: 'New quote', icon: FileText, to: () => `${paths.quotes()}?new=1` },
   { label: 'New project', icon: FolderKanban, to: () => `${paths.projects()}?new=1` },
   { label: 'New client', icon: UserPlus, to: () => `${paths.clients()}?new=1` },
+  { label: 'New subcontractor', icon: HardHat, to: () => `${paths.subcontractors()}?new=1` },
   { label: 'Snap slip', icon: Camera, to: () => paths.capture() },
   { label: 'Diary event', icon: CalendarPlus, to: () => `${paths.diary()}?new=1` },
   { label: 'New email', icon: Mail, to: () => `${paths.mail()}?new=1` },

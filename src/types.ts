@@ -148,6 +148,8 @@ export interface Quote extends ClientRef {
   vat_rate: number
   /** Shown to the client as its own line: a % of the lines' total. */
   management_fee_pct: number
+  /** Deposit asked for on acceptance, % of the total (migration 0014). */
+  deposit_pct: number
   /** Internal sign-off before sending; void once the total excl. VAT differs from approved_total. */
   approved_at: string | null
   approved_by: ID | null
@@ -156,6 +158,27 @@ export interface Quote extends ClientRef {
   sent_to: string | null
   created_at: string
   updated_at: string
+}
+
+export const SUB_RATE_UNITS = ['day', 'job', 'hour', 'm²', 'each'] as const
+export type SubRateUnit = (typeof SUB_RATE_UNITS)[number]
+
+/** Someone Urban Haus hires in (migration 0014). Internal: never shown to clients. */
+export interface Subcontractor {
+  id: ID
+  name: string
+  trade: string | null
+  contact_person: string | null
+  phone: string | null
+  email: string | null
+  rate_amount: number | null
+  rate_unit: SubRateUnit
+  vat_no: string | null
+  bank_details: string | null
+  notes: string | null
+  rating: number | null
+  active: boolean
+  created_at: string
 }
 
 /** A section of a quote seen as a stage of the work (migration 0011). `name` '' = the unnamed group. */
@@ -181,6 +204,8 @@ export interface QuoteItem {
   kind: LineKind
   /** Labour lines only: priced from the senior or junior day rate. */
   labour_grade: LabourGrade | null
+  /** Subcontractor lines: who does it. Internal, never printed on the quote. */
+  subcontractor_id: ID | null
   unit: Unit
   quantity: number
   unit_cost: number

@@ -24,6 +24,8 @@ import {
   duplicateQuote,
   listQuoteItems,
   listQuoteStages,
+  subcontractors as subsApi,
+  invoices as invoicesApi,
   clientAddress,
   loadClientDirectory,
   openQuotePdf,
@@ -43,7 +45,7 @@ import { QUOTE_FILES_BUCKET, supabase } from '../../../lib/supabase'
 import { Button, Card, ErrorBanner, Field, PageHeader, Spinner, StatusBadge } from '../../../components/ui'
 import { DictateButton } from '../../../components/ui/Dictate'
 import { RowMenu } from '../../../components/ui/RowMenu'
-import { LABOUR_GRADES, LINE_KINDS, QUOTE_STATUSES, UNITS, type CompanySettings, type LabourGrade, type LineKind, type Quote, type QuoteAttachment, type QuoteStatus, type Unit } from '../../../types'
+import { LABOUR_GRADES, LINE_KINDS, QUOTE_STATUSES, UNITS, type CompanySettings, type LabourGrade, type LineKind, type Subcontractor, type SubRateUnit, type Quote, type QuoteAttachment, type QuoteStatus, type Unit } from '../../../types'
 import { useAuth } from '../../../store/AuthContext'
 import { ClientPicker } from '../components/ClientPicker'
 import { paths } from '../paths'
@@ -51,6 +53,8 @@ import { useBuild } from '../BuildContext'
 import { QuoteAttachmentsPanel } from './QuoteAttachmentsPanel'
 import { SendQuoteModal } from './SendQuoteModal'
 import { QuotePlanCard } from './QuotePlan'
+import { AcceptQuoteModal } from './AcceptQuoteModal'
+import { SubcontractorModal, rateLabel } from '../subcontractors/SubcontractorsPage'
 
 type Line = QuoteItemDraft & EditableLine & { key: string }
 
@@ -81,7 +85,7 @@ const dayRate = (grade: LabourGrade, s: CompanySettings | null | undefined) =>
 function blankLine(section: string | null, kind: LineKind, s: CompanySettings | null | undefined, days = 1): Line {
   const markup = kindMarkup(kind, s)
   const base: Line = {
-    key: newKey(), sort_order: 0, section, description: '', details: null, kind, labour_grade: null,
+    key: newKey(), sort_order: 0, section, description: '', details: null, kind, labour_grade: null, subcontractor_id: null,
     unit: 'each', quantity: 1, unit_cost: 0, markup_pct: markup, unit_price: 0,
   }
   if (kind !== 'labour') return base
@@ -145,6 +149,14 @@ export function QuoteEditor() {
   /** Each section's plan, by section name ('' = General). A section with none uses defaultStage. */
   const [stagePlans, setStagePlans] = useState<Map<string, StagePlan>>(new Map())
   const { currentUser } = useAuth()
+  /** The subcontractor list, for picking who does a subcontractor line. */
+  const [subs, setSubs] = useState<Subcontractor[]>([])
+  /** The line asking for a new subcontractor (opens the form), if any. */
+  const [newSubFor, setNewSubFor] = useState<string | null>(null)
+  const [accepting, setAccepting] = useState(false)
+  useEffect(() => {
+    subsApi.list().then(setSubs).catch(() => {})
+  }, [])
   const canApprove = currentUser?.role === 'Administrator'
 
   useEffect(() => {
@@ -190,7 +202,7 @@ export function QuoteEditor() {
   if (loading) return <Spinner page />
   if (!quote) return <ErrorBanner error={error ?? 'Quote not found'} />
 
-  const showDetails = (l: Line) => l.details != null || detailsOpen.has(l.key)
+  const showDetails = (l: Line) => Boolean(l.details?.trim()) || detailsOpen.has(l.key)
   const approved = approvalCurrent(quote, totals.totalExcl)
 
   function updateStage(name: string, p: Partial<StagePlan>) {
@@ -201,6 +213,16 @@ export function QuoteEditor() {
       return next
     })
     setDirty(true)
+  }
+
+  /** A subcontractor picked on a line: their usual rate becomes the cost, in the matching unit. */
+  function pickSub(l: Line, s: Subcontractor) {
+    const unit: Record<SubRateUnit, Unit> = { day: 'day', job: 'sum', hour: 'hours', 'm²': 'm²', each: 'each' }
+    updateLine(l.key, {
+      subcontractor_id: s.id,
+      ...(s.rate_amount ? { unit_cost: Number(s.rate_amount), unit: unit[s.rate_unit] } : {}),
+      ...(!l.description.trim() && s.trade ? { description: s.trade } : {}),
+    })
   }
 
   /** A line's kind changed: labour is priced per worker-day by grade, the others start from their own markup. */
@@ -335,6 +357,7 @@ export function QuoteEditor() {
         discount: Number(quote.discount || 0),
         vat_rate: Number(quote.vat_rate || 0),
         management_fee_pct: Number(quote.management_fee_pct || 0),
+        deposit_pct: Math.min(100, Math.max(0, Number(quote.deposit_pct ?? 50))),
         updated_at: now,
       })
       const items = await saveQuoteItems(quote.id, keep)
@@ -490,7 +513,7 @@ export function QuoteEditor() {
         )}
         {(quote.status === 'sent' || quote.status === 'draft') && (
           <>
-            <Button size="sm" onClick={() => setStatus('accepted')} loading={busy === 'accepted'}><Check size={13} /> Accepted</Button>
+            <Button size="sm" onClick={() => setAccepting(true)} loading={busy === 'accepted'}><Check size={13} /> Accepted</Button>
             <Button size="sm" onClick={() => setStatus('declined')} loading={busy === 'declined'}><X size={13} /> Declined</Button>
           </>
         )}
@@ -706,27 +729,58 @@ export function QuoteEditor() {
                           ]}
                         />
                       </span>
+                      {l.kind === 'subcontractor' && (
+                        // Who does it. Internal: the client sees only the description, at our price.
+                        <div className="col-span-2 flex flex-wrap items-center gap-2 text-xs text-slate-500 @lg:col-span-full">
+                          <span>Done by</span>
+                          <select
+                            className="input w-auto max-w-[18rem] px-1.5 py-1 text-xs"
+                            value={l.subcontractor_id ?? ''}
+                            onChange={(e) => {
+                              const v = e.target.value
+                              if (v === '__new') { setNewSubFor(l.key); return }
+                              const s = subs.find((x) => x.id === v)
+                              if (s) pickSub(l, s)
+                              else updateLine(l.key, { subcontractor_id: null })
+                            }}
+                            aria-label="Subcontractor"
+                          >
+                            <option value="">Choose a subcontractor…</option>
+                            {subs.filter((s) => s.active || s.id === l.subcontractor_id).map((s) => (
+                              <option key={s.id} value={s.id}>{s.name}{s.trade ? ` (${s.trade})` : ''}{s.rate_amount ? ` · ${rateLabel(s)}` : ''}</option>
+                            ))}
+                            <option value="__new">+ New subcontractor…</option>
+                          </select>
+                          <span className="text-slate-400">Only you see this.</span>
+                        </div>
+                      )}
                       {showDetails(l) && (
                         <div className="col-span-2 @lg:col-span-full">
                           <textarea
                             className="input min-h-14 text-sm"
                             placeholder="What this line includes, e.g. Remove old suite, supply and install new toilet, connect to existing waste and water supply."
                             value={l.details ?? ''}
-                            onChange={(e) => updateLine(l.key, { details: e.target.value })}
+                            onChange={(e) => {
+                              // Stays open while you type, even if you clear it to start again.
+                              if (!detailsOpen.has(l.key)) setDetailsOpen((s) => new Set(s).add(l.key))
+                              updateLine(l.key, { details: e.target.value })
+                            }}
                             aria-label="Details"
                             autoFocus={!l.details && detailsOpen.has(l.key)}
                           />
                           <div className="mt-1 flex flex-wrap items-center gap-3">
                             <DictateButton size="small" value={l.details ?? ''} onChange={(next) => updateLine(l.key, { details: next })} />
+                            {/* Nothing typed: just close it. Something typed: it stays unless you remove it. */}
                             <button
                               type="button"
-                              className="text-xs text-slate-400 hover:text-red-600"
+                              className={`text-xs ${l.details?.trim() ? 'text-slate-400 hover:text-red-600' : 'font-medium text-slate-500 hover:text-slate-800'}`}
                               onClick={() => {
+                                if (l.details?.trim() && !window.confirm('Remove the details for this line?')) return
                                 updateLine(l.key, { details: null })
                                 setDetailsOpen((s) => { const n = new Set(s); n.delete(l.key); return n })
                               }}
                             >
-                              Remove details
+                              {l.details?.trim() ? 'Remove details' : 'Hide'}
                             </button>
                           </div>
                         </div>
@@ -786,6 +840,12 @@ export function QuoteEditor() {
                 <dd>{formatZAR(totals.vat)}</dd>
               </div>
               <div className="flex justify-between border-t border-slate-200 pt-2 text-base font-semibold"><dt>Total</dt><dd>{formatZAR(totals.totalIncl)}</dd></div>
+              <div className="flex items-center justify-between gap-3">
+                <dt className="text-slate-500">
+                  Deposit on acceptance <input className="input inline w-16 px-1.5 py-0.5 text-right" type="number" inputMode="decimal" step="5" min="0" max="100" value={quote.deposit_pct} onChange={(e) => patchQuote({ deposit_pct: num(e.target.value) })} aria-label="Deposit %" />%
+                </dt>
+                <dd>{formatZAR(round2((totals.totalIncl * Number(quote.deposit_pct || 0)) / 100))}</dd>
+              </div>
             </dl>
             {settings && !settings.vat_registered && Number(quote.vat_rate) > 0 && (
               <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
@@ -833,6 +893,51 @@ export function QuoteEditor() {
           </Card>
         </div>
       </div>
+
+      {newSubFor && (
+        <SubcontractorModal
+          initial={{ rate_unit: 'job', active: true }}
+          onClose={() => setNewSubFor(null)}
+          onSaved={(s) => {
+            setSubs((list) => [...list, s].sort((a, b) => a.name.localeCompare(b.name)))
+            const l = lines.find((x) => x.key === newSubFor)
+            if (l) pickSub(l, s)
+            setNewSubFor(null)
+          }}
+        />
+      )}
+
+      <AcceptQuoteModal
+        open={accepting}
+        onClose={() => setAccepting(false)}
+        quote={quote}
+        totals={totals}
+        hasProject={Boolean(quote.project_id)}
+        onConfirm={async ({ project, deposit }) => {
+          setAccepting(false)
+          await run('accepted', async () => {
+            let projectId = quote.project_id
+            if (project && !projectId) projectId = (await convertQuoteToProject(quote.id)).id
+            else await quotesApi.update(quote.id, { status: 'accepted', updated_at: new Date().toISOString() })
+            const pct = Number(quote.deposit_pct || 0)
+            if (deposit && pct > 0) {
+              const excl = round2((totals.totalExcl * pct) / 100)
+              await invoicesApi.create({
+                project_id: projectId,
+                company_id: quote.company_id,
+                contact_id: quote.contact_id,
+                issue_date: todayYmd(),
+                description: `Deposit (${pct}%) on quote ${quote.number ?? ''}: ${quote.title}`.trim(),
+                amount_excl: excl,
+                vat: round2((excl * Number(quote.vat_rate || 0)) / 100),
+                status: 'draft',
+              })
+            }
+            if (projectId) navigate(paths.project(projectId, deposit ? 'invoices' : undefined))
+            else setQuote(await quotesApi.get(quote.id))
+          })
+        }}
+      />
 
       <SendQuoteModal
         open={sending}

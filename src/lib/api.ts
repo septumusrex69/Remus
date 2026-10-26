@@ -27,6 +27,7 @@ import type {
   QuoteAttachment,
   QuoteItem,
   QuoteStage,
+  Subcontractor,
   QuoteTotalsRow,
   SiteDiaryEntry,
   Variation,
@@ -230,7 +231,7 @@ export function clientLabel(dir: ClientDirectory | null, ref: { company_id: ID |
 
 // ---------- Quotes ----------
 
-const QUOTE_NUM: (keyof Quote)[] = ['discount', 'vat_rate', 'management_fee_pct', 'approved_total']
+const QUOTE_NUM: (keyof Quote)[] = ['discount', 'vat_rate', 'management_fee_pct', 'approved_total', 'deposit_pct']
 const ITEM_NUM: (keyof QuoteItem)[] = ['quantity', 'unit_cost', 'markup_pct', 'unit_price', 'sort_order']
 export const quotes = crud<Quote>('quotes', QUOTE_NUM)
 
@@ -264,6 +265,7 @@ export async function saveQuoteItems(quoteId: ID, items: QuoteItemDraft[]): Prom
       details: it.details?.trim() || null,
       kind: it.kind ?? 'material',
       labour_grade: it.kind === 'labour' ? it.labour_grade ?? 'senior' : null,
+      subcontractor_id: it.kind === 'subcontractor' ? it.subcontractor_id ?? null : null,
       unit: it.unit,
       quantity: it.quantity,
       unit_cost: it.unit_cost,
@@ -322,6 +324,7 @@ export async function duplicateQuote(id: ID): Promise<Quote> {
     discount: q.discount,
     vat_rate: q.vat_rate,
     management_fee_pct: q.management_fee_pct,
+    deposit_pct: q.deposit_pct,
   })
   await saveQuoteItems(copy.id, items)
   await saveQuoteStages(copy.id, stages)
@@ -429,6 +432,7 @@ export async function getProjectFinancials(projectId: ID): Promise<ProjectFinanc
 
 export const expenses = crud<Expense>('expenses', ['amount_excl', 'vat'], 'date')
 export const invoices = crud<Invoice>('invoices', ['amount_excl', 'vat'], 'issue_date')
+export const subcontractors = crud<Subcontractor>('subcontractors', ['rate_amount', 'rating'], 'name', true)
 export const payments = crud<Payment>('payments', ['amount'], 'date')
 export const variations = crud<Variation>('variations', ['amount_excl'], 'date')
 

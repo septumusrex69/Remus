@@ -15,6 +15,7 @@ export const paths = {
   clients: () => p('/clients'),
   company: (id: string) => p(`/clients/company/${id}`),
   contact: (id: string) => p(`/clients/contact/${id}`),
+  subcontractors: () => p('/subcontractors'),
   projects: () => p('/projects'),
   project: (id: string, tab?: string) => p(`/projects/${id}${tab ? `?tab=${tab}` : ''}`),
   expenses: () => p('/expenses'),

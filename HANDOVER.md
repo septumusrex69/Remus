@@ -25,6 +25,17 @@ total (no Unit price column); move/delete in a ⋯ menu (`RowMenu`); one "+ Add 
 tag changes the kind). Stage days and start moved into the Plan card beside the timeline
 (`QuotePlan.tsx`); the "+ N days" box only shows once a stage hangs off another.
 
+**Subcontractors, deposit on acceptance, hideable details (26 Oct, same branch):** migration
+`0014_subcontractors_and_deposit.sql` (applied live). `subcontractors` table + page (menu item and
+"+ Add", `subcontractors/SubcontractorsPage.tsx`: name, trade, contacts, usual rate per
+day/job/hour/m²/each, VAT no., bank details, notes, 1–5 rating, "no longer used"). A SUB line has
+"Done by [subcontractor]" (`quote_items.subcontractor_id`), which fills the cost and unit from
+their rate; internal, never printed (the client sees only the description at our price).
+`quotes.deposit_pct` (default 50, in Totals). **Accepted** opens `AcceptQuoteModal`: create the
+project and/or a DRAFT deposit invoice (deposit % of total excl., VAT at the quote's rate), then
+opens the project's Invoices tab. Line details: empty box can be **Hidden**; typed details stay
+(Remove asks first).
+
 **Still NOT on `main`:** `claude/mail-picture-store` (mail pictures saved once, Outlook-style;
 section below). Migration 0008 is applied live; the code is not merged. It touches different files
 except this one. Release with a merge of `origin/main` first, when Stephan says so.
