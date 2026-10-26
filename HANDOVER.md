@@ -19,6 +19,12 @@ an existing section's name is refused, not merged); the line rows lay out by the
 nothing; and a **Scope of work** summary above the line items (`quotes.scope`, migration 0013,
 applied live) with Dictate, printed above the lines on the print view and PDF.
 
+**Simpler line items (26 Oct, same branch):** Stephan: "this all looks very confusing and like a
+lot". Line items are pricing only: column titles once; the price per unit sits under the line
+total (no Unit price column); move/delete in a ⋯ menu (`RowMenu`); one "+ Add line" (the MAT/LAB/SUB
+tag changes the kind). Stage days and start moved into the Plan card beside the timeline
+(`QuotePlan.tsx`); the "+ N days" box only shows once a stage hangs off another.
+
 **Still NOT on `main`:** `claude/mail-picture-store` (mail pictures saved once, Outlook-style;
 section below). Migration 0008 is applied live; the code is not merged. It touches different files
 except this one. Release with a merge of `origin/main` first, when Stephan says so.

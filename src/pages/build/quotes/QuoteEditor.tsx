@@ -42,6 +42,7 @@ import {
 import { QUOTE_FILES_BUCKET, supabase } from '../../../lib/supabase'
 import { Button, Card, ErrorBanner, Field, PageHeader, Spinner, StatusBadge } from '../../../components/ui'
 import { DictateButton } from '../../../components/ui/Dictate'
+import { RowMenu } from '../../../components/ui/RowMenu'
 import { LABOUR_GRADES, LINE_KINDS, QUOTE_STATUSES, UNITS, type CompanySettings, type LabourGrade, type LineKind, type Quote, type QuoteAttachment, type QuoteStatus, type Unit } from '../../../types'
 import { useAuth } from '../../../store/AuthContext'
 import { ClientPicker } from '../components/ClientPicker'
@@ -49,7 +50,7 @@ import { paths } from '../paths'
 import { useBuild } from '../BuildContext'
 import { QuoteAttachmentsPanel } from './QuoteAttachmentsPanel'
 import { SendQuoteModal } from './SendQuoteModal'
-import { QuotePlanCard, StageControls } from './QuotePlan'
+import { QuotePlanCard } from './QuotePlan'
 
 type Line = QuoteItemDraft & EditableLine & { key: string }
 
@@ -588,40 +589,43 @@ export function QuoteEditor() {
               </div>
             )}
             {/*
-              Sized by the card's own width, not the screen's: on an iPad the card is much narrower
-              than the screen, and one row of eight columns left the description no room at all.
-              Wide card: one row. Medium: the description on its own row, the numbers under it.
-              Narrow (phone): two columns with labels.
+              Kept simple on purpose (Stephan, 26 Oct: "this all looks very confusing"): pricing only.
+              Planning (days, when a stage starts) lives in the Plan card beside its timeline; the
+              price per unit sits under the line total instead of a column of its own; move and
+              delete are in the line's ⋯ menu; column titles appear once.
+
+              Sized by the card's own width, not the screen's. Wide card: one row per line. Medium
+              (an iPad): the description on its own row, the numbers under it. Phone: two columns.
             */}
             <div className="@container">
-            {groups.map((g, gi) => {
+            {lines.length > 0 && (
+              <>
+                <div className="hidden grid-cols-[88px_64px_96px_64px_1fr_36px] gap-2 border-b border-slate-100 px-4 py-2 text-[11px] font-medium uppercase tracking-wide text-slate-400 @lg:grid @3xl:hidden">
+                  <span>Unit</span><span className="text-right">Qty</span><span className="text-right">Cost</span><span className="text-right">Markup</span><span className="text-right">Total</span><span />
+                </div>
+                <div className="hidden grid-cols-[1fr_88px_64px_96px_64px_120px_36px] gap-2 border-b border-slate-100 px-4 py-2 text-[11px] font-medium uppercase tracking-wide text-slate-400 @3xl:grid">
+                  <span>Description</span><span>Unit</span><span className="text-right">Qty</span><span className="text-right">Cost</span><span className="text-right">Markup %</span><span className="text-right">Total</span><span />
+                </div>
+              </>
+            )}
+            {groups.map((g) => {
               const sectionTotal = g.lines.reduce((s, l) => s + Number(l.quantity) * Number(l.unit_price), 0)
-              const plan = plans[gi]
               return (
                 <div key={g.section ?? '__none'} className="border-b border-slate-100 last:border-0">
-                  <div className="flex items-center justify-between bg-slate-50 px-4 py-2">
+                  <div className="flex items-center justify-between gap-3 bg-slate-50 px-4 py-2">
                     <SectionName name={g.section} onRename={(next) => renameSection(g.section, next)} />
                     <div className="flex items-center gap-2">
-                      <span className="tabular text-xs text-slate-500">{formatZAR(sectionTotal)}</span>
-                      <button className="text-slate-400 hover:text-red-600" onClick={() => removeSection(g.section)} aria-label="Delete section"><Trash2 size={14} /></button>
+                      <span className="tabular text-sm font-medium text-slate-600">{formatZAR(sectionTotal)}</span>
+                      <button className="rounded p-1 text-slate-400 hover:bg-red-50 hover:text-red-600" onClick={() => removeSection(g.section)} aria-label="Delete section" title="Delete section"><Trash2 size={14} /></button>
                     </div>
                   </div>
-                  <div className="bg-slate-50">
-                    <StageControls stage={plan} earlier={plans.slice(0, gi).map((p) => p.name)} onChange={(p) => updateStage(plan.name, p)} />
-                  </div>
-                  <div className="hidden grid-cols-[84px_64px_96px_64px_1fr_1fr_56px] gap-2 px-4 pt-2 text-[11px] font-medium uppercase tracking-wide text-slate-400 @xl:grid @4xl:hidden">
-                    <span>Unit</span><span className="text-right">Qty</span><span className="text-right">Unit cost</span>
-                    <span className="text-right">Markup</span><span className="text-right">Unit price</span><span className="text-right">Line total</span><span />
-                  </div>
-                  <div className="hidden grid-cols-[1fr_84px_64px_96px_64px_96px_100px_56px] gap-2 px-4 pt-2 text-[11px] font-medium uppercase tracking-wide text-slate-400 @4xl:grid">
-                    <span>Description</span><span>Unit</span><span className="text-right">Qty</span><span className="text-right">Unit cost</span>
-                    <span className="text-right">Markup</span><span className="text-right">Unit price</span><span className="text-right">Line total</span><span />
-                  </div>
-                  {g.lines.map((l) => (
-                    <div key={l.key} className="grid grid-cols-2 gap-2 border-t border-slate-50 px-4 py-2 @xl:grid-cols-[84px_64px_96px_64px_1fr_1fr_56px] @xl:items-center @4xl:grid-cols-[1fr_84px_64px_96px_64px_96px_100px_56px] @4xl:border-0">
-                      <div className="relative col-span-2 @xl:col-span-full @4xl:col-span-1">
+                  {g.lines.map((l) => {
+                    const lineTotal = round2(Number(l.quantity) * Number(l.unit_price))
+                    return (
+                    <div key={l.key} className="grid grid-cols-2 gap-2 border-t border-slate-100 px-4 py-2.5 first:border-t-0 @lg:grid-cols-[88px_64px_96px_64px_1fr_36px] @lg:items-center @3xl:grid-cols-[1fr_88px_64px_96px_64px_120px_36px]">
+                      <div className="relative col-span-2 @lg:col-span-full @3xl:col-span-1">
                         <input className="input pl-14 pr-9" placeholder="Description, e.g. Toilet" value={l.description} onChange={(e) => updateLine(l.key, { description: e.target.value })} />
-                        {/* The kind of cost, as a small tag inside the box; tap it for the full list. */}
+                        {/* The kind of cost, as a small tag inside the box; tap it to change. */}
                         <span className={`pointer-events-none absolute inset-y-0 left-1.5 my-auto flex h-6 w-11 items-center justify-center rounded text-[10px] font-semibold tracking-wide ${KIND_TONE[l.kind ?? 'material']}`}>
                           {KIND_TAG[l.kind ?? 'material']}
                         </span>
@@ -675,36 +679,44 @@ export function QuoteEditor() {
                         value={l.quantity}
                         onChange={(e) => updateLine(l.key, { quantity: num(e.target.value) })}
                       />
-                      <label className="@xl:contents">
-                        <span className="label @xl:hidden">Unit cost</span>
-                        <input className="input text-right" type="number" inputMode="decimal" step="0.01" aria-label="Unit cost" value={l.unit_cost} onChange={(e) => updateLine(l.key, { unit_cost: num(e.target.value) })} />
+                      <label className="@lg:contents">
+                        <span className="label @lg:hidden">Cost per unit</span>
+                        <input className="input text-right" type="number" inputMode="decimal" step="0.01" aria-label="Cost per unit" value={l.unit_cost} onChange={(e) => updateLine(l.key, { unit_cost: num(e.target.value) })} />
                       </label>
-                      <label className="@xl:contents">
-                        <span className="label @xl:hidden">Markup %</span>
+                      <label className="@lg:contents">
+                        <span className="label @lg:hidden">Markup %</span>
                         <input className="input text-right" type="number" inputMode="decimal" step="any" aria-label="Markup %" value={l.markup_pct} onChange={(e) => updateLine(l.key, { markup_pct: num(e.target.value) })} />
                       </label>
-                      {/* Not typed: always unit cost × markup. */}
-                      <span className="flex items-center justify-between @xl:block @xl:text-right" title="Unit cost plus markup">
-                        <span className="label @xl:hidden">Unit price</span>
-                        <span className="tabular text-sm text-slate-600">{formatZAR(l.unit_price)}</span>
+                      {/* The total, and under it the price per unit (cost plus markup; never typed). */}
+                      <span className="self-center text-right">
+                        <span className="tabular block text-sm font-semibold text-slate-800">{formatZAR(lineTotal)}</span>
+                        {Number(l.quantity) !== 1 && Number(l.unit_price) > 0 && (
+                          <span className="tabular block text-[11px] text-slate-400">{formatZAR(l.unit_price)} {l.kind === 'labour' ? 'a day' : 'each'}</span>
+                        )}
                       </span>
-                      <span className="tabular self-center text-right text-sm font-medium text-slate-800">{formatZAR(round2(Number(l.quantity) * Number(l.unit_price)))}</span>
-                      <span className="flex items-center justify-end gap-0.5 self-center">
-                        <button className="rounded p-1 text-slate-400 hover:bg-slate-100" onClick={() => moveLine(l.key, -1)} aria-label="Move up"><ArrowUp size={13} /></button>
-                        <button className="rounded p-1 text-slate-400 hover:bg-slate-100" onClick={() => moveLine(l.key, 1)} aria-label="Move down"><ArrowDown size={13} /></button>
-                        <button className="rounded p-1 text-slate-400 hover:bg-red-50 hover:text-red-600" onClick={() => { setLines((ls) => ls.filter((x) => x.key !== l.key)); setDirty(true) }} aria-label="Delete line"><Trash2 size={13} /></button>
+                      <span className="flex justify-end self-center">
+                        <RowMenu
+                          width="w-44"
+                          label="More for this line"
+                          items={[
+                            ...(!showDetails(l) ? [{ label: 'Add details', icon: <ListPlus size={14} />, onClick: () => setDetailsOpen((s) => new Set(s).add(l.key)) }] : []),
+                            { label: 'Move up', icon: <ArrowUp size={14} />, onClick: () => moveLine(l.key, -1) },
+                            { label: 'Move down', icon: <ArrowDown size={14} />, onClick: () => moveLine(l.key, 1) },
+                            { label: 'Delete line', icon: <Trash2 size={14} />, danger: true, onClick: () => { setLines((ls) => ls.filter((x) => x.key !== l.key)); setDirty(true) } },
+                          ]}
+                        />
                       </span>
                       {showDetails(l) && (
-                        <div className="col-span-2 @xl:col-span-full">
+                        <div className="col-span-2 @lg:col-span-full">
                           <textarea
-                            className="input min-h-16 text-sm"
-                            placeholder="Details shown under the description, e.g. Remove old suite, supply and install new close-coupled toilet, connect to existing waste and water supply."
+                            className="input min-h-14 text-sm"
+                            placeholder="What this line includes, e.g. Remove old suite, supply and install new toilet, connect to existing waste and water supply."
                             value={l.details ?? ''}
                             onChange={(e) => updateLine(l.key, { details: e.target.value })}
                             aria-label="Details"
                             autoFocus={!l.details && detailsOpen.has(l.key)}
                           />
-                          <div className="mt-1 flex flex-wrap items-center gap-2">
+                          <div className="mt-1 flex flex-wrap items-center gap-3">
                             <DictateButton size="small" value={l.details ?? ''} onChange={(next) => updateLine(l.key, { details: next })} />
                             <button
                               type="button"
@@ -720,16 +732,11 @@ export function QuoteEditor() {
                         </div>
                       )}
                     </div>
-                  ))}
-                  <div className="flex flex-wrap gap-x-4 gap-y-1 px-4 py-2">
-                    <button className="inline-flex items-center gap-1 text-xs font-medium text-brand-700 hover:text-brand-800" onClick={() => addLine(g.section, 'material')}>
-                      <Plus size={13} /> Material
-                    </button>
-                    <button className="inline-flex items-center gap-1 text-xs font-medium text-brand-700 hover:text-brand-800" onClick={() => addLine(g.section, 'labour')}>
-                      <Plus size={13} /> Labour
-                    </button>
-                    <button className="inline-flex items-center gap-1 text-xs font-medium text-brand-700 hover:text-brand-800" onClick={() => addLine(g.section, 'subcontractor')}>
-                      <Plus size={13} /> Subcontractor
+                    )
+                  })}
+                  <div className="px-4 pb-3 pt-1">
+                    <button className="inline-flex items-center gap-1 text-sm font-medium text-brand-700 hover:text-brand-800" onClick={() => addLine(g.section, 'material')}>
+                      <Plus size={14} /> Add line
                     </button>
                   </div>
                 </div>
@@ -738,7 +745,11 @@ export function QuoteEditor() {
             </div>
           </Card>
 
-          <QuotePlanCard stages={schedule.stages} totalDays={schedule.totalDays} />
+          <QuotePlanCard
+            stages={schedule.stages}
+            totalDays={schedule.totalDays}
+            onChange={(name, p) => updateStage(name, p)}
+          />
 
           <Card title="Notes & terms">
             <div className="grid gap-3">
