@@ -140,6 +140,8 @@ export interface Quote extends ClientRef {
   status: QuoteStatus
   issue_date: string
   valid_until: string | null
+  /** A short summary of the job, shown on the quote above the lines. */
+  scope: string | null
   notes: string | null
   terms: string | null
   discount: number

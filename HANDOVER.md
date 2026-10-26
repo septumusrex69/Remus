@@ -12,6 +12,13 @@ Print/PDF save first; all client mail filed on the client; planning and profit o
 (stages, timeline, labour, management fee, approval); the "Registered for VAT" switch. Migrations
 0009–0012 are applied live.
 
+**After the release (26 Oct, on `claude/quote-line-details`, preview first):** section names are
+an always-visible box with a pencil (a tap used to open a rename prompt by surprise; renaming onto
+an existing section's name is refused, not merged); the line rows lay out by the card's width
+(`@container`), so on an iPad the description gets its own row instead of being squeezed to
+nothing; and a **Scope of work** summary above the line items (`quotes.scope`, migration 0013,
+applied live) with Dictate, printed above the lines on the print view and PDF.
+
 **Still NOT on `main`:** `claude/mail-picture-store` (mail pictures saved once, Outlook-style;
 section below). Migration 0008 is applied live; the code is not merged. It touches different files
 except this one. Release with a merge of `origin/main` first, when Stephan says so.

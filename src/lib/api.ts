@@ -316,6 +316,7 @@ export async function duplicateQuote(id: ID): Promise<Quote> {
     title: `${q.title} (copy)`,
     site_address: q.site_address,
     status: 'draft',
+    scope: q.scope,
     notes: q.notes,
     terms: q.terms,
     discount: q.discount,

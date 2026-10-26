@@ -9,6 +9,7 @@ import {
   Copy,
   FolderPlus,
   Mail,
+  Pencil,
   Plus,
   Printer,
   FileDown,
@@ -250,10 +251,14 @@ export function QuoteEditor() {
     setDirty(true)
   }
 
-  function renameSection(oldName: string | null) {
-    const name = window.prompt('Rename section', oldName ?? '')
-    if (name === null) return
-    const newName = name.trim() || null
+  function renameSection(oldName: string | null, typed: string) {
+    const newName = typed.trim() || null
+    if (newName === oldName) return
+    // Two sections with one name would become one; say so rather than merging them silently.
+    if (groups.some((g) => g.section === newName)) {
+      setError(`There is already a section called "${newName ?? 'General'}". Pick another name.`)
+      return
+    }
     setLines((ls) => ls.map((l) => ((l.section || null) === oldName ? { ...l, section: newName } : l)))
     // The stage's plan, and any stage that starts off it, follow the new name.
     const from = stageKey(oldName)
@@ -323,6 +328,7 @@ export function QuoteEditor() {
         ...(quote.status === 'sent' && !quote.sent_at ? { sent_at: now } : {}),
         issue_date: quote.issue_date || todayYmd(),
         valid_until: quote.valid_until,
+        scope: quote.scope?.trim() || null,
         notes: quote.notes,
         terms: quote.terms,
         discount: Number(quote.discount || 0),
@@ -552,6 +558,19 @@ export function QuoteEditor() {
             </div>
           </Card>
 
+          <Card title="Scope of work" subtitle="A short summary of the job, shown on the quote above the line items.">
+            <textarea
+              className="input min-h-24"
+              value={quote.scope ?? ''}
+              onChange={(e) => patchQuote({ scope: e.target.value })}
+              placeholder="e.g. Full renovation of the main bathroom: strip out the existing suite and tiles, re-plumb, tile floor and walls, and install a new toilet, basin and shower."
+              aria-label="Scope of work"
+            />
+            <div className="mt-2">
+              <DictateButton size="small" value={quote.scope ?? ''} onChange={(next) => patchQuote({ scope: next })} />
+            </div>
+          </Card>
+
           <Card
             title="Line items"
             padded={false}
@@ -568,15 +587,20 @@ export function QuoteEditor() {
                 <button className="font-medium text-brand-700 underline" onClick={() => addLine(null)}>Add a line</button> or add a section.
               </div>
             )}
+            {/*
+              Sized by the card's own width, not the screen's: on an iPad the card is much narrower
+              than the screen, and one row of eight columns left the description no room at all.
+              Wide card: one row. Medium: the description on its own row, the numbers under it.
+              Narrow (phone): two columns with labels.
+            */}
+            <div className="@container">
             {groups.map((g, gi) => {
               const sectionTotal = g.lines.reduce((s, l) => s + Number(l.quantity) * Number(l.unit_price), 0)
               const plan = plans[gi]
               return (
                 <div key={g.section ?? '__none'} className="border-b border-slate-100 last:border-0">
                   <div className="flex items-center justify-between bg-slate-50 px-4 py-2">
-                    <button className="text-sm font-semibold text-slate-800 hover:text-brand-700" onClick={() => renameSection(g.section)} title="Rename section">
-                      {g.section ?? 'General'}
-                    </button>
+                    <SectionName name={g.section} onRename={(next) => renameSection(g.section, next)} />
                     <div className="flex items-center gap-2">
                       <span className="tabular text-xs text-slate-500">{formatZAR(sectionTotal)}</span>
                       <button className="text-slate-400 hover:text-red-600" onClick={() => removeSection(g.section)} aria-label="Delete section"><Trash2 size={14} /></button>
@@ -585,13 +609,17 @@ export function QuoteEditor() {
                   <div className="bg-slate-50">
                     <StageControls stage={plan} earlier={plans.slice(0, gi).map((p) => p.name)} onChange={(p) => updateStage(plan.name, p)} />
                   </div>
-                  <div className="hidden grid-cols-[1fr_84px_64px_96px_64px_96px_100px_56px] gap-2 px-4 pt-2 text-[11px] font-medium uppercase tracking-wide text-slate-400 md:grid">
+                  <div className="hidden grid-cols-[84px_64px_96px_64px_1fr_1fr_56px] gap-2 px-4 pt-2 text-[11px] font-medium uppercase tracking-wide text-slate-400 @xl:grid @4xl:hidden">
+                    <span>Unit</span><span className="text-right">Qty</span><span className="text-right">Unit cost</span>
+                    <span className="text-right">Markup</span><span className="text-right">Unit price</span><span className="text-right">Line total</span><span />
+                  </div>
+                  <div className="hidden grid-cols-[1fr_84px_64px_96px_64px_96px_100px_56px] gap-2 px-4 pt-2 text-[11px] font-medium uppercase tracking-wide text-slate-400 @4xl:grid">
                     <span>Description</span><span>Unit</span><span className="text-right">Qty</span><span className="text-right">Unit cost</span>
                     <span className="text-right">Markup</span><span className="text-right">Unit price</span><span className="text-right">Line total</span><span />
                   </div>
                   {g.lines.map((l) => (
-                    <div key={l.key} className="grid grid-cols-2 gap-2 border-t border-slate-50 px-4 py-2 md:grid-cols-[1fr_84px_64px_96px_64px_96px_100px_56px] md:items-center md:border-0">
-                      <div className="relative col-span-2 md:col-span-1">
+                    <div key={l.key} className="grid grid-cols-2 gap-2 border-t border-slate-50 px-4 py-2 @xl:grid-cols-[84px_64px_96px_64px_1fr_1fr_56px] @xl:items-center @4xl:grid-cols-[1fr_84px_64px_96px_64px_96px_100px_56px] @4xl:border-0">
+                      <div className="relative col-span-2 @xl:col-span-full @4xl:col-span-1">
                         <input className="input pl-14 pr-9" placeholder="Description, e.g. Toilet" value={l.description} onChange={(e) => updateLine(l.key, { description: e.target.value })} />
                         {/* The kind of cost, as a small tag inside the box; tap it for the full list. */}
                         <span className={`pointer-events-none absolute inset-y-0 left-1.5 my-auto flex h-6 w-11 items-center justify-center rounded text-[10px] font-semibold tracking-wide ${KIND_TONE[l.kind ?? 'material']}`}>
@@ -647,17 +675,17 @@ export function QuoteEditor() {
                         value={l.quantity}
                         onChange={(e) => updateLine(l.key, { quantity: num(e.target.value) })}
                       />
-                      <label className="md:contents">
-                        <span className="label md:hidden">Unit cost</span>
+                      <label className="@xl:contents">
+                        <span className="label @xl:hidden">Unit cost</span>
                         <input className="input text-right" type="number" inputMode="decimal" step="0.01" aria-label="Unit cost" value={l.unit_cost} onChange={(e) => updateLine(l.key, { unit_cost: num(e.target.value) })} />
                       </label>
-                      <label className="md:contents">
-                        <span className="label md:hidden">Markup %</span>
+                      <label className="@xl:contents">
+                        <span className="label @xl:hidden">Markup %</span>
                         <input className="input text-right" type="number" inputMode="decimal" step="any" aria-label="Markup %" value={l.markup_pct} onChange={(e) => updateLine(l.key, { markup_pct: num(e.target.value) })} />
                       </label>
                       {/* Not typed: always unit cost × markup. */}
-                      <span className="flex items-center justify-between md:block md:text-right" title="Unit cost plus markup">
-                        <span className="label md:hidden">Unit price</span>
+                      <span className="flex items-center justify-between @xl:block @xl:text-right" title="Unit cost plus markup">
+                        <span className="label @xl:hidden">Unit price</span>
                         <span className="tabular text-sm text-slate-600">{formatZAR(l.unit_price)}</span>
                       </span>
                       <span className="tabular self-center text-right text-sm font-medium text-slate-800">{formatZAR(round2(Number(l.quantity) * Number(l.unit_price)))}</span>
@@ -667,7 +695,7 @@ export function QuoteEditor() {
                         <button className="rounded p-1 text-slate-400 hover:bg-red-50 hover:text-red-600" onClick={() => { setLines((ls) => ls.filter((x) => x.key !== l.key)); setDirty(true) }} aria-label="Delete line"><Trash2 size={13} /></button>
                       </span>
                       {showDetails(l) && (
-                        <div className="col-span-2 md:col-span-full">
+                        <div className="col-span-2 @xl:col-span-full">
                           <textarea
                             className="input min-h-16 text-sm"
                             placeholder="Details shown under the description, e.g. Remove old suite, supply and install new close-coupled toilet, connect to existing waste and water supply."
@@ -707,6 +735,7 @@ export function QuoteEditor() {
                 </div>
               )
             })}
+            </div>
           </Card>
 
           <QuotePlanCard stages={schedule.stages} totalDays={schedule.totalDays} />
@@ -809,5 +838,37 @@ export function QuoteEditor() {
         }}
       />
     </div>
+  )
+}
+
+/**
+ * A section's name, editable in place: it looks like a box with a pencil so it is plain that it can
+ * be changed, and a tap only puts the cursor in it (it used to open a rename prompt by surprise).
+ * The new name is applied when you leave the box or press Enter; Escape puts the old one back.
+ */
+function SectionName({ name, onRename }: { name: string | null; onRename: (next: string) => void }) {
+  const [draft, setDraft] = useState(name ?? '')
+  useEffect(() => setDraft(name ?? ''), [name])
+  return (
+    <label className="group flex min-w-0 flex-1 items-center gap-1.5">
+      <Pencil size={13} className="shrink-0 text-slate-400 group-hover:text-brand-700" aria-hidden />
+      <input
+        className="min-w-0 max-w-xs flex-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-sm font-semibold text-slate-800 focus:border-brand-400 focus:outline-none"
+        value={draft}
+        placeholder="General"
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={() => onRename(draft)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') e.currentTarget.blur()
+          if (e.key === 'Escape') {
+            const el = e.currentTarget
+            setDraft(name ?? '')
+            requestAnimationFrame(() => el.blur())
+          }
+        }}
+        aria-label="Section name"
+        title="Section name: tap to change"
+      />
+    </label>
   )
 }

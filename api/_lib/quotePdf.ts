@@ -17,6 +17,7 @@ interface QuoteRow {
   site_address: string | null
   issue_date: string
   valid_until: string | null
+  scope?: string | null
   notes: string | null
   terms: string | null
   discount: number
@@ -249,6 +250,12 @@ export async function buildQuotePdf(db: SupabaseClient, quoteId: string, load: Q
     ry -= 12
   }
   y = Math.min(ly, ry, blockTop - 30) - 12
+
+  // ---------- Scope of work: the summary above the lines ----------
+  if (quote.scope?.trim()) {
+    block('Scope of work', quote.scope.trim(), 9)
+    y -= 14
+  }
 
   // ---------- Line items ----------
   const cols = { qty: right - 205, unit: right - 195, rate: right - 85, amount: right }

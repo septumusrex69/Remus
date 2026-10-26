@@ -112,6 +112,13 @@ export function QuotePrint() {
           </div>
         </section>
 
+        {quote.scope?.trim() && (
+          <section className="mt-6">
+            <p className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Scope of work</p>
+            <p className="whitespace-pre-line text-slate-700">{quote.scope.trim()}</p>
+          </section>
+        )}
+
         <table className="mt-8 w-full border-collapse">
           <thead>
             <tr className="border-b-2 border-slate-800 text-left text-[11px] uppercase tracking-wider text-slate-500">
