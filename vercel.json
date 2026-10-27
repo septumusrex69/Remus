@@ -62,6 +62,12 @@
       "regions": [
         "cpt1"
       ]
+    },
+    "api/places/nearby.ts": {
+      "maxDuration": 60,
+      "regions": [
+        "cpt1"
+      ]
     }
   }
 }

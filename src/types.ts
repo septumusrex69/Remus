@@ -156,6 +156,10 @@ export interface Quote extends ClientRef {
   deposit_pct: number
   /** Print the estimated timeline (and its clause) on the quote (migration 0015). */
   show_plan: boolean
+  /** Where this quote shops (0022): the site and any other areas, each with a radius. Internal. */
+  shop_areas: ShopArea[]
+  /** Stores outside the areas may still be searched, because they deliver (0022). */
+  shop_online: boolean
   /** Internal sign-off before sending; void once the total excl. VAT differs from approved_total. */
   approved_at: string | null
   approved_by: ID | null
@@ -197,6 +201,14 @@ export interface QuoteStage {
   start_mode: 'start' | 'with' | 'after'
   start_ref: string | null
   lag_days: number
+}
+
+/** One place a quote looks for stores: an address (or the site's) and how far from it (0022). */
+export interface ShopArea {
+  label: string
+  /** Empty on the "Site" area: it follows the quote's site address. */
+  address: string
+  radiusKm: number
 }
 
 export interface QuoteItem {

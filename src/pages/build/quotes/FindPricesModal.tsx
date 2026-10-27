@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Bot, ExternalLink, Loader2, Package, Search, Zap } from 'lucide-react'
 import { Button, Modal } from '../../../components/ui'
 import { formatZAR } from '../../../lib/format'
-import { findPrices, PRICE_STORES, type PriceEngine, type PriceHit, type PriceSearch, type PriceSource } from '../../../lib/api'
+import { effectiveAreas, findNearby, findPrices, PRICE_STORES, type NearbyBranch, type PriceEngine, type PriceHit, type PriceSearch, type PriceSource } from '../../../lib/api'
+import type { ShopArea } from '../../../types'
 
 /**
  * FIND PRICES on a quote line (Remus · Handoff 1, 27 Oct 2026). Stephan: "I can't find it on the line
@@ -30,10 +31,14 @@ const ENGINES = ALL_ENGINES
 const SOURCE_LABEL: Record<PriceSource, string> = { crawler: 'Remus search', claude: 'Claude' }
 const SOURCE_TONE: Record<PriceSource, string> = { crawler: 'bg-emerald-50 text-emerald-700', claude: 'bg-brand-100 text-brand-800' }
 
-export function FindPricesModal({ open, onClose, initialQuery, onPick }: {
+export function FindPricesModal({ open, onClose, initialQuery, onPick, areas = [], online = true, siteAddress = null }: {
   open: boolean
   onClose: () => void
   initialQuery: string
+  /** Where this quote shops (WhereToShopCard, 0022): the stores with a branch inside are ticked. */
+  areas?: ShopArea[]
+  online?: boolean
+  siteAddress?: string | null
   /** The product chosen: its price becomes the line's cost, the rest its "buy at" (store, code, page). */
   onPick: (hit: PriceHit & { price: number }) => void
 }) {
@@ -44,6 +49,28 @@ export function FindPricesModal({ open, onClose, initialQuery, onPick }: {
   const [result, setResult] = useState<PriceSearch | null>(null)
   // Which stores to ask. All by default; fewer stores is a quicker, cheaper Claude search.
   const [picked, setPicked] = useState<string[]>(PRICE_STORES.map((s) => s.id))
+  /*
+   * THE QUOTE'S AREAS DECIDE THE STORES (Stephan: "where you're looking and what's the radius").
+   * The nearest branch of each store inside them is found once, on opening; a store with one is
+   * ticked, and with "include online stores" on the others stay ticked too, marked for delivery.
+   */
+  const [nearest, setNearest] = useState<Map<string, NearbyBranch> | null>(null)
+  useEffect(() => {
+    const ask = effectiveAreas(areas, siteAddress)
+    if (!ask.length) return
+    let live = true
+    findNearby(ask).then((n) => {
+      if (!live) return
+      const m = new Map<string, NearbyBranch>()
+      for (const b of n.branches) if (!m.has(b.store)) m.set(b.store, b)
+      setNearest(m)
+      const inReach = PRICE_STORES.map((s) => s.id).filter((id) => m.has(id))
+      if (!online && inReach.length) setPicked(inReach)
+    }).catch(() => { /* the map is a help, not a gate: all stores stay ticked */ })
+    return () => { live = false }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+  const reach = (id: string) => (nearest?.get(id) ? `${nearest.get(id)!.distanceKm} km` : nearest ? 'online' : null)
 
   async function search() {
     if (query.trim().length < 2) return
@@ -91,7 +118,7 @@ export function FindPricesModal({ open, onClose, initialQuery, onPick }: {
               <button key={st.id} type="button" disabled={busy} aria-pressed={on}
                 onClick={() => setPicked((p) => (on ? (p.length > 1 ? p.filter((x) => x !== st.id) : p) : [...p, st.id]))}
                 className={`rounded-full border px-2.5 py-1 text-xs ${on ? 'border-ink-950 bg-ink-950 text-white' : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'}`}>
-                {st.name}
+                {st.name}{reach(st.id) && <span className={`ml-1 ${on ? 'text-white/70' : 'text-slate-400'}`}>· {reach(st.id)}</span>}
               </button>
             )
           })}
@@ -126,7 +153,16 @@ export function FindPricesModal({ open, onClose, initialQuery, onPick }: {
               return (
                 <section key={store} className="rounded-xl border border-slate-200">
                   <header className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-4 py-2">
-                    <span className="text-sm font-semibold text-slate-800">{store}</span>
+                    <span className="text-sm font-semibold text-slate-800">
+                      {store}
+                      {(() => {
+                        const id = PRICE_STORES.find((s) => s.name === store)?.id
+                        const b = id ? nearest?.get(id) : undefined
+                        return b
+                          ? <span className="ml-2 text-xs font-normal text-slate-500">nearest: {b.name}, {b.distanceKm} km</span>
+                          : nearest ? <span className="ml-2 text-xs font-normal text-slate-400">no branch in your areas · online / delivery</span> : null
+                      })()}
+                    </span>
                     <span className="text-xs text-slate-500">{notes.map((n) => n.note).join(' ')}</span>
                   </header>
                   {hits.length === 0 ? (

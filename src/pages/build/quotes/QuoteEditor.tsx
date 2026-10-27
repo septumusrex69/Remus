@@ -62,6 +62,7 @@ import { AcceptQuoteModal } from './AcceptQuoteModal'
 import { PdfMenu } from './PdfMenu'
 import { FindPricesModal } from './FindPricesModal'
 import { ShoppingListModal } from './ShoppingListModal'
+import { WhereToShopCard } from './WhereToShopCard'
 import { SubcontractorModal, rateLabel } from '../subcontractors/SubcontractorsPage'
 
 type Line = QuoteItemDraft & EditableLine & { key: string }
@@ -374,6 +375,8 @@ export function QuoteEditor() {
         management_fee_pct: Number(quote.management_fee_pct || 0),
         deposit_pct: Math.min(100, Math.max(0, Number(quote.deposit_pct ?? 50))),
         show_plan: quote.show_plan ?? true,
+        shop_areas: quote.shop_areas ?? [],
+        shop_online: quote.shop_online ?? true,
         updated_at: now,
       })
       const items = await saveQuoteItems(quote.id, keep)
@@ -886,6 +889,13 @@ export function QuoteEditor() {
             </div>
           </Card>
 
+          <WhereToShopCard
+            areas={quote.shop_areas ?? []}
+            online={quote.shop_online ?? true}
+            siteAddress={quote.site_address}
+            onChange={(p) => patchQuote(p)}
+          />
+
           <QuotePlanCard
             stages={schedule.stages}
             totalDays={schedule.totalDays}
@@ -994,6 +1004,9 @@ export function QuoteEditor() {
             open
             onClose={() => setFindFor(null)}
             initialQuery={line.description.slice(0, 80)}
+            areas={quote.shop_areas ?? []}
+            online={quote.shop_online ?? true}
+            siteAddress={quote.site_address}
             onPick={(hit) => updateLine(findFor, {
               unit_cost: hit.price,
               buy_store: hit.store, buy_code: hit.code, buy_product: hit.name, buy_url: hit.url,

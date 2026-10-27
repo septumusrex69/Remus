@@ -28,6 +28,7 @@ import type {
   Quote,
   QuoteAttachment,
   QuoteItem,
+  ShopArea,
   QuoteStage,
   Subcontractor,
   Worker,
@@ -1081,4 +1082,29 @@ export async function loadClaudeCredit(boughtUsd: number): Promise<ClaudeCredit>
     if (r.at >= monthStart) { monthUsd += usd; monthCalls += 1 }
   }
   return { boughtUsd, usedUsd, leftUsd: Math.max(0, boughtUsd - usedUsd), monthUsd, monthCalls }
+}
+
+// ---------- Where a quote shops: the branches near its areas (Remus · Handoff 1) ----------
+
+export interface NearbyCentre { label: string; lat: number; lon: number; radiusKm: number; found: string | null }
+export interface NearbyBranch { store: string; storeName: string; name: string; lat: number; lon: number; distanceKm: number; nearest: string; address: string | null }
+export interface Nearby { centres: NearbyCentre[]; branches: NearbyBranch[]; problems: string[] }
+
+/** The quote's areas as the server takes them: the Site area reads the quote's site address. */
+export function effectiveAreas(areas: ShopArea[] | null | undefined, siteAddress: string | null): { label: string; address: string; radiusKm: number }[] {
+  const list = areas?.length ? areas : [{ label: 'Site', address: '', radiusKm: 10 }]
+  return list
+    .map((a) => ({ label: a.label || 'Area', address: (a.label === 'Site' && !a.address.trim() ? siteAddress ?? '' : a.address).trim(), radiusKm: a.radiusKm }))
+    .filter((a) => a.address)
+}
+
+export async function findNearby(areas: { label: string; address: string; radiusKm: number }[]): Promise<Nearby> {
+  const res = await fetch('/api/places/nearby', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...(await authHeader()) },
+    body: JSON.stringify({ areas }),
+  })
+  const body = (await res.json().catch(() => ({}))) as Partial<Nearby> & { error?: string }
+  if (!res.ok) throw new Error(body.error ?? `The map could not be read (${res.status}).`)
+  return { centres: body.centres ?? [], branches: body.branches ?? [], problems: body.problems ?? [] }
 }
