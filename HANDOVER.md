@@ -103,6 +103,16 @@ the cheaper plan offered him first: a shared week-long price memory, teaching th
 cheapest model reading search snippets only with 1-2 searches -- estimated under R1, not measured.
 The slip reader still uses Claude (the key stays for it).
 
+**Then back on, the cheap way (Stephan: "don't remove Claude search ... find a better alternative").**
+Haiku 5.5, search results only (no page opened), 2 searches at most; a 7-day shared memory
+(`price_cache`, 0021); store chips; the function moved to Vercel `cpt1` (Cape Town). Measured 27 Oct
+06:34, "close coupled toilet", all stores: **R0.44, 20 s** (was R7.85, 49 s) -- prices from Leroy
+Merlin, Cashbuild, Plumblink; Builders listed without prices; BUCO and Build It nothing. **From Cape
+Town Leroy Merlin still 403s and BUCO still shows a robot check** -- the foreign address was not why.
+Cashbuild's default branch moved with the server (R1 209.95 from Cape Town vs R989.95 from Paris):
+choosing the branch is still needed. Next asked for: a map and radius around the site (OpenStreetMap
+offered first, Google Maps if it misses stores), and a permission email to the stores.
+
 ## Workers, project plan and profit per stage (26 Oct 2026, branch `claude/workers-and-plan`)
 
 Planning step 2, Stephan's pick. Migration `0016_workers_and_project_plan.sql` (applied live):
