@@ -5,6 +5,17 @@ then this file, then do the Raptor check below **before** waiting for Stephan's 
 **You are the Remus · Handoff 2 session**: say so on every reply and commit (`Remus H2: ...`), and
 write Handoff 3 at the top of this file before you finish (CLAUDE.md, "Say which project").
 
+## Decided and paused (27 Oct 2026, Remus · Handoff 1)
+
+- **WhatsApp a quote: option 3, the PDF file itself.** Stephan: "send the PDF file itself, that's the
+  best one ... like share it" -- then "just pause this for now". So when it is picked up: a WhatsApp
+  button on the quote that shares the PDF FILE through the device's share sheet (what `shareQuotePdf`
+  in `src/lib/api.ts` already does), not a link to the quote and not WhatsApp's paid business API.
+  Raptor's `WhatsAppButton` (opens the chat on the client's cellphone) is the model for the button.
+- **Supplier prices for quotes (Stephan's "crawler" idea), under discussion:** find a material near
+  the site or another point, within a radius he sets (more than one), compare prices, prefer one
+  supplier where he has a discount; buying from the app is a later second part. Nothing built yet.
+
 ## Remus · Handoff 1: change requests, copied from Raptor (26 Oct 2026, branch `claude/requests`)
 
 Stephan: *"Raptor built something in where you have like a suggestions thing from the people who's
