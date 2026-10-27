@@ -113,6 +113,19 @@ Cashbuild's default branch moved with the server (R1 209.95 from Cape Town vs R9
 choosing the branch is still needed. Next asked for: a map and radius around the site (OpenStreetMap
 offered first, Google Maps if it misses stores), and a permission email to the stores.
 
+**Built the same day: where a quote shops, and its shopping list.** Each quote has a "Where to shop" card
+(0022: `quotes.shop_areas`, `shop_online`): the site plus up to three areas, each with a radius, an
+"include online stores (delivery)" switch, and an OpenStreetMap map (`ShopMap.tsx`, leaflet, loaded only
+when opened). Branches come from `api/places/nearby.ts` -> `api/_lib/nearbyStores.ts`: Nominatim finds the
+address, then searches each chain by name inside the box around the areas (Overpass was the first try:
+its three public servers 502'd and timed out from Remus's server). Brooklyn, Pretoria, 10 km, 27 Oct:
+Plumblink x3 (2.8 km Maroelana), Cashbuild x2 (8.2 km Silvertondale), Builders Garsfontein (10.2 km);
+no Leroy Merlin or BUCO in OpenStreetMap there. Find prices reads the quote's areas: ticks the stores in
+reach, says how far, marks the rest "online / delivery". Material lines carry "Buy at" (0020: store, code,
+product, page, store price, day seen; internal); the Shopping list groups them by store.
+Also: results ranked best-match-first (parts pushed down), Claude one search per store, credit shown in
+dollars and rand (fixed R18 guide rate).
+
 ## Workers, project plan and profit per stage (26 Oct 2026, branch `claude/workers-and-plan`)
 
 Planning step 2, Stephan's pick. Migration `0016_workers_and_project_plan.sql` (applied live):
