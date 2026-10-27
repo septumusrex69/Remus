@@ -13,6 +13,17 @@ uses `GET ?q=...&key=PRICE_PROBE_KEY` (and `&raw=<store>` to see what a store se
 this branch's PREVIEW only. Not yet on any screen. Steps 2 (pure Claude) and 3 (combined) need an
 ANTHROPIC_API_KEY in Vercel, which Remus does not have (the slip reader needs it too).
 
+**What the stores said, 27 Oct (from Remus's server in Paris, cdg1):**
+- **Cashbuild: works.** `/search?search_query=` (its own JSON-LD names it; `/catalogsearch` is a 404),
+  products read as product cards (`data-price` + `product-title`): "close coupled toilet" 7 products,
+  "galvanised pipe" 12. **Its prices are per store** and the page defaulted to "Musina | P&L
+  Hardware" -- choosing the store (near the site) is still to do.
+- **Builders: no.** A React shell behind PerimeterX bot protection; products come from a hidden service.
+- **Plumblink: no.** An Angular shell; products come from `api.esolve.co.za` after a session is opened.
+- **Build It: no prices online at all.**
+- **Leroy Merlin: 403. BUCO: robot check.** Worth one retry from a South African server region
+  (Vercel `cpt1`) before giving up -- a foreign address may be part of why.
+
 ## Released 26 Oct, and what is still waiting
 
 **Second release, 26 Oct (Stephan's second "go live"):** everything listed below under "After the
