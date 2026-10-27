@@ -19,8 +19,16 @@ import { usdFor } from './aiUsage.js'
  * point of this step is the comparison, and price is half of it.
  */
 
-/* Claude Opus 5.5: Anthropic's default model; effort low, because this is look-up work, not reasoning. */
-export const MODEL = 'claude-opus-5-5'
+/*
+ * THE CHEAP CLAUDE (Stephan, 27 Oct, after R7.34-R7.85 a search: "find a better alternative ... how
+ * can we limit it ... reduce this price"). Two thirds of that cost was Opus 5.5 reading whole store
+ * pages (76k tokens). So: Claude Haiku 5.5 (40x cheaper per token), the SEARCH RESULTS only -- no page
+ * is opened, a result's snippet usually carries the price -- and at most two searches. Haiku takes the
+ * basic web search (the dynamic-filtering version is for the larger models), and has no server-side
+ * refusal fallback, so a refusal is simply an error on the run.
+ */
+export const MODEL = 'claude-haiku-5-5'
+const MAX_SEARCHES = 2
 /* For the screen only: a rough rand figure so "what did that cost" reads in the money Urban Haus spends. */
 export const USD_TO_ZAR = 18
 
@@ -93,7 +101,7 @@ function systemPrompt(storeNames: string[]): string {
   return [
     'You find current retail prices of building and plumbing materials at South African stores, for a builder drafting a quotation.',
     `Stores to check: ${storeNames.join(', ')}. Use only these stores' own websites (the search tools are limited to them).`,
-    'For each store, search for the item and read prices from the store\'s pages or from its search results. Prefer the product page when you can open it.',
+    'Read prices from the search results themselves (titles and snippets); you cannot open pages. One or two searches in total, covering the stores together.',
     'Report up to 5 products per store that genuinely match what was asked for (a toilet seat is not a toilet). Never invent a price: if a store shows none, report price null and say so.',
     'Prices are in rand, VAT inclusive, as the store shows them. Note the size or pack where it matters (e.g. a 1 m pipe versus a 6 m one).',
     'Be quick: a few searches, not an exhaustive survey. When done, call report_prices once with everything.',
@@ -118,14 +126,11 @@ export async function claudeSearch(query: string, storeIds: string[] | null, cli
     for (let turn = 0; turn < 4; turn++) {
       const response = await client.beta.messages.create({
         model: MODEL,
-        max_tokens: 16000,
-        betas: ['server-side-fallback-2026-07-01'],
-        fallbacks: 'default',
+        max_tokens: 8000,
         output_config: { effort: 'low' },
         system: systemPrompt(stores.map((s) => s.name)),
         tools: [
-          { type: 'web_search_20260209', name: 'web_search', max_uses: 6, allowed_domains: domains.length ? domains : STORE_DOMAINS, user_location: { type: 'approximate', country: 'ZA', city: 'Pretoria' } },
-          { type: 'web_fetch_20260209', name: 'web_fetch', max_uses: 6, allowed_domains: domains.length ? domains : STORE_DOMAINS },
+          { type: 'web_search_20250305', name: 'web_search', max_uses: MAX_SEARCHES, allowed_domains: domains.length ? domains : STORE_DOMAINS, user_location: { type: 'approximate', country: 'ZA', city: 'Pretoria' } },
           REPORT_TOOL,
         ],
         messages,

@@ -11,9 +11,9 @@ function fakeClient(responses: object[]) {
 const usage = (i: number, o: number, searches = 0) => ({ input_tokens: i, output_tokens: o, server_tool_use: { web_search_requests: searches } })
 
 describe('what a pure-Claude search costs', () => {
-  it('tokens at Opus 5.5 rates plus a cent a search', () => {
-    // 50k in * $4/M = $0.20; 2k out * $20/M = $0.04; 3 searches = $0.03.
-    expect(costOf({ inputTokens: 50_000, outputTokens: 2_000, searches: 3 })).toEqual({ usd: 0.27, zar: 4.86 })
+  it('tokens at Haiku 5.5 rates plus a cent a search', () => {
+    // 50k in * $0.10/M = $0.005; 2k out * $0.50/M = $0.001; 3 searches = $0.03.
+    expect(costOf({ inputTokens: 50_000, outputTokens: 2_000, searches: 3 })).toEqual({ usd: 0.036, zar: 0.65 })
   })
 })
 
@@ -36,6 +36,9 @@ describe('reading what Claude reports', () => {
     // Only the chosen stores' own sites.
     const tools = (calls[0] as { tools: { name: string; allowed_domains?: string[] }[] }).tools
     expect(tools.find((t) => t.name === 'web_search')?.allowed_domains).toEqual(['builders.co.za', 'cashbuild.co.za'])
+    // The cheap version: no page is opened, and two searches at most.
+    expect(tools.map((t) => t.name)).toEqual(['web_search', 'report_prices'])
+    expect((tools[0] as { max_uses?: number }).max_uses).toBe(2)
   })
   it('a refusal or a failure is an error on the run, never a thrown request', async () => {
     const refused = await claudeSearch('x pipe', null, fakeClient([{ stop_reason: 'refusal', content: [], usage: usage(100, 10) }]).client)

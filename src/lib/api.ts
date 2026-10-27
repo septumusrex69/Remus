@@ -1010,7 +1010,9 @@ export type PriceEngine = 'crawler' | 'combined' | 'claude'
 export type PriceSource = 'crawler' | 'claude'
 export interface PriceHit { store: string; name: string; price: number | null; url: string | null; image: string | null; code: string | null; note: string | null; source: PriceSource }
 export interface PriceStoreNote { store: string; ok: boolean; note: string; source: PriceSource }
-export interface PriceSearch { engine: PriceEngine; hits: PriceHit[]; stores: PriceStoreNote[]; ms: number; zar: number; error: string | null }
+export interface PriceSearch { engine: PriceEngine; hits: PriceHit[]; stores: PriceStoreNote[]; ms: number; zar: number; error: string | null
+  /** From the week's memory (0021): free, and searched at `searchedAt`. */
+  cached: boolean; searchedAt: string | null }
 
 interface CrawlerResult { name: string; outcome: string; note: string; products: { name: string; price: number; url: string | null; image: string | null; code: string | null }[] }
 interface ClaudeResult {
@@ -1020,16 +1022,22 @@ interface ClaudeResult {
   error: string | null
 }
 
-export async function findPrices(query: string, engine: PriceEngine): Promise<PriceSearch> {
+/** The stores Find prices can search, in Remus's order (api/_lib/priceCrawl.ts STORES). */
+export const PRICE_STORES = [
+  { id: 'builders', name: 'Builders' }, { id: 'leroymerlin', name: 'Leroy Merlin' }, { id: 'cashbuild', name: 'Cashbuild' },
+  { id: 'buco', name: 'BUCO' }, { id: 'plumblink', name: 'Plumblink' }, { id: 'buildit', name: 'Build It' },
+] as const
+
+export async function findPrices(query: string, engine: PriceEngine, storeIds: string[] | null = null): Promise<PriceSearch> {
   const started = Date.now()
   const res = await fetch('/api/prices/search', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...(await authHeader()) },
-    body: JSON.stringify({ query, engine }),
+    body: JSON.stringify({ query, engine, ...(storeIds?.length ? { stores: storeIds } : {}) }),
   })
-  const body = (await res.json().catch(() => ({}))) as { error?: string; configured?: boolean; results?: CrawlerResult[]; claude?: ClaudeResult | null }
+  const body = (await res.json().catch(() => ({}))) as { error?: string; configured?: boolean; results?: CrawlerResult[]; claude?: ClaudeResult | null; cached?: boolean; searchedAt?: string }
   if (!res.ok) throw new Error(body.error ?? `Find prices failed (${res.status}).`)
-  if (body.configured === false) return { engine, hits: [], stores: [], ms: Date.now() - started, zar: 0, error: body.error ?? 'Claude is not set up for Remus yet.' }
+  if (body.configured === false) return { engine, hits: [], stores: [], ms: Date.now() - started, zar: 0, error: body.error ?? 'Claude is not set up for Remus yet.', cached: false, searchedAt: null }
 
   const hits: PriceHit[] = []
   const stores: PriceStoreNote[] = []
@@ -1043,7 +1051,8 @@ export async function findPrices(query: string, engine: PriceEngine): Promise<Pr
     for (const p of c.products) hits.push({ ...p, code: p.code ?? null, image: null, source: 'claude' })
     for (const s of c.stores) stores.push({ store: s.store, ok: s.reached, note: s.note, source: 'claude' })
   }
-  return { engine, hits, stores, ms: Date.now() - started, zar: c?.usage.zar ?? 0, error: c?.error ?? null }
+  const cached = !!body.cached
+  return { engine, hits, stores, ms: Date.now() - started, zar: cached ? 0 : c?.usage.zar ?? 0, error: c?.error ?? null, cached, searchedAt: body.searchedAt ?? null }
 }
 
 export interface ClaudeCredit { boughtUsd: number; usedUsd: number; leftUsd: number; monthUsd: number; monthCalls: number }

@@ -91,30 +91,59 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const storeIds = Array.isArray(body.stores) ? body.stores.filter((s): s is string => typeof s === 'string')
     : typeof req.query.stores === 'string' ? req.query.stores.split(',') : null
-  const engine = probe ? req.query.engine : body.engine
-  if (engine === 'claude' || engine === 'combined') {
-    /*
-     * SWITCHED OFF (Stephan, 27 Oct: "Might as well switch it off. Because 7 Rand to find one item,
-     * that's ridiculous" -- measured at R7.34-R7.85 a search). Kept, not deleted: setting
-     * FIND_PRICES_CLAUDE=on in Vercel brings it back, for when the cheaper version is wanted.
-     */
-    if (process.env.FIND_PRICES_CLAUDE !== 'on') return res.status(200).json({ query, configured: false, error: 'Searching with Claude is switched off.' })
-    if (!process.env.ANTHROPIC_API_KEY) return res.status(200).json({ query, configured: false, error: 'Claude is not set up for Remus yet.' })
-    // Combined: what the crawler read is kept, and Claude is asked only about the rest.
-    const results = engine === 'combined' ? await crawlAll(query, storeIds) : null
-    const rest = results ? results.filter((r) => r.outcome !== 'ok').map((r) => r.store) : storeIds
-    if (results && rest && rest.length === 0) return res.status(200).json({ query, results, claude: null })
-    const claude = await claudeSearch(query, rest)
+  const raw_engine = probe ? req.query.engine : body.engine
+  const engine: Engine = raw_engine === 'claude' || raw_engine === 'combined' ? raw_engine : 'crawler'
+
+  // A WEEK'S MEMORY (0021_price_cache.sql): the same search by anybody inside 7 days is free and instant.
+  const key = cacheKey(engine, query, storeIds)
+  if (caller) {
+    const { data: hit } = await caller.db.from('price_cache').select('result, created_at').eq('key', key)
+      .gte('created_at', new Date(Date.now() - CACHE_DAYS * 86_400_000).toISOString()).maybeSingle()
+    if (hit) return res.status(200).json({ ...(hit.result as object), cached: true, searchedAt: hit.created_at })
+  }
+
+  const payload = await run(engine, query, storeIds)
+  if ('error' in payload && payload.configured === false) return res.status(200).json(payload)
+
+  if (caller) {
     // Counted on the credit tile (0019_ai_usage.sql). The build session's probe runs have no person to
     // write the row as, so they are not counted; they are few, and the Console shows them.
-    if (caller) {
+    if ('claude' in payload && payload.claude) {
+      const c = payload.claude
       await recordUsage(caller.db, caller.user.id, {
-        feature: 'find_prices', model: MODEL, inputTokens: claude.usage.inputTokens, outputTokens: claude.usage.outputTokens,
-        searches: claude.usage.searches, note: query,
+        feature: 'find_prices', model: MODEL, inputTokens: c.usage.inputTokens, outputTokens: c.usage.outputTokens, searches: c.usage.searches, note: query,
       })
     }
-    return res.status(200).json({ query, claude, ...(results ? { results } : {}) })
+    // Only an answer worth keeping is remembered: a Claude run that failed is not.
+    if (!('claude' in payload) || !payload.claude?.error) {
+      const { error } = await caller.db.from('price_cache').upsert({ key, query, engine, result: payload, created_at: new Date().toISOString(), created_by: caller.user.id })
+      if (error) console.error('Could not remember the search:', error.message)
+    }
   }
-  const results = await crawlAll(query, storeIds)
-  return res.status(200).json({ query, results })
+  return res.status(200).json({ ...payload, cached: false, searchedAt: new Date().toISOString() })
+}
+
+type Engine = 'crawler' | 'combined' | 'claude'
+const CACHE_DAYS = 7
+
+/** The way of searching, the words as anybody would type them, and the stores, in a fixed order. */
+export function cacheKey(engine: Engine, query: string, storeIds: string[] | null): string {
+  const words = query.toLowerCase().replace(/\s+/g, ' ').trim()
+  return `${engine}|${words}|${(storeIds ?? []).slice().sort().join(',') || 'all'}`
+}
+
+async function run(engine: Engine, query: string, storeIds: string[] | null) {
+  if (engine === 'crawler') return { query, results: await crawlAll(query, storeIds) }
+  /*
+   * CLAUDE, NOW THE CHEAP ONE (priceClaude.ts). Briefly switched off on 27 Oct at R7.34-R7.85 a search
+   * ("7 Rand to find one item, that's ridiculous"); Stephan then: "No, don't remove Claude search ...
+   * find a better alternative". It runs on Haiku, search results only, two searches at most.
+   */
+  if (!process.env.ANTHROPIC_API_KEY) return { query, configured: false as const, error: 'Claude is not set up for Remus yet.' }
+  // Combined: what the crawler read is kept, and Claude is asked only about the rest.
+  const results = engine === 'combined' ? await crawlAll(query, storeIds) : null
+  const rest = results ? results.filter((r) => r.outcome !== 'ok').map((r) => r.store) : storeIds
+  if (results && rest && rest.length === 0) return { query, results, claude: null }
+  const claude = await claudeSearch(query, rest)
+  return { query, claude, ...(results ? { results } : {}) }
 }

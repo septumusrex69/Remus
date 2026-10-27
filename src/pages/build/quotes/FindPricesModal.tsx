@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Bot, ExternalLink, Loader2, Search, Zap } from 'lucide-react'
 import { Button, Modal } from '../../../components/ui'
 import { formatZAR } from '../../../lib/format'
-import { findPrices, type PriceEngine, type PriceHit, type PriceSearch, type PriceSource } from '../../../lib/api'
+import { findPrices, PRICE_STORES, type PriceEngine, type PriceHit, type PriceSearch, type PriceSource } from '../../../lib/api'
 
 /**
  * FIND PRICES on a quote line (Remus · Handoff 1, 27 Oct 2026). Stephan: "I can't find it on the line
@@ -17,15 +17,15 @@ import { findPrices, type PriceEngine, type PriceHit, type PriceSearch, type Pri
 
 const ALL_ENGINES: { id: PriceEngine; label: string; cost: string; hint: string; icon: typeof Zap }[] = [
   { id: 'crawler', label: 'Quick', cost: 'Free', hint: "Remus's own search. A few seconds. Only the stores that let it in (Cashbuild today).", icon: Zap },
-  { id: 'combined', label: 'Combined', cost: 'Cheaper', hint: 'Quick first, then Claude only for the stores Quick could not read. About a minute.', icon: Search },
-  { id: 'claude', label: 'Claude', cost: 'Most expensive', hint: 'Claude searches every store itself. About a minute; a few rand a search.', icon: Bot },
+  { id: 'combined', label: 'Combined', cost: 'Cents', hint: 'Quick first, then Claude only for the stores Quick could not read.', icon: Search },
+  { id: 'claude', label: 'Claude', cost: 'Cents', hint: 'Claude searches every chosen store from its search results.', icon: Bot },
 ]
 /*
- * CLAUDE IS SWITCHED OFF (Stephan, 27 Oct: "Might as well switch it off. Because 7 Rand to find one
- * item, that's ridiculous"). Only Quick is offered; the other two stay written for when a cheaper
- * Claude is wanted (and need FIND_PRICES_CLAUDE=on on the server as well).
+ * ALL THREE, CLAUDE NOW THE CHEAP ONE (27 Oct). Switched off at R7 a search, then back on at Stephan's
+ * word ("don't remove Claude search ... find a better alternative"): Haiku, search results only, two
+ * searches at most, and a week's memory -- the same search again is free (api/prices/search.ts).
  */
-const ENGINES = ALL_ENGINES.filter((e) => e.id === 'crawler')
+const ENGINES = ALL_ENGINES
 
 const SOURCE_LABEL: Record<PriceSource, string> = { crawler: 'Remus search', claude: 'Claude' }
 const SOURCE_TONE: Record<PriceSource, string> = { crawler: 'bg-emerald-50 text-emerald-700', claude: 'bg-brand-100 text-brand-800' }
@@ -42,12 +42,14 @@ export function FindPricesModal({ open, onClose, initialQuery, onPick }: {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<PriceSearch | null>(null)
+  // Which stores to ask. All by default; fewer stores is a quicker, cheaper Claude search.
+  const [picked, setPicked] = useState<string[]>(PRICE_STORES.map((s) => s.id))
 
   async function search() {
     if (query.trim().length < 2) return
     setBusy(true); setError(null); setResult(null)
     try {
-      setResult(await findPrices(query.trim(), engine))
+      setResult(await findPrices(query.trim(), engine, picked.length === PRICE_STORES.length ? null : picked))
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
     } finally {
@@ -81,6 +83,20 @@ export function FindPricesModal({ open, onClose, initialQuery, onPick }: {
         </div>
         )}
 
+        <div className="flex flex-wrap items-center gap-1.5" aria-label="Stores">
+          <span className="mr-1 text-xs font-semibold text-slate-600">Stores</span>
+          {PRICE_STORES.map((st) => {
+            const on = picked.includes(st.id)
+            return (
+              <button key={st.id} type="button" disabled={busy} aria-pressed={on}
+                onClick={() => setPicked((p) => (on ? (p.length > 1 ? p.filter((x) => x !== st.id) : p) : [...p, st.id]))}
+                className={`rounded-full border px-2.5 py-1 text-xs ${on ? 'border-ink-950 bg-ink-950 text-white' : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'}`}>
+                {st.name}
+              </button>
+            )
+          })}
+        </div>
+
         <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); void search() }}>
           <input className="input flex-1" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="e.g. close coupled toilet, galvanised pipe 20 mm" aria-label="What to look for" autoFocus />
           <Button type="submit" variant="primary" disabled={busy || query.trim().length < 2}>
@@ -99,7 +115,9 @@ export function FindPricesModal({ open, onClose, initialQuery, onPick }: {
           <div className="space-y-3">
             <p className="text-xs text-slate-500">
               <strong className="font-medium text-slate-700">{chosen.label}</strong> · {(result.ms / 1000).toFixed(1)} s ·{' '}
-              {result.zar > 0 ? `this search cost about ${formatZAR(result.zar)}` : 'free'}
+              {result.cached
+                ? `remembered from ${result.searchedAt ? new Date(result.searchedAt).toLocaleDateString('en-ZA', { day: 'numeric', month: 'short' }) : 'this week'} (free)`
+                : result.zar > 0 ? `this search cost about ${formatZAR(result.zar)}` : 'free'}
               {result.error ? ` · ${result.error}` : ''}
             </p>
             {stores.map((store) => {

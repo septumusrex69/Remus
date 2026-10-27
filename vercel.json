@@ -58,7 +58,10 @@
   ],
   "functions": {
     "api/prices/search.ts": {
-      "maxDuration": 120
+      "maxDuration": 120,
+      "regions": [
+        "cpt1"
+      ]
     }
   }
 }
