@@ -19,6 +19,7 @@ const pages = {
   FinancePage: () => import('./finance/FinancePage'),
   SettingsPage: () => import('./settings/SettingsPage'),
   MailPage: () => import('./mail/MailPage'),
+  RequestsPage: () => import('../requests/RequestsPage'),
 }
 
 const DashboardPage = lazy(() => pages.DashboardPage().then((x) => ({ default: x.DashboardPage })))
@@ -36,6 +37,7 @@ const DiaryPage = lazy(() => pages.DiaryPage().then((x) => ({ default: x.DiaryPa
 const BankPage = lazy(() => pages.BankPage().then((x) => ({ default: x.BankPage })))
 const FinancePage = lazy(() => pages.FinancePage().then((x) => ({ default: x.FinancePage })))
 const MailPage = lazy(() => pages.MailPage().then((x) => ({ default: x.MailPage })))
+const RequestsPage = lazy(() => pages.RequestsPage().then((x) => ({ default: x.RequestsPage })))
 const SettingsPage = lazy(() => pages.SettingsPage().then((x) => ({ default: x.SettingsPage })))
 
 /**
@@ -73,5 +75,7 @@ export const buildRoutes = (
     <Route path="finance" element={<FinancePage />} />
     <Route path="mail" element={<MailPage />} />
     <Route path="settings" element={<SettingsPage />} />
+    {/* CHANGE REQUESTS (copied from Raptor): open to everybody -- "anyone can see requests". */}
+    <Route path="requests" element={<RequestsPage />} />
   </>
 )

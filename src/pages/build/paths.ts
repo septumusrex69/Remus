@@ -23,6 +23,8 @@ export const paths = {
   diary: () => p('/diary'),
   bank: () => p('/bank'),
   finance: () => p('/finance'),
+  /** The Feedback Centre, optionally with one request open (?r=12, what every notification links to). */
+  requests: (n?: number) => p(n ? `/requests?r=${n}` : '/requests'),
   /** Settings, optionally on one tab (Raptor's ?tab= links), e.g. paths.settings('Integrations'). */
   settings: (tab?: string) => p(tab ? `/settings?tab=${encodeURIComponent(tab)}` : '/settings'),
 }
