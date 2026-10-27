@@ -55,5 +55,10 @@
         }
       ]
     }
-  ]
+  ],
+  "functions": {
+    "api/prices/search.ts": {
+      "maxDuration": 120
+    }
+  }
 }

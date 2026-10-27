@@ -1,12 +1,14 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { requireCaller } from '../_lib/auth.js'
 import { BROWSER_HEADERS, STORES, crawlAll } from '../_lib/priceCrawl.js'
+import { claudeSearch } from '../_lib/priceClaude.js'
 
 /**
  * FIND PRICES -- step one, Remus's own crawler (Remus · Handoff 1; the reasoning is in
  * api/_lib/priceCrawl.ts).
  *
- *   POST { query, stores? }  -> { query, results: StoreResult[] }   for a signed-in Remus user
+ *   POST { query, stores?, engine? } -> for a signed-in Remus user. engine 'crawler' (the default):
+ *       { query, results: StoreResult[] }; engine 'claude': { query, claude: ClaudeRun } (priceClaude.ts)
  *   GET  ?q=toilet&key=...   -> the same, for the build session testing it on the preview
  *   GET  ?q=toilet&key=...&raw=builders -> what that store sent back, cut short, so its reader can
  *                                          be written against the real page rather than a guess
@@ -33,7 +35,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!caller) return res.status(401).json({ error: 'Sign in again.' })
   }
 
-  const body = (req.method === 'POST' && req.body && typeof req.body === 'object' ? req.body : {}) as { query?: unknown; stores?: unknown }
+  const body = (req.method === 'POST' && req.body && typeof req.body === 'object' ? req.body : {}) as { query?: unknown; stores?: unknown; engine?: unknown }
   const raw = probe ? req.query.q : body.query
   const query = typeof raw === 'string' ? raw.trim().slice(0, MAX_QUERY) : ''
   if (query.length < 2) return res.status(400).json({ error: 'Say what to look for, e.g. "close coupled toilet".' })
@@ -85,6 +87,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const storeIds = Array.isArray(body.stores) ? body.stores.filter((s): s is string => typeof s === 'string')
     : typeof req.query.stores === 'string' ? req.query.stores.split(',') : null
+  const engine = probe ? req.query.engine : body.engine
+  if (engine === 'claude') {
+    if (!process.env.ANTHROPIC_API_KEY) return res.status(200).json({ query, configured: false, error: 'Claude is not set up for Remus yet.' })
+    return res.status(200).json({ query, claude: await claudeSearch(query, storeIds) })
+  }
   const results = await crawlAll(query, storeIds)
   return res.status(200).json({ query, results })
 }
