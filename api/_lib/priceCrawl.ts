@@ -48,7 +48,7 @@ export interface CrawledProduct {
   image: string | null
   brand: string | null
   /** Which reader found it: kept so the comparison with Claude can say where each crawler is weak. */
-  via: 'json-ld' | 'embedded-json' | 'microdata'
+  via: 'json-ld' | 'embedded-json' | 'microdata' | 'product-card'
 }
 
 export type CrawlOutcome = 'ok' | 'no-products' | 'blocked' | 'challenge' | 'script-only' | 'error' | 'timeout'
@@ -243,6 +243,31 @@ export function fromMicrodata(html: string, base: string): CrawledProduct[] {
   return out
 }
 
+/*
+ * THE PRODUCT CARD: a shop page drawn on the server (PrestaShop -- Cashbuild -- and most others) lays
+ * each result out as one card that carries its price as an attribute (`data-price="989.95"`), with the
+ * name in a link under a heading classed product-title or product-name. Found on Cashbuild's search
+ * page, 27 Oct 2026, where none of the readers above found anything.
+ */
+export function fromProductCards(html: string, base: string): CrawledProduct[] {
+  const out: CrawledProduct[] = []
+  const starts = [...html.matchAll(/<(article|div|li)\b[^>]*\bdata-price=["']([\d.,]+)["'][^>]*>/gi)]
+  starts.forEach((m, i) => {
+    const from = m.index ?? 0
+    const to = i + 1 < starts.length ? (starts[i + 1].index ?? html.length) : Math.min(html.length, from + 8000)
+    const card = html.slice(from, to)
+    const price = parsePrice(m[2])
+    const title = card.match(/class=["'][^"']*product-(?:title|name)[^"']*["'][^>]*>[\s\S]*?<a\b[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/i)
+      ?? card.match(/class=["'][^"']*product-(?:title|name)[^"']*["'][^>]*>([^<]+)</i)
+    if (!title || price === null) return
+    const href = title.length === 3 ? title[1] : null
+    const name = decode((title.length === 3 ? title[2] : title[1]).replace(/<[^>]+>/g, ' '))
+    const img = card.match(/<img\b[^>]*(?:data-src|src)=["']([^"']+)["']/i)
+    if (name) out.push({ name, price, url: absolute(href, base), image: img ? absolute(img[1], base) : null, brand: null, via: 'product-card' })
+  })
+  return out
+}
+
 /** What a page that gave us nothing was, as far as its markup says. */
 export function diagnose(status: number, html: string): { outcome: CrawlOutcome; note: string } {
   const h = html.slice(0, 200_000).toLowerCase()
@@ -252,7 +277,7 @@ export function diagnose(status: number, html: string): { outcome: CrawlOutcome;
   }
   if (status >= 400) return { outcome: 'error', note: `The store's search page answered ${status}.` }
   const text = h.replace(/<script[\s\S]*?<\/script>/g, '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ')
-  if (text.length < 1500 && /<script/.test(h)) {
+  if ((text.length < 1500 && /<script/.test(h)) || /id=["']?(react-app|root|app)["']?>\s*<\/div>|<app-root|ng-version|data-beasties-container/.test(h)) {
     return { outcome: 'script-only', note: 'The page is drawn by JavaScript after it loads, so its products are not in what the store sends.' }
   }
   return { outcome: 'no-products', note: 'The page loaded, but no products with prices could be read from it.' }
@@ -269,7 +294,7 @@ export async function crawlStore(store: StoreDef, query: string, fetchImpl: type
     const res = await fetchImpl(url, { headers: BROWSER_HEADERS, redirect: 'follow', signal: ctl.signal })
     const html = await res.text()
     const pageUrl = res.url || url
-    const products = dedupe([...fromJsonLd(html, pageUrl), ...fromEmbeddedJson(html, pageUrl), ...fromMicrodata(html, pageUrl)]).slice(0, MAX_PRODUCTS)
+    const products = dedupe([...fromJsonLd(html, pageUrl), ...fromEmbeddedJson(html, pageUrl), ...fromProductCards(html, pageUrl), ...fromMicrodata(html, pageUrl)]).slice(0, MAX_PRODUCTS)
     const ms = Date.now() - started
     if (products.length) {
       return { ...base, url: pageUrl, outcome: 'ok', note: `${products.length} product${products.length === 1 ? '' : 's'} read.`, httpStatus: res.status, ms, bytes: html.length, products }

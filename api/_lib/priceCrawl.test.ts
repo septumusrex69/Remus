@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { crawlStore, diagnose, fromEmbeddedJson, fromJsonLd, fromMicrodata, parsePrice, type StoreDef } from './priceCrawl.js'
+import { crawlStore, diagnose, fromEmbeddedJson, fromJsonLd, fromMicrodata, fromProductCards, parsePrice, type StoreDef } from './priceCrawl.js'
 
 /* Pages written by hand in the shapes shops use; the real stores are checked on the preview. */
 
@@ -51,11 +51,33 @@ describe('reading products', () => {
   })
 })
 
+describe('the product card (Cashbuild, 27 Oct 2026)', () => {
+  it('reads name, link and price off each card, and skips a card with no title', () => {
+    const card = (id: string, price: string, href: string, name: string) => `
+      <article class="product-miniature js-product-miniature" data-id-product="${id}" data-price="${price}" itemscope itemtype="https://schema.org/Product">
+        <div class="thumbnail-top"><a href="${href}"><img data-src="/img/${id}.jpg" src="/img/${id}.jpg"></a></div>
+        <div class="product-description"><h2 class="h3 product-title">
+          <a href="${href}" content="${href}">${name}</a></h2></div></article>`
+    const html = `<div class="products row">${card('9994', '989.95', 'http://www.cashbuild.co.za/p-pan/301401-close-couple-suite-in-box', 'Close Couple Suite in Box')}
+      ${card('3006', '604.95', '/cistern-fittings/5399', 'Cistern Mechanism - Close Couple')}
+      <div class="banner" data-price="10.00"><p>Not a product</p></div></div>`
+    const p = fromProductCards(html, 'https://www.cashbuild.co.za/search?search_query=toilet')
+    expect(p.map((x) => [x.name, x.price, x.url])).toEqual([
+      ['Close Couple Suite in Box', 989.95, 'http://www.cashbuild.co.za/p-pan/301401-close-couple-suite-in-box'],
+      ['Cistern Mechanism - Close Couple', 604.95, 'https://www.cashbuild.co.za/cistern-fittings/5399'],
+    ])
+    expect(p[0].image).toBe('https://www.cashbuild.co.za/img/9994.jpg')
+  })
+})
+
 describe('what a page that gave nothing was', () => {
   it('turned away, a robot check, drawn by script, or simply empty', () => {
     expect(diagnose(403, '').outcome).toBe('blocked')
     expect(diagnose(200, '<html><div id="cf-chl-widget"></div></html>').outcome).toBe('challenge')
     expect(diagnose(200, '<html><body><div id="root"></div><script src="/app.js"></script></body></html>').outcome).toBe('script-only')
+    // Builders and Plumblink: a shell with a lot of CSS in it is still a shell.
+    expect(diagnose(200, `<html><style>${'a{color:red}'.repeat(400)}</style><body><div id=react-app></div></body></html>`).outcome).toBe('script-only')
+    expect(diagnose(200, `<html data-beasties-container=""><style>${'a{color:red}'.repeat(400)}</style><body><app-root></app-root></body></html>`).outcome).toBe('script-only')
     expect(diagnose(200, `<html><body>${'<p>Nothing found for your search, try another word.</p>'.repeat(60)}</body></html>`).outcome).toBe('no-products')
   })
 })
