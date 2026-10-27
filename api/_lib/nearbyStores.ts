@@ -17,6 +17,7 @@ export interface Centre { label: string; lat: number; lon: number; radiusKm: num
 export interface Branch { store: string; storeName: string; name: string; lat: number; lon: number; distanceKm: number; nearest: string; address: string | null }
 
 const UA = 'Remus/1.0 (Urban Haus construction quotes; urbanhausgroup.co.za)'
+const OVERPASS = ['https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter', 'https://overpass.private.coffee/api/interpreter']
 
 /* How each chain is written on OpenStreetMap (name or brand); matched without case. */
 const CHAIN_PATTERNS: Record<string, RegExp> = {
@@ -68,16 +69,27 @@ export async function nearbyStores(areas: Area[], fetchImpl: typeof fetch = fetc
   const around = centres.map((c) => `nwr(around:${Math.round(c.radiusKm * 1000)},${c.lat},${c.lon})["name"~"${chains}",i];nwr(around:${Math.round(c.radiusKm * 1000)},${c.lat},${c.lon})["brand"~"${chains}",i];`).join('')
   const ql = `[out:json][timeout:20];(${around});out center 300;`
   let elements: { lat?: number; lon?: number; center?: { lat: number; lon: number }; tags?: Record<string, string> }[] = []
-  try {
-    const r = await fetchImpl('https://overpass-api.de/api/interpreter', {
-      method: 'POST', headers: { 'user-agent': UA, 'content-type': 'application/x-www-form-urlencoded' },
-      body: `data=${encodeURIComponent(ql)}`, signal: AbortSignal.timeout(25_000),
-    })
-    if (!r.ok) problems.push(`The map's store directory answered ${r.status}; try again in a minute.`)
-    else elements = ((await r.json()) as { elements: typeof elements }).elements ?? []
-  } catch {
-    problems.push("The map's store directory did not answer; try again in a minute.")
+  /*
+   * Overpass is run by volunteers on a few public servers; the main one is often busy. Try them in
+   * turn, and keep what each said, so a failure says why rather than only "did not answer".
+   */
+  const tried: string[] = []
+  for (const endpoint of OVERPASS) {
+    try {
+      const r = await fetchImpl(endpoint, {
+        method: 'POST', headers: { 'user-agent': UA, 'content-type': 'application/x-www-form-urlencoded', accept: 'application/json' },
+        body: `data=${encodeURIComponent(ql)}`, signal: AbortSignal.timeout(20_000),
+      })
+      const text = await r.text()
+      if (!r.ok) { tried.push(`${new URL(endpoint).host} ${r.status}`); continue }
+      elements = (JSON.parse(text) as { elements?: typeof elements }).elements ?? []
+      tried.length = 0
+      break
+    } catch (e) {
+      tried.push(`${new URL(endpoint).host}: ${e instanceof Error ? e.message : String(e)}`.slice(0, 160))
+    }
   }
+  if (tried.length) problems.push(`The map's store directory did not answer; try again in a minute. (${tried.join('; ')})`)
 
   const seen = new Set<string>()
   const branches: Branch[] = []
