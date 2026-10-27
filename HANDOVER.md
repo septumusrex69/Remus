@@ -131,8 +131,20 @@ Why it failed: Q-0011 had no site address saved, so nothing was looked up (and "
 town is not findable). Now `AddressInput` (Google address suggestions as you type, through
 `api/places/nearby` { autocomplete }) is on the quote's site address and the shop areas, and with
 `GOOGLE_MAPS_API_KEY` set the branches come from Google Places Text Search (`api/_lib/googlePlaces.ts`),
-matched on each place's own name. **Waiting on Stephan to create the key** (Places API (New) + Geocoding
-API, billing on, budget alert) and add it in Vercel, Production + Preview. Without it: OpenStreetMap.
+matched on each place's own name. Google is built but **switched off: no key, by Stephan's choice.**
+
+**Then the free way (Stephan: "Isn't there any cheaper way ... do we really need to pay for all of this
+stupid little things?" -- "Yes, let's do it the free way").** No Google key, no card:
+- Addresses fill in as you type from **Photon** (photon.komoot.io, OpenStreetMap, keyless;
+  `api/_lib/photon.ts`), held to South Africa and leaned towards Pretoria. Google's takes over only if
+  `GOOGLE_MAPS_API_KEY` is ever set.
+- **Settings → My stores** (`my_stores`, 0023, applied live; `settings/MyStoresCard.tsx`): the branches
+  Urban Haus shops at, entered once (chain or "another supplier", name, address, notes such as a trade
+  discount, favourite star). The point is looked up once on save (`{ geocode }` on api/places/nearby).
+  `findNearby` sends them with every look; the server puts them first in their chain, drops a map branch
+  of the same chain within 300 m (same shop), and shows ones beyond every area as "further out"
+  (`outside`, never counted as in reach by Find prices). Bigger ringed dots on the map, "yours" tags.
+- Not yet verified by Stephan; nothing on this branch is live.
 
 ## Workers, project plan and profit per stage (26 Oct 2026, branch `claude/workers-and-plan`)
 
