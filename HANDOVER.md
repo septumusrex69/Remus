@@ -3,6 +3,16 @@
 For the next Claude Code session on `septumusrex69/Remus`. Read `CLAUDE.md` (the standing rules),
 then this file, then do the Raptor check below **before** waiting for Stephan's instructions.
 
+## Find prices, step 1: Remus's own crawler (27 Oct 2026, Remus · Handoff 1, branch `claude/price-crawler`)
+
+Stephan: build our own crawler first, then pure Claude, then a combined version, and compare them.
+Step 1 (no AI): `api/prices/search.ts` + `api/_lib/priceCrawl.ts` -- one search page per store per
+press (Builders, Leroy Merlin, Cashbuild, BUCO, Plumblink, Build It), products read from JSON-LD,
+embedded JSON or microdata, each store's outcome said plainly. Signed-in users POST; a build session
+uses `GET ?q=...&key=PRICE_PROBE_KEY` (and `&raw=<store>` to see what a store sent), the key set on
+this branch's PREVIEW only. Not yet on any screen. Steps 2 (pure Claude) and 3 (combined) need an
+ANTHROPIC_API_KEY in Vercel, which Remus does not have (the slip reader needs it too).
+
 ## Released 26 Oct, and what is still waiting
 
 **Second release, 26 Oct (Stephan's second "go live"):** everything listed below under "After the
