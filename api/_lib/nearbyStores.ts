@@ -15,7 +15,16 @@ import { geocodeGoogle, searchChain } from './googlePlaces.js'
 
 export interface Area { label: string; address?: string; lat?: number; lon?: number; radiusKm: number }
 export interface Centre { label: string; lat: number; lon: number; radiusKm: number; found: string | null }
-export interface Branch { store: string; storeName: string; name: string; lat: number; lon: number; distanceKm: number; nearest: string; address: string | null }
+export interface Branch {
+  store: string; storeName: string; name: string; lat: number; lon: number; distanceKm: number; nearest: string; address: string | null
+  /** One of Urban Haus's own stores (Settings → My stores), not found on a map. */
+  mine?: boolean
+  favourite?: boolean
+  /** One of My stores that lies beyond every area's radius: shown, never counted as in reach. */
+  outside?: boolean
+}
+/** A row of my_stores as the browser sends it. */
+export interface MyStore { store: string; name: string; address: string | null; lat: number | null; lon: number | null; favourite: boolean }
 
 const UA = 'Remus/1.0 (Urban Haus construction quotes; urbanhausgroup.co.za)'
 /* As each chain is searched for by name. */
@@ -46,6 +55,11 @@ export function km(aLat: number, aLon: number, bLat: number, bLon: number): numb
   return Math.round(6371 * 2 * Math.asin(Math.sqrt(h)) * 10) / 10
 }
 
+/** An address to a point: Google when its key is set, OpenStreetMap otherwise. Saving one of My stores uses this. */
+export async function geocodeAny(address: string, fetchImpl: typeof fetch = fetch, googleKey: string | undefined = process.env.GOOGLE_MAPS_API_KEY) {
+  return (googleKey ? geocodeGoogle(address, googleKey, fetchImpl) : geocode(address, fetchImpl)).catch(() => null)
+}
+
 async function geocode(address: string, fetchImpl: typeof fetch): Promise<{ lat: number; lon: number; found: string } | null> {
   const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=za&q=${encodeURIComponent(address)}`
   const r = await fetchImpl(url, { headers: { 'user-agent': UA, 'accept-language': 'en' }, signal: AbortSignal.timeout(10_000) })
@@ -54,7 +68,7 @@ async function geocode(address: string, fetchImpl: typeof fetch): Promise<{ lat:
   return rows[0] ? { lat: Number(rows[0].lat), lon: Number(rows[0].lon), found: rows[0].display_name } : null
 }
 
-export async function nearbyStores(areas: Area[], fetchImpl: typeof fetch = fetch, googleKey: string | undefined = process.env.GOOGLE_MAPS_API_KEY): Promise<{ centres: Centre[]; branches: Branch[]; problems: string[]; source: 'google' | 'openstreetmap' }> {
+export async function nearbyStores(areas: Area[], mine: MyStore[] = [], fetchImpl: typeof fetch = fetch, googleKey: string | undefined = process.env.GOOGLE_MAPS_API_KEY): Promise<{ centres: Centre[]; branches: Branch[]; problems: string[]; source: 'google' | 'openstreetmap' }> {
   // Google when its key is set (googlePlaces.ts), OpenStreetMap otherwise.
   const source = googleKey ? 'google' as const : 'openstreetmap' as const
   const problems: string[] = []
@@ -140,6 +154,28 @@ export async function nearbyStores(areas: Area[], fetchImpl: typeof fetch = fetc
       address: [street, tags['addr:suburb'], tags['addr:city']].filter(Boolean).join(', ') || null,
     })
   }
-  branches.sort((a, b) => a.distanceKm - b.distanceKm)
+
+  /*
+   * MY STORES COME FIRST (Stephan: "do we really need to pay for all of this"). They are Urban Haus's
+   * own list, so they are on the map whether or not OpenStreetMap knows them; a map branch of the same
+   * chain within 300 m is the same shop and gives way to it. A store of theirs that lies outside every
+   * area is still shown -- the discount may be worth the drive -- but marked, so Find prices does not
+   * read it as "in reach". Within the areas, theirs lead their chain: Find prices takes the first.
+   */
+  for (const m of mine.slice(0, 50)) {
+    if (typeof m.lat !== 'number' || typeof m.lon !== 'number') continue
+    const near = centres.map((c) => ({ c, d: km(c.lat, c.lon, m.lat!, m.lon!) })).sort((a, b) => a.d - b.d)[0]
+    for (let i = branches.length - 1; i >= 0; i--) {
+      const b = branches[i]
+      if (!b.mine && b.store === m.store && km(b.lat, b.lon, m.lat, m.lon) <= 0.3) branches.splice(i, 1)
+    }
+    branches.push({
+      store: m.store, storeName: STORES.find((s) => s.id === m.store)?.name ?? m.name,
+      name: m.name, lat: m.lat, lon: m.lon, distanceKm: near.d, nearest: near.c.label, address: m.address,
+      mine: true, favourite: m.favourite, outside: near.d > near.c.radiusKm + 0.5,
+    })
+  }
+  const rank = (b: Branch) => (b.outside ? 2 : b.mine ? 0 : 1)
+  branches.sort((a, b) => rank(a) - rank(b) || Number(!!b.favourite) - Number(!!a.favourite) || a.distanceKm - b.distanceKm)
   return { centres, branches, problems, source }
 }

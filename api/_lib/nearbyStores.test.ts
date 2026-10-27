@@ -30,13 +30,13 @@ describe('the stores near a site', () => {
       }
       return new Response(JSON.stringify(rows[q ?? ''] ?? []))
     }) as unknown as typeof fetch
-    const r = await nearbyStores([{ label: 'Site', address: 'Brooklyn, Pretoria', radiusKm: 5 }], fake)
+    const r = await nearbyStores([{ label: 'Site', address: 'Brooklyn, Pretoria', radiusKm: 5 }], [], fake)
     expect(r.problems).toEqual([])
     expect(r.branches.map((b) => b.name)).toEqual(['Cashbuild Brooklyn', 'Builders Menlyn'])
   }, 15_000)
   it('an address the map cannot find is said, not guessed', async () => {
     const fake = (async () => new Response('[]')) as unknown as typeof fetch
-    const r = await nearbyStores([{ label: 'Site', address: 'Nowhere 99', radiusKm: 5 }], fake)
+    const r = await nearbyStores([{ label: 'Site', address: 'Nowhere 99', radiusKm: 5 }], [], fake)
     expect(r.branches).toEqual([])
     expect(r.problems[0]).toMatch(/Could not find/)
   })
@@ -55,10 +55,31 @@ describe('the stores near a site', () => {
       }
       return new Response(JSON.stringify({ places: places[q] ?? [] }))
     }) as unknown as typeof fetch
-    const r = await nearbyStores([{ label: 'Site', address: '42 Mackenzie St, Brooklyn', radiusKm: 20 }], fake, 'test-key')
+    const r = await nearbyStores([{ label: 'Site', address: '42 Mackenzie St, Brooklyn', radiusKm: 20 }], [], fake, 'test-key')
     expect(r.source).toBe('google')
     expect(r.centres[0].found).toBe('42 Mackenzie St, Brooklyn, Pretoria')
     expect(r.branches.map((b) => b.name)).toEqual(['Builders Menlyn', 'Leroy Merlin Silver Lakes'])
     expect(calls.some((c) => c.includes('nominatim'))).toBe(false)
+  })
+  it('My stores lead their chain, replace the same shop off the map, and are marked when outside', async () => {
+    const fake = (async (url: string, init?: { body?: string }) => {
+      if (String(url).includes('geocode')) return new Response(JSON.stringify({ status: 'OK', results: [{ formatted_address: 'Brooklyn, Pretoria', geometry: { location: { lat: -25.7697, lng: 28.2370 } } }] }))
+      const q = JSON.parse(init?.body ?? '{}').textQuery
+      const places: Record<string, object[]> = {
+        Cashbuild: [
+          { displayName: { text: 'Cashbuild Brooklyn' }, location: { latitude: -25.7700, longitude: 28.2400 } },
+          { displayName: { text: 'Cashbuild Hatfield' }, location: { latitude: -25.7500, longitude: 28.2300 } },
+        ],
+      }
+      return new Response(JSON.stringify({ places: places[q] ?? [] }))
+    }) as unknown as typeof fetch
+    const r = await nearbyStores([{ label: 'Site', address: 'Brooklyn', radiusKm: 5 }], [
+      { store: 'cashbuild', name: 'Cashbuild Brooklyn (our account)', address: 'Fehrsen St', lat: -25.7701, lon: 28.2401, favourite: false },
+      { store: 'other', name: 'Tile Africa Centurion', address: null, lat: -25.86, lon: 28.19, favourite: true },
+      { store: 'buco', name: 'No point yet', address: 'x', lat: null, lon: null, favourite: false },
+    ], fake, 'test-key')
+    expect(r.branches.map((b) => b.name)).toEqual(['Cashbuild Brooklyn (our account)', 'Cashbuild Hatfield', 'Tile Africa Centurion'])
+    expect(r.branches[0].mine).toBe(true)
+    expect(r.branches[2].outside).toBe(true)
   })
 })

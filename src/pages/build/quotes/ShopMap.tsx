@@ -33,8 +33,9 @@ export default function ShopMap({ centres, branches }: { centres: NearbyCentre[]
         </CircleMarker>
       ))}
       {branches.map((b, i) => (
-        <CircleMarker key={`b${i}`} center={[b.lat, b.lon]} radius={7} pathOptions={{ color: '#fff', weight: 2, fillColor: CHAIN_COLOUR[b.store] ?? '#64748b', fillOpacity: 1 }}>
-          <Tooltip>{b.name} · {b.distanceKm} km from {b.nearest}</Tooltip>
+        // My stores: larger, ringed in the brand's oxblood, so the ones Urban Haus uses stand out.
+        <CircleMarker key={`b${i}`} center={[b.lat, b.lon]} radius={b.mine ? 9 : 7} pathOptions={{ color: b.mine ? '#512C35' : '#fff', weight: b.mine ? 3 : 2, fillColor: CHAIN_COLOUR[b.store] ?? '#64748b', fillOpacity: 1 }}>
+          <Tooltip>{b.name}{b.mine ? ' (yours)' : ''} · {b.distanceKm} km from {b.nearest}</Tooltip>
         </CircleMarker>
       ))}
     </MapContainer>

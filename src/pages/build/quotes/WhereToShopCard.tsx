@@ -1,5 +1,6 @@
 import { lazy, Suspense, useState } from 'react'
-import { Loader2, MapPin, Plus, Store, Truck, X } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { Loader2, MapPin, Plus, Star, Store, Truck, X } from 'lucide-react'
 import { Button, Card } from '../../../components/ui'
 import { AddressInput } from '../../../components/ui/AddressInput'
 import { effectiveAreas, findNearby, type Nearby } from '../../../lib/api'
@@ -44,8 +45,10 @@ export function WhereToShopCard({ areas, online, siteAddress, onChange }: {
     }
   }
 
+  // Inside the areas, grouped by chain (My stores lead theirs); My stores beyond every area apart.
   const byStore = new Map<string, Nearby['branches']>()
-  for (const b of nearby?.branches ?? []) byStore.set(b.storeName, [...(byStore.get(b.storeName) ?? []), b])
+  for (const b of nearby?.branches ?? []) if (!b.outside) byStore.set(b.storeName, [...(byStore.get(b.storeName) ?? []), b])
+  const further = (nearby?.branches ?? []).filter((b) => b.outside)
 
   return (
     <Card title={<span className="flex items-center gap-2"><MapPin size={17} /> Where to shop</span>} subtitle="Where Find prices looks for stores on this quote. Only you see this.">
@@ -101,15 +104,30 @@ export function WhereToShopCard({ areas, online, siteAddress, onChange }: {
                 {[...byStore.entries()].map(([store, bs]) => (
                   <li key={store} className="flex items-start gap-2 text-sm">
                     <Store size={15} className="mt-0.5 shrink-0 text-slate-400" />
-                    <span><strong className="font-medium text-slate-800">{store}</strong> <span className="text-slate-500">· {bs[0].name}, {bs[0].distanceKm} km{bs.length > 1 ? ` (+${bs.length - 1} more)` : ''}</span></span>
+                    <span><strong className="font-medium text-slate-800">{store}</strong> <span className="text-slate-500">· {bs[0].name}{bs[0].mine && <Mine favourite={bs[0].favourite} />}, {bs[0].distanceKm} km{bs.length > 1 ? ` (+${bs.length - 1} more)` : ''}</span></span>
                   </li>
                 ))}
               </ul>
             )}
-            <p className="text-[11px] text-slate-400">{nearby.source === 'google' ? 'Branches from Google.' : 'Branches from OpenStreetMap, which can miss a store (Google, once its key is set, finds them all).'} Distances are straight-line.</p>
+            {further.length > 0 && (
+              <p className="text-sm text-slate-500">Your stores further out: {further.map((b, i) => <span key={i}>{i > 0 && '; '}{b.name}{b.favourite && <Mine favourite />} ({b.distanceKm} km from {b.nearest})</span>)}</p>
+            )}
+            <p className="text-[11px] text-slate-400">
+              {nearby.source === 'google' ? 'Other branches from Google.' : 'Other branches from OpenStreetMap, which is free and can miss a store.'} Missing one you use?{' '}
+              <Link to="/settings?tab=My+stores" className="text-brand-700 underline">Add it to My stores</Link>, once, and every quote will know it. Distances are straight-line.
+            </p>
           </div>
         )}
       </div>
     </Card>
+  )
+}
+
+/** "yours" beside one of My stores, starred when it is a favourite. */
+function Mine({ favourite }: { favourite?: boolean }) {
+  return (
+    <span className="ml-1 inline-flex items-center gap-0.5 rounded bg-brand-50 px-1 text-[11px] font-medium text-brand-700">
+      {favourite && <Star size={10} fill="currentColor" />} yours
+    </span>
   )
 }

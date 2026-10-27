@@ -29,6 +29,7 @@ import type {
   QuoteAttachment,
   QuoteItem,
   ShopArea,
+  MyStore,
   QuoteStage,
   Subcontractor,
   Worker,
@@ -1087,7 +1088,11 @@ export async function loadClaudeCredit(boughtUsd: number): Promise<ClaudeCredit>
 // ---------- Where a quote shops: the branches near its areas (Remus · Handoff 1) ----------
 
 export interface NearbyCentre { label: string; lat: number; lon: number; radiusKm: number; found: string | null }
-export interface NearbyBranch { store: string; storeName: string; name: string; lat: number; lon: number; distanceKm: number; nearest: string; address: string | null }
+export interface NearbyBranch {
+  store: string; storeName: string; name: string; lat: number; lon: number; distanceKm: number; nearest: string; address: string | null
+  /** One of My stores (Settings), not off the map; `outside` when it lies beyond every area. */
+  mine?: boolean; favourite?: boolean; outside?: boolean
+}
 export interface Nearby { centres: NearbyCentre[]; branches: NearbyBranch[]; problems: string[]; source?: 'google' | 'openstreetmap' }
 
 /** The quote's areas as the server takes them: the Site area reads the quote's site address. */
@@ -1099,12 +1104,30 @@ export function effectiveAreas(areas: ShopArea[] | null | undefined, siteAddress
 }
 
 export async function findNearby(areas: { label: string; address: string; radiusKm: number }[]): Promise<Nearby> {
+  // My stores go with every look: the server has no session of its own to read them with.
+  const mine = await myStores.list().catch(() => [] as MyStore[])
   const res = await fetch('/api/places/nearby', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...(await authHeader()) },
-    body: JSON.stringify({ areas }),
+    body: JSON.stringify({ areas, mine: mine.map(({ store, name, address, lat, lon, favourite }) => ({ store, name, address, lat, lon, favourite })) }),
   })
   const body = (await res.json().catch(() => ({}))) as Partial<Nearby> & { error?: string }
   if (!res.ok) throw new Error(body.error ?? `The map could not be read (${res.status}).`)
   return { centres: body.centres ?? [], branches: body.branches ?? [], problems: body.problems ?? [], source: body.source }
+}
+
+// ---------- My stores: the branches Urban Haus shops at (Remus · Handoff 1, 0023) ----------
+
+export const myStores = crud<MyStore>('my_stores', ['lat', 'lon'], 'name', true)
+
+/** An address to a point, through Remus's server (free OpenStreetMap, or Google once its key is set). */
+export async function placeAddress(address: string): Promise<{ lat: number; lon: number; found: string }> {
+  const res = await fetch('/api/places/nearby', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...(await authHeader()) },
+    body: JSON.stringify({ geocode: address }),
+  })
+  const body = (await res.json().catch(() => ({}))) as { lat?: number; lon?: number; found?: string; error?: string }
+  if (!res.ok || typeof body.lat !== 'number' || typeof body.lon !== 'number') throw new Error(body.error ?? `The map could not be read (${res.status}).`)
+  return { lat: body.lat, lon: body.lon, found: body.found ?? address }
 }

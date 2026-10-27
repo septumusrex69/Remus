@@ -13,6 +13,7 @@ import { ClaudeCreditCard } from './ClaudeCreditCard'
 import { ConnectorCard } from './ConnectorCard'
 import { AppearanceCard } from './AppearanceCard'
 import { MailboxCard } from './MailboxCard'
+import { MyStoresCard } from './MyStoresCard'
 
 /**
  * Settings, laid out the way Raptor lays out its own (src/pages/settings/SettingsPage.tsx): a menu
@@ -23,7 +24,7 @@ import { MailboxCard } from './MailboxCard'
  * The tab is in the URL (?tab=Integrations), Raptor's rule, so another screen can send somebody
  * straight to it: "connect your mailbox" on the Mail page and on a client's Emails card does.
  */
-const TABS = ['Profile', 'Appearance', 'Users', 'Company', 'Quotes & Invoices', 'Integrations'] as const
+const TABS = ['Profile', 'Appearance', 'Users', 'Company', 'Quotes & Invoices', 'My stores', 'Integrations'] as const
 type Tab = (typeof TABS)[number]
 
 const isTab = (v: string | null): v is Tab => TABS.includes((v ?? '') as Tab)
@@ -96,6 +97,7 @@ export function SettingsPage() {
         {tab === 'Users' && <TeamCard />}
         {tab === 'Company' && <CompanyTab />}
         {tab === 'Quotes & Invoices' && <QuotesTab />}
+        {tab === 'My stores' && <div className="max-w-3xl"><MyStoresCard /></div>}
         {tab === 'Integrations' && (
           <div className="grid gap-4 xl:grid-cols-2">
             <MailboxCard />

@@ -4,11 +4,12 @@ import { supabase } from '../../lib/supabase'
 
 /**
  * AN ADDRESS THAT FILLS IN AS YOU TYPE (Remus · Handoff 1). Stephan: "It didn't even pick up the
- * address. I think it should be linked with Google Maps." Suggestions come from Google's address search
- * through Remus's own server (api/places/nearby, { autocomplete }), so the key never reaches the
- * browser. Without a Google key the server answers with nothing, and this is an ordinary text box.
+ * address. I think it should be linked with Google Maps." -- then, of Google's bill: "Isn't there any
+ * cheaper way?" Suggestions come through Remus's own server (api/places/nearby, { autocomplete }): the
+ * free OpenStreetMap address search (Photon) by default, Google's only if its key is ever set, which
+ * then never reaches the browser.
  *
- * Picking a suggestion puts Google's full address in the box ("42 Mackenzie St, Brooklyn, Pretoria,
+ * Picking a suggestion puts the full address in the box ("42 Mackenzie Street, Brooklyn, Pretoria,
  * 0181"), which is exactly what the map then finds.
  */
 export function AddressInput({ value, onChange, placeholder, className = 'input', ariaLabel }: {

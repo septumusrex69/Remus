@@ -62,7 +62,8 @@ export function FindPricesModal({ open, onClose, initialQuery, onPick, areas = [
     findNearby(ask).then((n) => {
       if (!live) return
       const m = new Map<string, NearbyBranch>()
-      for (const b of n.branches) if (!m.has(b.store)) m.set(b.store, b)
+      // My stores beyond every area are not "in reach"; inside, they lead their chain (server order).
+      for (const b of n.branches) if (!b.outside && !m.has(b.store)) m.set(b.store, b)
       setNearest(m)
       const inReach = PRICE_STORES.map((s) => s.id).filter((id) => m.has(id))
       if (!online && inReach.length) setPicked(inReach)

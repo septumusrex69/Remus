@@ -211,6 +211,20 @@ export interface ShopArea {
   radiusKm: number
 }
 
+/** One of the branches Urban Haus shops at, entered once in Settings → My stores (0023). */
+export interface MyStore {
+  id: ID
+  /** The chain, as Find prices names it (builders, cashbuild, ...), or 'other'. */
+  store: string
+  name: string
+  address: string | null
+  lat: number | null
+  lon: number | null
+  favourite: boolean
+  notes: string | null
+  created_at: string
+}
+
 export interface QuoteItem {
   id: ID
   quote_id: ID
