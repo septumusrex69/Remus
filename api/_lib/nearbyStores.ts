@@ -66,29 +66,31 @@ export async function nearbyStores(areas: Area[], fetchImpl: typeof fetch = fetc
   if (!centres.length) return { centres, branches: [], problems }
 
   const chains = 'Builders|Leroy Merlin|Cashbuild|BUCO|Buco|Plumblink|Build It|Build-It'
-  const around = centres.map((c) => `nwr(around:${Math.round(c.radiusKm * 1000)},${c.lat},${c.lon})["name"~"${chains}",i];nwr(around:${Math.round(c.radiusKm * 1000)},${c.lat},${c.lon})["brand"~"${chains}",i];`).join('')
-  const ql = `[out:json][timeout:20];(${around});out center 300;`
+  const around = centres.map((c) => `nwr["shop"](around:${Math.round(c.radiusKm * 1000)},${c.lat},${c.lon})["name"~"${chains}",i];nwr["shop"](around:${Math.round(c.radiusKm * 1000)},${c.lat},${c.lon})["brand"~"${chains}",i];`).join('')
+  const ql = `[out:json][timeout:15];(${around});out center 300;`
   let elements: { lat?: number; lon?: number; center?: { lat: number; lon: number }; tags?: Record<string, string> }[] = []
   /*
    * Overpass is run by volunteers on a few public servers; the main one is often busy. Try them in
    * turn, and keep what each said, so a failure says why rather than only "did not answer".
    */
   const tried: string[] = []
-  for (const endpoint of OVERPASS) {
+  const ask = async (endpoint: string) => {
     try {
       const r = await fetchImpl(endpoint, {
         method: 'POST', headers: { 'user-agent': UA, 'content-type': 'application/x-www-form-urlencoded', accept: 'application/json' },
-        body: `data=${encodeURIComponent(ql)}`, signal: AbortSignal.timeout(20_000),
+        body: `data=${encodeURIComponent(ql)}`, signal: AbortSignal.timeout(18_000),
       })
       const text = await r.text()
-      if (!r.ok) { tried.push(`${new URL(endpoint).host} ${r.status}`); continue }
-      elements = (JSON.parse(text) as { elements?: typeof elements }).elements ?? []
-      tried.length = 0
-      break
+      if (!r.ok) throw new Error(String(r.status))
+      return (JSON.parse(text) as { elements?: typeof elements }).elements ?? []
     } catch (e) {
       tried.push(`${new URL(endpoint).host}: ${e instanceof Error ? e.message : String(e)}`.slice(0, 160))
+      throw e
     }
   }
+  // All three at once; the first good answer wins (one after another took over a minute when busy).
+  try { elements = await Promise.any(OVERPASS.map(ask)) } catch { /* every one failed; said below */ }
+  if (elements.length) tried.length = 0
   if (tried.length) problems.push(`The map's store directory did not answer; try again in a minute. (${tried.join('; ')})`)
 
   const seen = new Set<string>()
