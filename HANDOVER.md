@@ -126,6 +126,14 @@ product, page, store price, day seen; internal); the Shopping list groups them b
 Also: results ranked best-match-first (parts pushed down), Claude one search per store, credit shown in
 dollars and rand (fixed R18 guide rate).
 
+**Then Google (Stephan: "It didn't even pick up the address ... it should be linked with Google Maps").**
+Why it failed: Q-0011 had no site address saved, so nothing was looked up (and "42 Mackenzie Str" with no
+town is not findable). Now `AddressInput` (Google address suggestions as you type, through
+`api/places/nearby` { autocomplete }) is on the quote's site address and the shop areas, and with
+`GOOGLE_MAPS_API_KEY` set the branches come from Google Places Text Search (`api/_lib/googlePlaces.ts`),
+matched on each place's own name. **Waiting on Stephan to create the key** (Places API (New) + Geocoding
+API, billing on, budget alert) and add it in Vercel, Production + Preview. Without it: OpenStreetMap.
+
 ## Workers, project plan and profit per stage (26 Oct 2026, branch `claude/workers-and-plan`)
 
 Planning step 2, Stephan's pick. Migration `0016_workers_and_project_plan.sql` (applied live):
