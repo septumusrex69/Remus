@@ -29,6 +29,8 @@ export interface ClaudeProduct {
   name: string
   price: number | null
   url: string | null
+  /** The store's own product code (SKU), where the page shows one. */
+  code: string | null
   note: string | null
 }
 export interface ClaudeStoreNote { store: string; reached: boolean; note: string }
@@ -58,12 +60,13 @@ const REPORT_TOOL: Anthropic.Tool = {
         items: {
           type: 'object',
           additionalProperties: false,
-          required: ['store', 'name', 'price', 'url', 'note'],
+          required: ['store', 'name', 'price', 'url', 'code', 'note'],
           properties: {
             store: { type: 'string', description: 'The store name, exactly as listed in the request.' },
             name: { type: 'string', description: 'The product name as the store writes it.' },
             price: { anyOf: [{ type: 'number' }, { type: 'null' }], description: 'Price in rand incl. VAT as shown by the store; null if the store does not show one.' },
             url: { anyOf: [{ type: 'string' }, { type: 'null' }], description: "The product's page on the store's site." },
+            code: { anyOf: [{ type: 'string' }, { type: 'null' }], description: "The store's own product code or SKU, if shown; null otherwise." },
             note: { anyOf: [{ type: 'string' }, { type: 'null' }], description: 'Anything worth knowing: size, pack quantity, "price from search snippet", out of stock.' },
           },
         },

@@ -47,7 +47,7 @@ describe('reading products', () => {
   it('microdata', () => {
     const html = `<div itemscope itemtype="https://schema.org/Product"><span itemprop="name">Basin Mixer</span>
       <meta itemprop="price" content="649.00"><a itemprop="url" href="/basin-mixer">x</a></div>`
-    expect(fromMicrodata(html, BASE)).toEqual([{ name: 'Basin Mixer', price: 649, url: 'https://shop.example.co.za/basin-mixer', image: null, brand: null, via: 'microdata' }])
+    expect(fromMicrodata(html, BASE)).toEqual([{ name: 'Basin Mixer', price: 649, url: 'https://shop.example.co.za/basin-mixer', image: null, brand: null, code: null, via: 'microdata' }])
   })
 })
 
@@ -57,7 +57,8 @@ describe('the product card (Cashbuild, 27 Oct 2026)', () => {
       <article class="product-miniature js-product-miniature" data-id-product="${id}" data-price="${price}" itemscope itemtype="https://schema.org/Product">
         <div class="thumbnail-top"><a href="${href}"><img data-src="/img/${id}.jpg" src="/img/${id}.jpg"></a></div>
         <div class="product-description"><h2 class="h3 product-title">
-          <a href="${href}" content="${href}">${name}</a></h2></div></article>`
+          <a href="${href}" content="${href}">${name}</a></h2></div>
+        <a class="btn-compare" data-reference="${id}-sku" data-id-product="${id}">Compare</a></article>`
     const html = `<div class="products row">${card('9994', '989.95', 'http://www.cashbuild.co.za/p-pan/301401-close-couple-suite-in-box', 'Close Couple Suite in Box')}
       ${card('3006', '604.95', '/cistern-fittings/5399', 'Cistern Mechanism - Close Couple')}
       <div class="banner" data-price="10.00"><p>Not a product</p></div></div>`
@@ -67,6 +68,8 @@ describe('the product card (Cashbuild, 27 Oct 2026)', () => {
       ['Cistern Mechanism - Close Couple', 604.95, 'https://www.cashbuild.co.za/cistern-fittings/5399'],
     ])
     expect(p[0].image).toBe('https://www.cashbuild.co.za/img/9994.jpg')
+    // The store's own code, for the shopping list -- not data-reference-product's internal id.
+    expect(p.map((x) => x.code)).toEqual(['9994-sku', '3006-sku'])
   })
 })
 

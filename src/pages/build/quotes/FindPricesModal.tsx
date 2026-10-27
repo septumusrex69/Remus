@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Bot, ExternalLink, Loader2, Search, Zap } from 'lucide-react'
 import { Button, Modal } from '../../../components/ui'
 import { formatZAR } from '../../../lib/format'
-import { findPrices, type PriceEngine, type PriceSearch, type PriceSource } from '../../../lib/api'
+import { findPrices, type PriceEngine, type PriceHit, type PriceSearch, type PriceSource } from '../../../lib/api'
 
 /**
  * FIND PRICES on a quote line (Remus · Handoff 1, 27 Oct 2026). Stephan: "I can't find it on the line
@@ -34,8 +34,8 @@ export function FindPricesModal({ open, onClose, initialQuery, onPick }: {
   open: boolean
   onClose: () => void
   initialQuery: string
-  /** The price chosen, and a note of where it came from for the line's details. */
-  onPick: (price: number, from: string) => void
+  /** The product chosen: its price becomes the line's cost, the rest its "buy at" (store, code, page). */
+  onPick: (hit: PriceHit & { price: number }) => void
 }) {
   const [query, setQuery] = useState(initialQuery)
   const [engine, setEngine] = useState<PriceEngine>('crawler')
@@ -122,13 +122,14 @@ export function FindPricesModal({ open, onClose, initialQuery, onPick }: {
                             <span className="block truncate text-sm text-slate-800">{h.name}</span>
                             <span className="flex flex-wrap items-center gap-1.5 text-[11px] text-slate-500">
                               <span className={`rounded px-1.5 py-0.5 font-medium ${SOURCE_TONE[h.source]}`}>{SOURCE_LABEL[h.source]}</span>
+                              {h.code && <span className="font-mono">#{h.code}</span>}
                               {h.note && <span>{h.note}</span>}
                               {h.url && <a href={h.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-0.5 text-brand-700 hover:underline">View <ExternalLink size={11} /></a>}
                             </span>
                           </span>
                           <span className="tabular shrink-0 text-sm font-semibold text-slate-800">{h.price != null ? formatZAR(h.price) : 'No price'}</span>
                           <Button size="sm" variant="secondary" disabled={h.price == null}
-                            onClick={() => { if (h.price != null) { onPick(h.price, `${h.name}, ${h.store}`); onClose() } }}>
+                            onClick={() => { if (h.price != null) { onPick({ ...h, price: h.price }); onClose() } }}>
                             Use
                           </Button>
                         </li>
@@ -138,7 +139,7 @@ export function FindPricesModal({ open, onClose, initialQuery, onPick }: {
                 </section>
               )
             })}
-            <p className="text-[11px] text-slate-400">Prices are the stores' online prices including VAT, and can differ in store. "Use" puts the price in the line's cost; your markup is added on top.</p>
+            <p className="text-[11px] text-slate-400">Prices are the stores' online prices including VAT, and can differ in store. "Use" puts the price in the line's cost (your markup is added on top) and notes the store, product and code for the shopping list.</p>
           </div>
         )}
       </div>

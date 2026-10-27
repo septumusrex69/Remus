@@ -17,6 +17,8 @@ import {
   ListPlus,
   Save,
   Search,
+  ShoppingCart,
+  ExternalLink,
   Send,
   Trash2,
   X,
@@ -38,7 +40,7 @@ import {
   type ClientDirectory,
   type QuoteItemDraft,
 } from '../../../lib/api'
-import { formatDateTime, formatPct, formatZAR, round2, todayYmd } from '../../../lib/format'
+import { formatDate, formatDateTime, formatPct, formatZAR, round2, todayYmd } from '../../../lib/format'
 import {
   applyLineEdit, applyMarkup, approvalCurrent, defaultStage, lockedPriceLine, MAX_MARKUP_PCT, quoteTotals, quoteValidationError, scheduleStages,
   type EditableLine, type StagePlan,
@@ -59,6 +61,7 @@ import { QuotePlanCard } from './QuotePlan'
 import { AcceptQuoteModal } from './AcceptQuoteModal'
 import { PdfMenu } from './PdfMenu'
 import { FindPricesModal } from './FindPricesModal'
+import { ShoppingListModal } from './ShoppingListModal'
 import { SubcontractorModal, rateLabel } from '../subcontractors/SubcontractorsPage'
 
 type Line = QuoteItemDraft & EditableLine & { key: string }
@@ -92,6 +95,7 @@ function blankLine(section: string | null, kind: LineKind, s: CompanySettings | 
   const base: Line = {
     key: newKey(), sort_order: 0, section, description: '', details: null, kind, labour_grade: null, subcontractor_id: null,
     unit: 'each', quantity: 1, unit_cost: 0, markup_pct: markup, unit_price: 0,
+    buy_store: null, buy_code: null, buy_product: null, buy_url: null, buy_price: null, buy_checked_on: null,
   }
   if (kind !== 'labour') return base
   return applyLineEdit(
@@ -150,6 +154,8 @@ export function QuoteEditor() {
   const [savedAt, setSavedAt] = useState<string | null>(null)
   /** Lines whose details box was opened by hand; a line that already has details always shows it. */
   const [detailsOpen, setDetailsOpen] = useState<Set<string>>(new Set())
+  // Material lines whose "buy at" row was opened by hand (a line that has a store shows it anyway).
+  const [buyOpen, setBuyOpen] = useState<Set<string>>(new Set())
   /** Each section's plan, by section name ('' = General). A section with none uses defaultStage. */
   const [stagePlans, setStagePlans] = useState<Map<string, StagePlan>>(new Map())
   const { currentUser } = useAuth()
@@ -160,6 +166,7 @@ export function QuoteEditor() {
   // The material line whose cost is being looked up in the stores (FindPricesModal).
   const [findFor, setFindFor] = useState<string | null>(null)
   const [accepting, setAccepting] = useState(false)
+  const [shopping, setShopping] = useState(false)
   /** Sections folded down to their summary line, by section name ('' = General). */
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
   useEffect(() => {
@@ -502,6 +509,10 @@ export function QuoteEditor() {
               <Printer size={15} /> Print
             </Button>
             <PdfMenu quoteId={quote.id} beforeBuild={async () => (dirty ? save() : true)} onError={setError} />
+            {/* Internal: where to buy each material (ShoppingListModal). */}
+            <Button onClick={() => setShopping(true)}>
+              <ShoppingCart size={15} /> Shopping list
+            </Button>
             <Button onClick={() => !needsApproval() && setSending(true)}>
               <Mail size={15} /> Send to client
             </Button>
@@ -768,7 +779,10 @@ export function QuoteEditor() {
                           width="w-44"
                           label="More for this line"
                           items={[
-                            ...((l.kind ?? 'material') === 'material' ? [{ label: 'Find prices', icon: <Search size={14} />, onClick: () => setFindFor(l.key) }] : []),
+                            ...((l.kind ?? 'material') === 'material' ? [
+                              { label: 'Find prices', icon: <Search size={14} />, onClick: () => setFindFor(l.key) },
+                              { label: 'Where to buy', icon: <ShoppingCart size={14} />, onClick: () => setBuyOpen((s) => new Set(s).add(l.key)) },
+                            ] : []),
                             ...(!showDetails(l) ? [{ label: 'Add details', icon: <ListPlus size={14} />, onClick: () => setDetailsOpen((s) => new Set(s).add(l.key)) }] : []),
                             { label: 'Move up', icon: <ArrowUp size={14} />, onClick: () => moveLine(l.key, -1) },
                             { label: 'Move down', icon: <ArrowDown size={14} />, onClick: () => moveLine(l.key, 1) },
@@ -798,6 +812,30 @@ export function QuoteEditor() {
                             ))}
                             <option value="__new">+ New subcontractor…</option>
                           </select>
+                          <span className="text-slate-400">Only you see this.</span>
+                        </div>
+                      )}
+                      {/*
+                        WHERE TO BUY IT (migration 0020; Stephan: "which store ... the code ... the particulars of
+                        the product"). Filled by Find prices' Use or typed; internal, read by the shopping list.
+                      */}
+                      {(l.kind ?? 'material') === 'material' && (l.buy_store || buyOpen.has(l.key)) && (
+                        <div className="col-span-2 flex flex-wrap items-center gap-2 text-xs text-slate-500 @lg:col-span-full">
+                          <span className="inline-flex items-center gap-1 font-medium text-slate-600"><ShoppingCart size={13} /> Buy at</span>
+                          <input className="input w-36 px-1.5 py-1 text-xs" placeholder="Store, e.g. Leroy Merlin" aria-label="Store"
+                            value={l.buy_store ?? ''} onChange={(e) => updateLine(l.key, { buy_store: e.target.value })} />
+                          <input className="input w-24 px-1.5 py-1 font-mono text-xs" placeholder="Code" aria-label="Store's product code"
+                            value={l.buy_code ?? ''} onChange={(e) => updateLine(l.key, { buy_code: e.target.value })} />
+                          <input className="input min-w-[10rem] flex-1 px-1.5 py-1 text-xs" placeholder="Product, as the store names it" aria-label="Product"
+                            value={l.buy_product ?? ''} onChange={(e) => updateLine(l.key, { buy_product: e.target.value })} />
+                          <span className="w-28"><NumInput allowEmpty prefix="R" className="px-1.5 py-1 text-right text-xs" aria-label="Store price"
+                            value={l.buy_price} onValue={(n) => updateLine(l.key, { buy_price: n, buy_checked_on: n == null ? null : todayYmd() })} /></span>
+                          {l.buy_url && <a href={l.buy_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-0.5 text-brand-700 hover:underline">View <ExternalLink size={11} /></a>}
+                          {l.buy_checked_on && <span className="text-slate-400">price seen {formatDate(l.buy_checked_on, 'd MMM')}</span>}
+                          <button type="button" className="text-slate-400 hover:text-red-600" onClick={() => {
+                            updateLine(l.key, { buy_store: null, buy_code: null, buy_product: null, buy_url: null, buy_price: null, buy_checked_on: null })
+                            setBuyOpen((s) => { const n = new Set(s); n.delete(l.key); return n })
+                          }}>Clear</button>
                           <span className="text-slate-400">Only you see this.</span>
                         </div>
                       )}
@@ -945,6 +983,8 @@ export function QuoteEditor() {
         </div>
       </div>
 
+      <ShoppingListModal open={shopping} onClose={() => setShopping(false)} title={`${quote.number ?? 'Quote'}${quote.title ? ` ${quote.title}` : ''}`} lines={lines} />
+
       {findFor && (() => {
         const line = lines.find((x) => x.key === findFor)
         if (!line) return null
@@ -954,7 +994,11 @@ export function QuoteEditor() {
             open
             onClose={() => setFindFor(null)}
             initialQuery={line.description.slice(0, 80)}
-            onPick={(price) => updateLine(findFor, { unit_cost: price })}
+            onPick={(hit) => updateLine(findFor, {
+              unit_cost: hit.price,
+              buy_store: hit.store, buy_code: hit.code, buy_product: hit.name, buy_url: hit.url,
+              buy_price: hit.price, buy_checked_on: todayYmd(),
+            })}
           />
         )
       })()}

@@ -238,7 +238,7 @@ export function clientLabel(dir: ClientDirectory | null, ref: { company_id: ID |
 // ---------- Quotes ----------
 
 const QUOTE_NUM: (keyof Quote)[] = ['discount', 'vat_rate', 'management_fee_pct', 'approved_total', 'deposit_pct']
-const ITEM_NUM: (keyof QuoteItem)[] = ['quantity', 'unit_cost', 'markup_pct', 'unit_price', 'sort_order']
+const ITEM_NUM: (keyof QuoteItem)[] = ['quantity', 'unit_cost', 'markup_pct', 'unit_price', 'sort_order', 'buy_price']
 export const quotes = crud<Quote>('quotes', QUOTE_NUM)
 
 export async function listQuoteTotals(): Promise<Map<ID, QuoteTotalsRow>> {
@@ -277,6 +277,13 @@ export async function saveQuoteItems(quoteId: ID, items: QuoteItemDraft[]): Prom
       unit_cost: it.unit_cost,
       markup_pct: it.markup_pct,
       unit_price: it.unit_price,
+      // Where to buy it (0020): kept on any line it was given to, so changing the kind and back loses nothing.
+      buy_store: it.buy_store?.trim() || null,
+      buy_code: it.buy_code?.trim() || null,
+      buy_product: it.buy_product?.trim() || null,
+      buy_url: it.buy_url?.trim() || null,
+      buy_price: it.buy_price == null || Number.isNaN(Number(it.buy_price)) ? null : Number(it.buy_price),
+      buy_checked_on: it.buy_checked_on ?? null,
     }))
     saved = unwrap<QuoteItem[]>(await supabase.from('quote_items').insert(rows).select('*'))
   }
@@ -1001,13 +1008,13 @@ export async function downloadEmailAttachment(activityId: ID, filename: string):
  */
 export type PriceEngine = 'crawler' | 'combined' | 'claude'
 export type PriceSource = 'crawler' | 'claude'
-export interface PriceHit { store: string; name: string; price: number | null; url: string | null; image: string | null; note: string | null; source: PriceSource }
+export interface PriceHit { store: string; name: string; price: number | null; url: string | null; image: string | null; code: string | null; note: string | null; source: PriceSource }
 export interface PriceStoreNote { store: string; ok: boolean; note: string; source: PriceSource }
 export interface PriceSearch { engine: PriceEngine; hits: PriceHit[]; stores: PriceStoreNote[]; ms: number; zar: number; error: string | null }
 
-interface CrawlerResult { name: string; outcome: string; note: string; products: { name: string; price: number; url: string | null; image: string | null }[] }
+interface CrawlerResult { name: string; outcome: string; note: string; products: { name: string; price: number; url: string | null; image: string | null; code: string | null }[] }
 interface ClaudeResult {
-  products: { store: string; name: string; price: number | null; url: string | null; note: string | null }[]
+  products: { store: string; name: string; price: number | null; url: string | null; code?: string | null; note: string | null }[]
   stores: { store: string; reached: boolean; note: string }[]
   usage: { zar: number }
   error: string | null
@@ -1027,13 +1034,13 @@ export async function findPrices(query: string, engine: PriceEngine): Promise<Pr
   const hits: PriceHit[] = []
   const stores: PriceStoreNote[] = []
   for (const r of body.results ?? []) {
-    for (const p of r.products) hits.push({ store: r.name, name: p.name, price: p.price, url: p.url, image: p.image, note: null, source: 'crawler' })
+    for (const p of r.products) hits.push({ store: r.name, name: p.name, price: p.price, url: p.url, image: p.image, code: p.code ?? null, note: null, source: 'crawler' })
     // In combined, a store the crawler could not read is answered by Claude below; say it once.
     if (r.outcome === 'ok' || engine === 'crawler') stores.push({ store: r.name, ok: r.outcome === 'ok', note: r.note, source: 'crawler' })
   }
   const c = body.claude
   if (c) {
-    for (const p of c.products) hits.push({ ...p, image: null, source: 'claude' })
+    for (const p of c.products) hits.push({ ...p, code: p.code ?? null, image: null, source: 'claude' })
     for (const s of c.stores) stores.push({ store: s.store, ok: s.reached, note: s.note, source: 'claude' })
   }
   return { engine, hits, stores, ms: Date.now() - started, zar: c?.usage.zar ?? 0, error: c?.error ?? null }

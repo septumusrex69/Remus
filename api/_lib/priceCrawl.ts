@@ -47,6 +47,8 @@ export interface CrawledProduct {
   url: string | null
   image: string | null
   brand: string | null
+  /** The store's own product code (SKU) -- what the shopping list says to ask for. Null where not shown. */
+  code: string | null
   /** Which reader found it: kept so the comparison with Claude can say where each crawler is weak. */
   via: 'json-ld' | 'embedded-json' | 'microdata' | 'product-card'
 }
@@ -128,6 +130,7 @@ function fromSchemaProduct(o: Record<string, unknown>, base: string): CrawledPro
     url: absolute(o.url ?? off.url, base),
     image: absolute(firstString(o.image), base),
     brand: firstString(o.brand),
+    code: firstString(o.sku ?? o.mpn ?? o.productID),
     via: 'json-ld',
   }
 }
@@ -215,6 +218,7 @@ export function fromEmbeddedJson(html: string, base: string): CrawledProduct[] {
             url: urlKey ? absolute(o[urlKey], base) : null,
             image: imgKey ? absolute(firstString(o[imgKey]), base) : null,
             brand: firstString(o.brand ?? o.manufacturer),
+            code: firstString(o.sku ?? o.code ?? o.productCode),
             via: 'embedded-json',
           })
         }
@@ -238,7 +242,8 @@ export function fromMicrodata(html: string, base: string): CrawledProduct[] {
     const url = chunk.match(/itemprop=["']url["'][^>]*?(?:content|href)=["']([^"']+)["']/i)
     const n = name ? decode(name[1] ?? name[2] ?? '') : ''
     const p = price ? parsePrice(price[1] ?? price[2]) : null
-    if (n && p !== null) out.push({ name: n, price: p, url: url ? absolute(url[1], base) : null, image: null, brand: null, via: 'microdata' })
+    const sku = chunk.match(/itemprop=["']sku["'][^>]*?(?:content=["']([^"']+)["']|>\s*([^<]+)<)/i)
+    if (n && p !== null) out.push({ name: n, price: p, url: url ? absolute(url[1], base) : null, image: null, brand: null, code: sku ? (sku[1] ?? sku[2]).trim() : null, via: 'microdata' })
   }
   return out
 }
@@ -263,7 +268,9 @@ export function fromProductCards(html: string, base: string): CrawledProduct[] {
     const href = title.length === 3 ? title[1] : null
     const name = decode((title.length === 3 ? title[2] : title[1]).replace(/<[^>]+>/g, ' '))
     const img = card.match(/<img\b[^>]*(?:data-src|src)=["']([^"']+)["']/i)
-    if (name) out.push({ name, price, url: absolute(href, base), image: img ? absolute(img[1], base) : null, brand: null, via: 'product-card' })
+    // Cashbuild's own code ("301401") is on the card's compare link; data-reference-product is an internal id.
+    const ref = card.match(/\bdata-reference=["']([^"']+)["']/i) ?? card.match(/\bdata-sku=["']([^"']+)["']/i)
+    if (name) out.push({ name, price, url: absolute(href, base), image: img ? absolute(img[1], base) : null, brand: null, code: ref ? ref[1] : null, via: 'product-card' })
   })
   return out
 }

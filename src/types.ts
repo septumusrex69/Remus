@@ -217,6 +217,17 @@ export interface QuoteItem {
   unit_cost: number
   markup_pct: number
   unit_price: number
+  /*
+   * WHERE TO BUY IT (migration 0020): the store, its own product code, the product as the store names
+   * it, its page, the price there and the day it was seen. From Find prices' "Use", or typed. Internal,
+   * never on the client's quote; read by the shopping list.
+   */
+  buy_store: string | null
+  buy_code: string | null
+  buy_product: string | null
+  buy_url: string | null
+  buy_price: number | null
+  buy_checked_on: string | null
 }
 
 export interface QuoteTotalsRow {
