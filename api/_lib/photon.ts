@@ -20,7 +20,9 @@ interface Feature { properties: Record<string, string | number | undefined> }
 export function photonText(p: Feature['properties']): string {
   const street = p.street ? [p.housenumber, p.street].filter(Boolean).join(' ') : null
   const first = p.name && p.name !== p.street ? String(p.name) : null
-  const parts = [first, street, p.district ?? p.locality, p.city ?? p.county, p.postcode]
+  // Municipal wards ("Tshwane Ward 56") are how the map files a street, not how anybody writes one.
+  const place = [p.locality, p.district].find((x) => x != null && !/\bward\b/i.test(String(x)))
+  const parts = [first, street, place, p.city ?? p.county, p.postcode]
     .filter((x): x is string | number => x != null && String(x).trim() !== '')
     .map(String)
   return parts.filter((x, i) => parts.indexOf(x) === i).join(', ')
