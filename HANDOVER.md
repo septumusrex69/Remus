@@ -95,6 +95,14 @@ Cashbuild prices are per branch, so choosing the branch is needed before either 
 little while only one store is crawlable; it pays more as the crawler learns more stores. These probe runs
 (~R15) are NOT on the credit tile (no signed-in person to record them as).
 
+**Claude searching SWITCHED OFF, 27 Oct (Stephan: "Might as well switch it off. Because 7 Rand to find
+one item, that's ridiculous").** The window offers Quick only; the server refuses `claude` and `combined`
+unless `FIND_PRICES_CLAUDE=on` is set in Vercel (it is not). The code stays. If it is ever wanted again,
+the cheaper plan offered him first: a shared week-long price memory, teaching the crawler more stores
+(a Cape Town server region for Leroy Merlin / BUCO; Plumblink's eSolve service), and Claude on its
+cheapest model reading search snippets only with 1-2 searches -- estimated under R1, not measured.
+The slip reader still uses Claude (the key stays for it).
+
 ## Workers, project plan and profit per stage (26 Oct 2026, branch `claude/workers-and-plan`)
 
 Planning step 2, Stephan's pick. Migration `0016_workers_and_project_plan.sql` (applied live):

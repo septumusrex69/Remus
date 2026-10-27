@@ -15,13 +15,19 @@ import { findPrices, type PriceEngine, type PriceSearch, type PriceSource } from
  * Picking a price puts it in the line's COST, never its price: the markup still applies on top.
  */
 
-const ENGINES: { id: PriceEngine; label: string; cost: string; hint: string; icon: typeof Zap }[] = [
+const ALL_ENGINES: { id: PriceEngine; label: string; cost: string; hint: string; icon: typeof Zap }[] = [
   { id: 'crawler', label: 'Quick', cost: 'Free', hint: "Remus's own search. A few seconds. Only the stores that let it in (Cashbuild today).", icon: Zap },
   { id: 'combined', label: 'Combined', cost: 'Cheaper', hint: 'Quick first, then Claude only for the stores Quick could not read. About a minute.', icon: Search },
   { id: 'claude', label: 'Claude', cost: 'Most expensive', hint: 'Claude searches every store itself. About a minute; a few rand a search.', icon: Bot },
 ]
+/*
+ * CLAUDE IS SWITCHED OFF (Stephan, 27 Oct: "Might as well switch it off. Because 7 Rand to find one
+ * item, that's ridiculous"). Only Quick is offered; the other two stay written for when a cheaper
+ * Claude is wanted (and need FIND_PRICES_CLAUDE=on on the server as well).
+ */
+const ENGINES = ALL_ENGINES.filter((e) => e.id === 'crawler')
 
-export const SOURCE_LABEL: Record<PriceSource, string> = { crawler: 'Remus search', claude: 'Claude' }
+const SOURCE_LABEL: Record<PriceSource, string> = { crawler: 'Remus search', claude: 'Claude' }
 const SOURCE_TONE: Record<PriceSource, string> = { crawler: 'bg-emerald-50 text-emerald-700', claude: 'bg-brand-100 text-brand-800' }
 
 export function FindPricesModal({ open, onClose, initialQuery, onPick }: {
@@ -55,6 +61,9 @@ export function FindPricesModal({ open, onClose, initialQuery, onPick }: {
   return (
     <Modal open={open} onClose={onClose} title="Find prices" wide>
       <div className="space-y-4">
+        {ENGINES.length === 1 ? (
+          <p className="text-xs text-slate-500">Remus's own search, free. It reads the stores that let it in: Cashbuild today.</p>
+        ) : (
         <div>
           <p className="mb-1.5 text-xs font-semibold text-slate-600">How to search</p>
           <div className="grid gap-2 sm:grid-cols-3" role="radiogroup" aria-label="How to search">
@@ -70,6 +79,7 @@ export function FindPricesModal({ open, onClose, initialQuery, onPick }: {
             ))}
           </div>
         </div>
+        )}
 
         <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); void search() }}>
           <input className="input flex-1" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="e.g. close coupled toilet, galvanised pipe 20 mm" aria-label="What to look for" autoFocus />

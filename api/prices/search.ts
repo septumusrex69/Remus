@@ -93,6 +93,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     : typeof req.query.stores === 'string' ? req.query.stores.split(',') : null
   const engine = probe ? req.query.engine : body.engine
   if (engine === 'claude' || engine === 'combined') {
+    /*
+     * SWITCHED OFF (Stephan, 27 Oct: "Might as well switch it off. Because 7 Rand to find one item,
+     * that's ridiculous" -- measured at R7.34-R7.85 a search). Kept, not deleted: setting
+     * FIND_PRICES_CLAUDE=on in Vercel brings it back, for when the cheaper version is wanted.
+     */
+    if (process.env.FIND_PRICES_CLAUDE !== 'on') return res.status(200).json({ query, configured: false, error: 'Searching with Claude is switched off.' })
     if (!process.env.ANTHROPIC_API_KEY) return res.status(200).json({ query, configured: false, error: 'Claude is not set up for Remus yet.' })
     // Combined: what the crawler read is kept, and Claude is asked only about the rest.
     const results = engine === 'combined' ? await crawlAll(query, storeIds) : null
