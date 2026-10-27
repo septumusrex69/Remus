@@ -33,7 +33,8 @@ export interface StoreDef {
 export const STORES: StoreDef[] = [
   { id: 'builders', name: 'Builders', searchUrl: (q) => `https://www.builders.co.za/search/?text=${encodeURIComponent(q)}` },
   { id: 'leroymerlin', name: 'Leroy Merlin', searchUrl: (q) => `https://leroymerlin.co.za/catalogsearch/result/?q=${encodeURIComponent(q)}` },
-  { id: 'cashbuild', name: 'Cashbuild', searchUrl: (q) => `https://www.cashbuild.co.za/catalogsearch/result/?q=${encodeURIComponent(q)}` },
+  // Cashbuild's own SearchAction (its JSON-LD) names this address; /catalogsearch is a 404 there.
+  { id: 'cashbuild', name: 'Cashbuild', searchUrl: (q) => `https://www.cashbuild.co.za/search?search_query=${encodeURIComponent(q)}` },
   { id: 'buco', name: 'BUCO', searchUrl: (q) => `https://www.buco.co.za/search?q=${encodeURIComponent(q)}` },
   { id: 'plumblink', name: 'Plumblink', searchUrl: (q) => `https://www.plumblink.co.za/search?q=${encodeURIComponent(q)}` },
   { id: 'buildit', name: 'Build It', searchUrl: (q) => `https://www.buildit.co.za/search?q=${encodeURIComponent(q)}` },

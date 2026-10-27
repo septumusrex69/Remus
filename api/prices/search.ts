@@ -38,6 +38,34 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const query = typeof raw === 'string' ? raw.trim().slice(0, MAX_QUERY) : ''
   if (query.length < 2) return res.status(400).json({ error: 'Say what to look for, e.g. "close coupled toilet".' })
 
+  /*
+   * LOOK INSIDE A STORE'S OWN FILES (probe only): `url` on one of the stores' hosts or a service their
+   * pages name, and `find` -- the places it appears, a few hundred characters around each. This is
+   * how a shop front drawn by script gives up where its products come from.
+   */
+  if (probe && typeof req.query.url === 'string') {
+    let target: URL
+    try { target = new URL(req.query.url) } catch { return res.status(400).json({ error: 'Not an address.' }) }
+    const hosts = [...STORES.map((s) => new URL(s.searchUrl('x')).hostname), 'api.esolve.co.za']
+    if (!hosts.includes(target.hostname)) return res.status(400).json({ error: 'Only the stores themselves.', hosts })
+    try {
+      const r = await fetch(target, { headers: BROWSER_HEADERS, redirect: 'follow', signal: AbortSignal.timeout(12_000) })
+      const text = await r.text()
+      const find = typeof req.query.find === 'string' ? req.query.find : ''
+      const hits: string[] = []
+      if (find) {
+        let at = text.indexOf(find)
+        while (at >= 0 && hits.length < 12) {
+          hits.push(text.slice(Math.max(0, at - 250), at + 350))
+          at = text.indexOf(find, at + find.length)
+        }
+      }
+      return res.status(200).json({ status: r.status, type: r.headers.get('content-type'), bytes: text.length, hits, start: find ? undefined : text.slice(0, 4000) })
+    } catch (e) {
+      return res.status(200).json({ error: e instanceof Error ? e.message : String(e) })
+    }
+  }
+
   if (probe && typeof req.query.raw === 'string') {
     const store = STORES.find((s) => s.id === req.query.raw)
     if (!store) return res.status(400).json({ error: `No store ${req.query.raw}.`, stores: STORES.map((s) => s.id) })
