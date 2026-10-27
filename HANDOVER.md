@@ -322,7 +322,11 @@ what Raptor gained since the last one:
 4. Tick off the Raptor checklist in `CLAUDE.md` as features land, and update the "Raptor last
    checked" line below.
 
-**Raptor last checked:** 26 Oct 2026 (Remus · Handoff 1) — branch `claude/sales-raptor-review-p1pzx2`
+**Raptor last checked:** 27 Oct 2026 05:30 (Remus · Handoff 1) — `claude/sales-raptor-review-p1pzx2` at 093cf14
+(Raptor · Handoff 13). Copied: R-numbers kept on one line on Requests. Not needed: H13's "no silent reload
+  over typing" (Remus's UpdateBanner never reloads by itself). Not for Remus: written-off account charges.
+
+Before that: 26 Oct 2026 (Remus · Handoff 1) — branch `claude/sales-raptor-review-p1pzx2`
 at 0370850 (Raptor · Handoff 12). Copied: change requests, the Feedback Centre, the bell. Raptor's
 own rule now is to say "Raptor · Handoff N" / "Remus · Handoff N" on everything (CLAUDE.md here too).
 Not for Remus: debtor campaigns from a central mailbox, written-off accounts.
