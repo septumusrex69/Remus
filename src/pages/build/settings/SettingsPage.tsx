@@ -9,6 +9,7 @@ import type { CompanySettings } from '../../../types'
 import { useSettingsNavCollapsed } from '../../../lib/sidebarCollapsed'
 import { useBuild } from '../BuildContext'
 import { TeamCard } from './TeamCard'
+import { ClaudeCreditCard } from './ClaudeCreditCard'
 import { ConnectorCard } from './ConnectorCard'
 import { AppearanceCard } from './AppearanceCard'
 import { MailboxCard } from './MailboxCard'
@@ -99,6 +100,7 @@ export function SettingsPage() {
           <div className="grid gap-4 xl:grid-cols-2">
             <MailboxCard />
             <ConnectorCard />
+            <ClaudeCreditCard />
           </div>
         )}
       </div>

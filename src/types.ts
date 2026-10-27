@@ -120,6 +120,8 @@ export interface CompanySettings {
   management_fee_pct: number
   /** Printed under the estimated timeline on every quote that shows one (migration 0015). */
   plan_disclaimer: string
+  /** Claude credit bought, in US dollars, all purchases together (migration 0019). Left = this - ai_usage. */
+  ai_credit_usd: number
 }
 
 export const QUOTE_STATUSES = ['draft', 'sent', 'accepted', 'declined', 'expired'] as const

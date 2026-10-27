@@ -1,14 +1,18 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { requireCaller } from '../_lib/auth.js'
 import { BROWSER_HEADERS, STORES, crawlAll } from '../_lib/priceCrawl.js'
-import { claudeSearch } from '../_lib/priceClaude.js'
+import { claudeSearch, MODEL } from '../_lib/priceClaude.js'
+import { recordUsage } from '../_lib/aiUsage.js'
 
 /**
  * FIND PRICES -- step one, Remus's own crawler (Remus · Handoff 1; the reasoning is in
  * api/_lib/priceCrawl.ts).
  *
  *   POST { query, stores?, engine? } -> for a signed-in Remus user. engine 'crawler' (the default):
- *       { query, results: StoreResult[] }; engine 'claude': { query, claude: ClaudeRun } (priceClaude.ts)
+ *       { query, results: StoreResult[] }; engine 'claude': { query, claude: ClaudeRun } (priceClaude.ts);
+ *       engine 'combined': { query, results, claude } -- the crawler first, then Claude for ONLY the
+ *       stores the crawler could not read. Stephan, 27 Oct: three choices, "the cheapest one, and then
+ *       the other ones, which are less cheap, and then the most expensive one would be Claude".
  *   GET  ?q=toilet&key=...   -> the same, for the build session testing it on the preview
  *   GET  ?q=toilet&key=...&raw=builders -> what that store sent back, cut short, so its reader can
  *                                          be written against the real page rather than a guess
@@ -29,9 +33,9 @@ function probeOk(req: VercelRequest): boolean {
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Cache-Control', 'no-store')
   const probe = req.method === 'GET' && probeOk(req)
+  const caller = probe ? null : await requireCaller(req)
   if (!probe) {
     if (req.method !== 'POST') return res.status(405).json({ error: 'Use POST.' })
-    const caller = await requireCaller(req)
     if (!caller) return res.status(401).json({ error: 'Sign in again.' })
   }
 
@@ -88,9 +92,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const storeIds = Array.isArray(body.stores) ? body.stores.filter((s): s is string => typeof s === 'string')
     : typeof req.query.stores === 'string' ? req.query.stores.split(',') : null
   const engine = probe ? req.query.engine : body.engine
-  if (engine === 'claude') {
+  if (engine === 'claude' || engine === 'combined') {
     if (!process.env.ANTHROPIC_API_KEY) return res.status(200).json({ query, configured: false, error: 'Claude is not set up for Remus yet.' })
-    return res.status(200).json({ query, claude: await claudeSearch(query, storeIds) })
+    // Combined: what the crawler read is kept, and Claude is asked only about the rest.
+    const results = engine === 'combined' ? await crawlAll(query, storeIds) : null
+    const rest = results ? results.filter((r) => r.outcome !== 'ok').map((r) => r.store) : storeIds
+    if (results && rest && rest.length === 0) return res.status(200).json({ query, results, claude: null })
+    const claude = await claudeSearch(query, rest)
+    // Counted on the credit tile (0019_ai_usage.sql). The build session's probe runs have no person to
+    // write the row as, so they are not counted; they are few, and the Console shows them.
+    if (caller) {
+      await recordUsage(caller.db, caller.user.id, {
+        feature: 'find_prices', model: MODEL, inputTokens: claude.usage.inputTokens, outputTokens: claude.usage.outputTokens,
+        searches: claude.usage.searches, note: query,
+      })
+    }
+    return res.status(200).json({ query, claude, ...(results ? { results } : {}) })
   }
   const results = await crawlAll(query, storeIds)
   return res.status(200).json({ query, results })

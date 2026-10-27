@@ -16,6 +16,7 @@ import {
   Printer,
   ListPlus,
   Save,
+  Search,
   Send,
   Trash2,
   X,
@@ -56,6 +57,7 @@ import { SendQuoteModal } from './SendQuoteModal'
 import { QuotePlanCard } from './QuotePlan'
 import { AcceptQuoteModal } from './AcceptQuoteModal'
 import { PdfMenu } from './PdfMenu'
+import { FindPricesModal } from './FindPricesModal'
 import { SubcontractorModal, rateLabel } from '../subcontractors/SubcontractorsPage'
 
 type Line = QuoteItemDraft & EditableLine & { key: string }
@@ -154,6 +156,8 @@ export function QuoteEditor() {
   const [subs, setSubs] = useState<Subcontractor[]>([])
   /** The line asking for a new subcontractor (opens the form), if any. */
   const [newSubFor, setNewSubFor] = useState<string | null>(null)
+  // The material line whose cost is being looked up in the stores (FindPricesModal).
+  const [findFor, setFindFor] = useState<string | null>(null)
   const [accepting, setAccepting] = useState(false)
   /** Sections folded down to their summary line, by section name ('' = General). */
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
@@ -673,7 +677,19 @@ export function QuoteEditor() {
                     return (
                     <div key={l.key} className="grid grid-cols-2 gap-2 border-t border-slate-100 px-4 py-2.5 first:border-t-0 @lg:grid-cols-[88px_64px_96px_64px_1fr_36px] @lg:items-center @3xl:grid-cols-[1fr_88px_64px_96px_64px_120px_36px]">
                       <div className="relative col-span-2 @lg:col-span-full @3xl:col-span-1">
-                        <input className="input pl-14 pr-9" placeholder="Description, e.g. Toilet" value={l.description} onChange={(e) => updateLine(l.key, { description: e.target.value })} />
+                        <input className={`input pl-14 ${(l.kind ?? 'material') === 'material' && !showDetails(l) ? 'pr-16' : 'pr-9'}`} placeholder="Description, e.g. Toilet" value={l.description} onChange={(e) => updateLine(l.key, { description: e.target.value })} />
+                        {/* FIND PRICES (Remus · Handoff 1): look the material up in the stores and take its cost. */}
+                        {(l.kind ?? 'material') === 'material' && (
+                          <button
+                            type="button"
+                            className={`absolute inset-y-0 my-auto h-7 rounded px-1.5 text-slate-400 hover:bg-slate-100 hover:text-brand-700 ${showDetails(l) ? 'right-1' : 'right-8'}`}
+                            onClick={() => setFindFor(l.key)}
+                            title="Find prices: look this up in the stores"
+                            aria-label="Find prices"
+                          >
+                            <Search size={15} />
+                          </button>
+                        )}
                         {/* The kind of cost, as a small tag inside the box; tap it to change. */}
                         <span className={`pointer-events-none absolute inset-y-0 left-1.5 my-auto flex h-6 w-11 items-center justify-center rounded text-[10px] font-semibold tracking-wide ${KIND_TONE[l.kind ?? 'material']}`}>
                           {KIND_TAG[l.kind ?? 'material']}
@@ -751,6 +767,7 @@ export function QuoteEditor() {
                           width="w-44"
                           label="More for this line"
                           items={[
+                            ...((l.kind ?? 'material') === 'material' ? [{ label: 'Find prices', icon: <Search size={14} />, onClick: () => setFindFor(l.key) }] : []),
                             ...(!showDetails(l) ? [{ label: 'Add details', icon: <ListPlus size={14} />, onClick: () => setDetailsOpen((s) => new Set(s).add(l.key)) }] : []),
                             { label: 'Move up', icon: <ArrowUp size={14} />, onClick: () => moveLine(l.key, -1) },
                             { label: 'Move down', icon: <ArrowDown size={14} />, onClick: () => moveLine(l.key, 1) },
@@ -926,6 +943,20 @@ export function QuoteEditor() {
           </Card>
         </div>
       </div>
+
+      {findFor && (() => {
+        const line = lines.find((x) => x.key === findFor)
+        if (!line) return null
+        return (
+          <FindPricesModal
+            key={findFor}
+            open
+            onClose={() => setFindFor(null)}
+            initialQuery={line.description.slice(0, 80)}
+            onPick={(price) => updateLine(findFor, { unit_cost: price })}
+          />
+        )
+      })()}
 
       {newSubFor && (
         <SubcontractorModal

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { addDays, differenceInCalendarDays, endOfMonth, format, startOfDay, startOfMonth } from 'date-fns'
 import {
   AlertCircle, AlertTriangle, Camera, CheckCircle2, ChevronRight, FileText, HardHat, Receipt, Wallet,
+  Bot,
 } from 'lucide-react'
 import {
   invoices as invoicesApi,
@@ -16,6 +17,8 @@ import {
   payments as paymentsApi,
   projects as projectsApi,
   quotes as quotesApi,
+  getSettings,
+  loadClaudeCredit,
 } from '../../../lib/api'
 import { formatDate, formatPct, formatZAR, labelize, ymd } from '../../../lib/format'
 import { outstandingInvoices } from '../../../lib/finance'
@@ -40,7 +43,7 @@ async function load() {
   const now = new Date()
   const from = ymd(startOfMonth(now))
   const to = ymd(endOfMonth(now))
-  const [projects, fin, quotes, totals, invoices, allPayments, monthPayments, monthExpenses, events, recent, bank] = await Promise.all([
+  const [projects, fin, quotes, totals, invoices, allPayments, monthPayments, monthExpenses, events, recent, bank, claude] = await Promise.all([
     projectsApi.list(),
     listProjectFinancials(),
     quotesApi.list(),
@@ -53,8 +56,10 @@ async function load() {
     listEventsBetween(startOfDay(now).toISOString(), addDays(startOfDay(now), 15).toISOString()),
     listRecentExpenses(6),
     loadBankBalances().catch(() => null),
+    // Claude credit (Remus · Handoff 1): Remus's own count against what was bought; never blocks the page.
+    getSettings().then((st) => loadClaudeCredit(st.ai_credit_usd)).catch(() => null),
   ])
-  return { projects, fin, quotes, totals, invoices, allPayments, monthPayments, monthExpenses, events, recent, bank }
+  return { projects, fin, quotes, totals, invoices, allPayments, monthPayments, monthExpenses, events, recent, bank, claude }
 }
 
 /** Is the project on site that day: active, and the day inside its dates (or it has none). */
@@ -252,7 +257,7 @@ export function DashboardPage() {
 
       {/* ---------- Money ---------- */}
       <SectionLabel>Money</SectionLabel>
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
         <MoneyTile
           label="In the bank"
           icon={<Wallet size={18} />}
@@ -290,6 +295,17 @@ export function DashboardPage() {
           valueClass={income - spend >= 0 ? 'text-emerald-700' : 'text-red-700'}
           hint={`In ${formatZAR(income, { decimals: 0 })} · Spent ${formatZAR(spend, { decimals: 0 })}`}
           to={paths.finance()}
+        />
+        {/* Stephan: "how many credits do we have, we use and how many credits do we have left". */}
+        <MoneyTile
+          label="Claude credit"
+          icon={<Bot size={18} />}
+          chip={data.claude && data.claude.boughtUsd > 0 && data.claude.leftUsd < data.claude.boughtUsd * 0.2 ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-700'}
+          value={data.claude && data.claude.boughtUsd > 0 ? `$${data.claude.leftUsd.toFixed(2)} left` : '—'}
+          hint={data.claude
+            ? `Used $${data.claude.usedUsd.toFixed(2)} of $${data.claude.boughtUsd.toFixed(2)} · $${data.claude.monthUsd.toFixed(2)} this month`
+            : 'Set what you bought in Settings'}
+          to={paths.settings('Integrations')}
         />
       </div>
 

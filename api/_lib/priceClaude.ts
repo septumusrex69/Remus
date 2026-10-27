@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { STORES } from './priceCrawl.js'
+import { usdFor } from './aiUsage.js'
 
 /**
  * FIND PRICES -- step two, PURE CLAUDE (Remus · Handoff 1, 27 Oct 2026). Stephan: build our own
@@ -20,9 +21,6 @@ import { STORES } from './priceCrawl.js'
 
 /* Claude Opus 5.5: Anthropic's default model; effort low, because this is look-up work, not reasoning. */
 export const MODEL = 'claude-opus-5-5'
-const PRICE_IN_PER_MTOK = 4
-const PRICE_OUT_PER_MTOK = 20
-const PRICE_PER_SEARCH = 0.01
 /* For the screen only: a rough rand figure so "what did that cost" reads in the money Urban Haus spends. */
 export const USD_TO_ZAR = 18
 
@@ -99,10 +97,10 @@ function systemPrompt(storeNames: string[]): string {
   ].join('\n')
 }
 
-/** Anthropic's own price list, applied to what the run used. */
+/** Anthropic's price list (aiUsage.ts, the one the credit counter uses), applied to what the run used. */
 export function costOf(usage: { inputTokens: number; outputTokens: number; searches: number }): { usd: number; zar: number } {
-  const usd = (usage.inputTokens * PRICE_IN_PER_MTOK + usage.outputTokens * PRICE_OUT_PER_MTOK) / 1_000_000 + usage.searches * PRICE_PER_SEARCH
-  return { usd: Math.round(usd * 10000) / 10000, zar: Math.round(usd * USD_TO_ZAR * 100) / 100 }
+  const usd = usdFor(MODEL, usage.inputTokens, usage.outputTokens, usage.searches)
+  return { usd, zar: Math.round(usd * USD_TO_ZAR * 100) / 100 }
 }
 
 export async function claudeSearch(query: string, storeIds: string[] | null, client = new Anthropic()): Promise<ClaudeRun> {

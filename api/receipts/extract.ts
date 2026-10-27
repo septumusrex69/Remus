@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import Anthropic from '@anthropic-ai/sdk'
 import { requireCaller, supabaseEnv } from '../_lib/auth.js'
+import { recordUsage } from '../_lib/aiUsage.js'
 
 /**
  * Reads a slip photo/PDF with Claude and suggests a project + category for it.
@@ -203,6 +204,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           ],
         },
       ],
+    })
+    // Every read is paid for, read well or not: counted on the dashboard's Claude credit tile.
+    await recordUsage(db, user.id, {
+      feature: 'slip_reader', model: MODEL,
+      inputTokens: response.usage.input_tokens + (response.usage.cache_creation_input_tokens ?? 0) + (response.usage.cache_read_input_tokens ?? 0),
+      outputTokens: response.usage.output_tokens,
     })
 
     if (response.stop_reason === 'refusal') {

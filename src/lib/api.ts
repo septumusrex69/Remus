@@ -104,11 +104,12 @@ export async function getSettings(): Promise<CompanySettings> {
     markup_subcontractor: 10,
     management_fee_pct: 0,
     plan_disclaimer: 'This timeline is an estimate and may change because of weather, site conditions and other circumstances outside our control.',
+    ai_credit_usd: 0,
   }
   return row
     ? nums({ ...fallback, ...row }, [
         'vat_rate', 'next_quote_number', 'next_invoice_number', 'labour_day_rate_senior', 'labour_day_rate_junior',
-        'markup_material', 'markup_labour', 'markup_subcontractor', 'management_fee_pct',
+        'markup_material', 'markup_labour', 'markup_subcontractor', 'management_fee_pct', 'ai_credit_usd',
       ])
     : fallback
 }
@@ -121,7 +122,7 @@ export async function updateSettings(values: Partial<Omit<CompanySettings, 'id'>
       .select('*')
       .single(),
   )
-  return nums(row, ['vat_rate', 'next_quote_number', 'next_invoice_number'])
+  return nums(row, ['vat_rate', 'next_quote_number', 'next_invoice_number', 'ai_credit_usd'])
 }
 
 export async function listProfiles(): Promise<Profile[]> {
@@ -953,4 +954,71 @@ export async function downloadEmailAttachment(activityId: ID, filename: string):
   link.download = filename
   link.click()
   URL.revokeObjectURL(url)
+}
+
+// ---------- Find prices and the Claude credit (Remus · Handoff 1) ----------
+
+/*
+ * THREE WAYS TO FIND A PRICE, cheapest first (Stephan, 27 Oct: "the cheapest one, and then the other
+ * ones, which are less cheap, and then the most expensive one would be Claude"):
+ *   crawler  -- Remus's own crawler: free, but only the stores that let it read them (Cashbuild).
+ *   combined -- the crawler first, then Claude for only the stores it could not read.
+ *   claude   -- Claude searches every store.
+ * Every result says which of the two found it, so the comparison is visible on the screen.
+ */
+export type PriceEngine = 'crawler' | 'combined' | 'claude'
+export type PriceSource = 'crawler' | 'claude'
+export interface PriceHit { store: string; name: string; price: number | null; url: string | null; image: string | null; note: string | null; source: PriceSource }
+export interface PriceStoreNote { store: string; ok: boolean; note: string; source: PriceSource }
+export interface PriceSearch { engine: PriceEngine; hits: PriceHit[]; stores: PriceStoreNote[]; ms: number; zar: number; error: string | null }
+
+interface CrawlerResult { name: string; outcome: string; note: string; products: { name: string; price: number; url: string | null; image: string | null }[] }
+interface ClaudeResult {
+  products: { store: string; name: string; price: number | null; url: string | null; note: string | null }[]
+  stores: { store: string; reached: boolean; note: string }[]
+  usage: { zar: number }
+  error: string | null
+}
+
+export async function findPrices(query: string, engine: PriceEngine): Promise<PriceSearch> {
+  const started = Date.now()
+  const res = await fetch('/api/prices/search', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...(await authHeader()) },
+    body: JSON.stringify({ query, engine }),
+  })
+  const body = (await res.json().catch(() => ({}))) as { error?: string; configured?: boolean; results?: CrawlerResult[]; claude?: ClaudeResult | null }
+  if (!res.ok) throw new Error(body.error ?? `Find prices failed (${res.status}).`)
+  if (body.configured === false) return { engine, hits: [], stores: [], ms: Date.now() - started, zar: 0, error: body.error ?? 'Claude is not set up for Remus yet.' }
+
+  const hits: PriceHit[] = []
+  const stores: PriceStoreNote[] = []
+  for (const r of body.results ?? []) {
+    for (const p of r.products) hits.push({ store: r.name, name: p.name, price: p.price, url: p.url, image: p.image, note: null, source: 'crawler' })
+    // In combined, a store the crawler could not read is answered by Claude below; say it once.
+    if (r.outcome === 'ok' || engine === 'crawler') stores.push({ store: r.name, ok: r.outcome === 'ok', note: r.note, source: 'crawler' })
+  }
+  const c = body.claude
+  if (c) {
+    for (const p of c.products) hits.push({ ...p, image: null, source: 'claude' })
+    for (const s of c.stores) stores.push({ store: s.store, ok: s.reached, note: s.note, source: 'claude' })
+  }
+  return { engine, hits, stores, ms: Date.now() - started, zar: c?.usage.zar ?? 0, error: c?.error ?? null }
+}
+
+export interface ClaudeCredit { boughtUsd: number; usedUsd: number; leftUsd: number; monthUsd: number; monthCalls: number }
+
+/** What Remus has spent on Claude (its own count, migration 0019) against what Stephan says he bought. */
+export async function loadClaudeCredit(boughtUsd: number): Promise<ClaudeCredit> {
+  const rows = unwrap<{ at: string; usd: number | string }[]>(await supabase.from('ai_usage').select('at, usd').order('at', { ascending: false }).limit(20000))
+  const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString()
+  let usedUsd = 0
+  let monthUsd = 0
+  let monthCalls = 0
+  for (const r of rows) {
+    const usd = Number(r.usd) || 0
+    usedUsd += usd
+    if (r.at >= monthStart) { monthUsd += usd; monthCalls += 1 }
+  }
+  return { boughtUsd, usedUsd, leftUsd: Math.max(0, boughtUsd - usedUsd), monthUsd, monthCalls }
 }
