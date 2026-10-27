@@ -1,6 +1,7 @@
 import { lazy, Suspense, useState } from 'react'
 import { Loader2, MapPin, Plus, Store, Truck, X } from 'lucide-react'
 import { Button, Card } from '../../../components/ui'
+import { AddressInput } from '../../../components/ui/AddressInput'
 import { effectiveAreas, findNearby, type Nearby } from '../../../lib/api'
 import type { ShopArea } from '../../../types'
 
@@ -34,7 +35,7 @@ export function WhereToShopCard({ areas, online, siteAddress, onChange }: {
     setBusy(true); setError(null)
     try {
       const ask = effectiveAreas(list, siteAddress)
-      if (!ask.length) { setError('Give the quote a site address, or type an address for an area.'); return }
+      if (!ask.length) { setError('This quote has no site address yet. Type it in the Site box here (or under Client & site above), then press Show stores again.'); return }
       setNearby(await findNearby(ask))
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
@@ -56,9 +57,11 @@ export function WhereToShopCard({ areas, online, siteAddress, onChange }: {
             ) : (
               <input className="input w-24 px-2 py-1.5 text-sm" value={a.label} onChange={(e) => set(i, { label: e.target.value })} aria-label="Area name" placeholder="e.g. Yard" />
             )}
-            <input className="input min-w-[12rem] flex-1 px-2 py-1.5 text-sm" value={a.address}
-              placeholder={i === 0 ? (siteAddress ? `The site address: ${siteAddress}` : 'The site address, e.g. 42 Mackenzie St, Brooklyn, Pretoria') : 'Address or suburb, e.g. Brooklyn, Pretoria'}
-              onChange={(e) => set(i, { address: e.target.value })} aria-label={`${a.label || 'Area'} address`} />
+            <span className="min-w-[12rem] flex-1">
+              <AddressInput className="input px-2 py-1.5 text-sm" value={a.address}
+                placeholder={i === 0 ? (siteAddress ? `The site address: ${siteAddress}` : 'No site address on this quote yet: type it here or above') : 'Address or suburb, e.g. Brooklyn, Pretoria'}
+                onChange={(v) => set(i, { address: v })} ariaLabel={`${a.label || 'Area'} address`} />
+            </span>
             <select className="input w-auto px-2 py-1.5 text-sm" value={a.radiusKm} onChange={(e) => set(i, { radiusKm: Number(e.target.value) })} aria-label="Radius">
               {RADII.map((r) => <option key={r} value={r}>within {r} km</option>)}
             </select>
@@ -87,6 +90,7 @@ export function WhereToShopCard({ areas, online, siteAddress, onChange }: {
         {nearby && (
           <div className="space-y-3 pt-2">
             {nearby.problems.map((p, i) => <p key={i} className="text-sm text-amber-700">{p}</p>)}
+            {nearby.centres.map((c, i) => c.found && <p key={`f${i}`} className="text-xs text-slate-500"><strong className="font-medium text-slate-700">{c.label}:</strong> {c.found}</p>)}
             <Suspense fallback={<div className="flex h-72 items-center justify-center rounded-xl bg-slate-50 text-sm text-slate-400">Loading the map…</div>}>
               <ShopMap centres={nearby.centres} branches={nearby.branches} />
             </Suspense>
@@ -102,7 +106,7 @@ export function WhereToShopCard({ areas, online, siteAddress, onChange }: {
                 ))}
               </ul>
             )}
-            <p className="text-[11px] text-slate-400">Branches from OpenStreetMap, which can miss a store. Distances are straight-line.</p>
+            <p className="text-[11px] text-slate-400">{nearby.source === 'google' ? 'Branches from Google.' : 'Branches from OpenStreetMap, which can miss a store (Google, once its key is set, finds them all).'} Distances are straight-line.</p>
           </div>
         )}
       </div>

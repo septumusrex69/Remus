@@ -40,4 +40,25 @@ describe('the stores near a site', () => {
     expect(r.branches).toEqual([])
     expect(r.problems[0]).toMatch(/Could not find/)
   })
+  it('with a Google key: Google finds the address and the branches, matched on their own names', async () => {
+    const calls: string[] = []
+    const fake = (async (url: string, init?: { body?: string }) => {
+      calls.push(String(url))
+      if (String(url).includes('geocode')) return new Response(JSON.stringify({ status: 'OK', results: [{ formatted_address: '42 Mackenzie St, Brooklyn, Pretoria', geometry: { location: { lat: -25.7697, lng: 28.2370 } } }] }))
+      const q = JSON.parse(init?.body ?? '{}').textQuery
+      const places: Record<string, object[]> = {
+        Builders: [
+          { displayName: { text: 'Builders Menlyn' }, formattedAddress: 'Atterbury Rd, Menlyn', location: { latitude: -25.7838, longitude: 28.2766 } },
+          { displayName: { text: 'Smith Building Contractors' }, location: { latitude: -25.77, longitude: 28.24 } },
+        ],
+        'Leroy Merlin': [{ displayName: { text: 'Leroy Merlin Silver Lakes' }, location: { latitude: -25.7900, longitude: 28.3400 } }],
+      }
+      return new Response(JSON.stringify({ places: places[q] ?? [] }))
+    }) as unknown as typeof fetch
+    const r = await nearbyStores([{ label: 'Site', address: '42 Mackenzie St, Brooklyn', radiusKm: 20 }], fake, 'test-key')
+    expect(r.source).toBe('google')
+    expect(r.centres[0].found).toBe('42 Mackenzie St, Brooklyn, Pretoria')
+    expect(r.branches.map((b) => b.name)).toEqual(['Builders Menlyn', 'Leroy Merlin Silver Lakes'])
+    expect(calls.some((c) => c.includes('nominatim'))).toBe(false)
+  })
 })

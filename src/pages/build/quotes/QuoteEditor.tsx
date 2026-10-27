@@ -50,6 +50,7 @@ import { Button, Card, ErrorBanner, Field, PageHeader, Spinner, StatusBadge } fr
 import { DictateButton } from '../../../components/ui/Dictate'
 import { RowMenu } from '../../../components/ui/RowMenu'
 import { NumInput } from '../../../components/ui/NumInput'
+import { AddressInput } from '../../../components/ui/AddressInput'
 import { LABOUR_GRADES, LINE_KINDS, QUOTE_STATUSES, UNITS, type CompanySettings, type LabourGrade, type LineKind, type Subcontractor, type SubRateUnit, type Quote, type QuoteAttachment, type QuoteStatus, type Unit } from '../../../types'
 import { useAuth } from '../../../store/AuthContext'
 import { ClientPicker } from '../components/ClientPicker'
@@ -583,7 +584,7 @@ export function QuoteEditor() {
                 className="sm:col-span-2"
                 hint={quote.site_address && quote.site_address.trim() === clientAddress(dir, quote) ? "From the client's address. Change it if the site is elsewhere." : undefined}
               >
-                <input className="input" value={quote.site_address ?? ''} onChange={(e) => patchQuote({ site_address: e.target.value })} />
+                <AddressInput value={quote.site_address ?? ''} onChange={(v) => patchQuote({ site_address: v })} placeholder="Start typing the site's address" ariaLabel="Site address" />
               </Field>
               <Field label="Issue date">
                 <input type="date" className="input" value={quote.issue_date} onChange={(e) => patchQuote({ issue_date: e.target.value || todayYmd() })} />

@@ -11,6 +11,7 @@
  * Both services ask for a named User-Agent and light use; Find prices calls them once per press.
  */
 import { STORES } from './priceCrawl.js'
+import { geocodeGoogle, searchChain } from './googlePlaces.js'
 
 export interface Area { label: string; address?: string; lat?: number; lon?: number; radiusKm: number }
 export interface Centre { label: string; lat: number; lon: number; radiusKm: number; found: string | null }
@@ -53,18 +54,20 @@ async function geocode(address: string, fetchImpl: typeof fetch): Promise<{ lat:
   return rows[0] ? { lat: Number(rows[0].lat), lon: Number(rows[0].lon), found: rows[0].display_name } : null
 }
 
-export async function nearbyStores(areas: Area[], fetchImpl: typeof fetch = fetch): Promise<{ centres: Centre[]; branches: Branch[]; problems: string[] }> {
+export async function nearbyStores(areas: Area[], fetchImpl: typeof fetch = fetch, googleKey: string | undefined = process.env.GOOGLE_MAPS_API_KEY): Promise<{ centres: Centre[]; branches: Branch[]; problems: string[]; source: 'google' | 'openstreetmap' }> {
+  // Google when its key is set (googlePlaces.ts), OpenStreetMap otherwise.
+  const source = googleKey ? 'google' as const : 'openstreetmap' as const
   const problems: string[] = []
   const centres: Centre[] = []
   for (const a of areas.slice(0, 4)) {
     const radiusKm = Math.min(100, Math.max(1, Number(a.radiusKm) || 5))
     if (typeof a.lat === 'number' && typeof a.lon === 'number') { centres.push({ label: a.label, lat: a.lat, lon: a.lon, radiusKm, found: null }); continue }
     if (!a.address?.trim()) continue
-    const g = await geocode(a.address, fetchImpl).catch(() => null)
+    const g = await (googleKey ? geocodeGoogle(a.address, googleKey, fetchImpl) : geocode(a.address, fetchImpl)).catch(() => null)
     if (g) centres.push({ label: a.label, lat: g.lat, lon: g.lon, radiusKm, found: g.found })
     else problems.push(`Could not find "${a.address}" on the map. Try a suburb and town, e.g. "Brooklyn, Pretoria".`)
   }
-  if (!centres.length) return { centres, branches: [], problems }
+  if (!centres.length) return { centres, branches: [], problems, source }
 
   /*
    * THE BRANCHES, FROM NOMINATIM'S NAME SEARCH inside the box around the areas. The first build asked
@@ -80,7 +83,18 @@ export async function nearbyStores(areas: Area[], fetchImpl: typeof fetch = fetc
   ].map((n) => n.toFixed(4)).join(',')
   let elements: { lat?: number; lon?: number; center?: { lat: number; lon: number }; tags?: Record<string, string> }[] = []
   let failed = 0
-  for (const [i, chain] of CHAIN_NAMES.entries()) {
+  if (googleKey) {
+    // Google: the six chains at once (no one-a-second rule), each held to the box.
+    const [west, north, east, south] = box.split(',').map(Number)
+    const found = await Promise.allSettled(CHAIN_NAMES.map((chain) => searchChain(chain, { south, west, north, east }, googleKey, fetchImpl)))
+    found.forEach((f, i) => {
+      if (f.status === 'rejected') { failed++; return }
+      // Matched on the place's OWN name: a text search for "Builders" also returns building contractors.
+      void i
+      for (const p of f.value) elements.push({ lat: p.lat, lon: p.lon, tags: { name: p.name, 'addr:street': p.address ?? '' } })
+    })
+  }
+  for (const [i, chain] of (googleKey ? [] : CHAIN_NAMES).entries()) {
     if (i > 0) await new Promise((r) => setTimeout(r, 1100))
     try {
       const url = `https://nominatim.openstreetmap.org/search?format=json&limit=30&countrycodes=za&bounded=1&addressdetails=1&viewbox=${box}&q=${encodeURIComponent(chain)}`
@@ -127,5 +141,5 @@ export async function nearbyStores(areas: Area[], fetchImpl: typeof fetch = fetc
     })
   }
   branches.sort((a, b) => a.distanceKm - b.distanceKm)
-  return { centres, branches, problems }
+  return { centres, branches, problems, source }
 }
