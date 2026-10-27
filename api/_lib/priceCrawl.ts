@@ -301,7 +301,7 @@ export async function crawlStore(store: StoreDef, query: string, fetchImpl: type
     const res = await fetchImpl(url, { headers: BROWSER_HEADERS, redirect: 'follow', signal: ctl.signal })
     const html = await res.text()
     const pageUrl = res.url || url
-    const products = dedupe([...fromJsonLd(html, pageUrl), ...fromEmbeddedJson(html, pageUrl), ...fromProductCards(html, pageUrl), ...fromMicrodata(html, pageUrl)]).slice(0, MAX_PRODUCTS)
+    const products = rankByQuery(dedupe([...fromJsonLd(html, pageUrl), ...fromEmbeddedJson(html, pageUrl), ...fromProductCards(html, pageUrl), ...fromMicrodata(html, pageUrl)]), query).slice(0, MAX_PRODUCTS)
     const ms = Date.now() - started
     if (products.length) {
       return { ...base, url: pageUrl, outcome: 'ok', note: `${products.length} product${products.length === 1 ? '' : 's'} read.`, httpStatus: res.status, ms, bytes: html.length, products }
@@ -318,6 +318,32 @@ export async function crawlStore(store: StoreDef, query: string, fetchImpl: type
   } finally {
     clearTimeout(timer)
   }
+}
+
+/*
+ * BEST MATCH FIRST (Stephan, 27 Oct, of Cashbuild: "I got more toilet seats than I got toilets, what I
+ * was searching for"). A store's own search returns everything near the words, in its own order. So
+ * each product is scored on how many of the searched words its name carries (couple / coupled are one
+ * word), and a PART -- seat, mechanism, cistern, lid ... -- loses points unless a part was searched
+ * for. Nothing is dropped: the parts are still there, below what was asked for.
+ */
+const PART_WORDS = ['seat', 'lid', 'mechanism', 'cistern', 'fitting', 'spare', 'hinge', 'valve', 'washer', 'bolt', 'connector', 'handle', 'button', 'cover', 'kit']
+const stem = (w: string) => w.replace(/(ings|ing|ed|es|s|e|d)$/, '')
+const words = (s: string) => s.toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length > 2).map(stem)
+
+export function matchScore(name: string, query: string): number {
+  const want = new Set(words(query))
+  const have = new Set(words(name))
+  let score = 0
+  for (const w of want) if (have.has(w)) score += 2
+  for (const part of PART_WORDS.map(stem)) if (have.has(part) && !want.has(part)) score -= 3
+  return score
+}
+
+export function rankByQuery<P extends { name: string }>(products: P[], query: string): P[] {
+  return products.map((p, i) => ({ p, i, s: matchScore(p.name, query) }))
+    .sort((a, b) => b.s - a.s || a.i - b.i)
+    .map((x) => x.p)
 }
 
 /** The same product read twice (JSON-LD and the page's own JSON both carry it) is one product. */

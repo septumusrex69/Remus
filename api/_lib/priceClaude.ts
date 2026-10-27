@@ -28,7 +28,11 @@ import { usdFor } from './aiUsage.js'
  * refusal fallback, so a refusal is simply an error on the run.
  */
 export const MODEL = 'claude-haiku-5-5'
-const MAX_SEARCHES = 2
+/*
+ * ONE SEARCH PER STORE, six at most (27 Oct: with two in all, a Combined run asking about five stores
+ * heard back from two -- "it gave me nothing for Builders, Leroy Merlin, Plumblink, Build It").
+ */
+const MAX_SEARCHES = 6
 /* For the screen only: a rough rand figure so "what did that cost" reads in the money Urban Haus spends. */
 export const USD_TO_ZAR = 18
 
@@ -101,7 +105,7 @@ function systemPrompt(storeNames: string[]): string {
   return [
     'You find current retail prices of building and plumbing materials at South African stores, for a builder drafting a quotation.',
     `Stores to check: ${storeNames.join(', ')}. Use only these stores' own websites (the search tools are limited to them).`,
-    'Read prices from the search results themselves (titles and snippets); you cannot open pages. One or two searches in total, covering the stores together.',
+    'Read prices from the search results themselves (titles and snippets); you cannot open pages. Search each store once (one search per store), and report every store.',
     'Report up to 5 products per store that genuinely match what was asked for (a toilet seat is not a toilet). Never invent a price: if a store shows none, report price null and say so.',
     'Prices are in rand, VAT inclusive, as the store shows them. Note the size or pack where it matters (e.g. a 1 m pipe versus a 6 m one).',
     'Be quick: a few searches, not an exhaustive survey. When done, call report_prices once with everything.',
@@ -130,7 +134,7 @@ export async function claudeSearch(query: string, storeIds: string[] | null, cli
         output_config: { effort: 'low' },
         system: systemPrompt(stores.map((s) => s.name)),
         tools: [
-          { type: 'web_search_20250305', name: 'web_search', max_uses: MAX_SEARCHES, allowed_domains: domains.length ? domains : STORE_DOMAINS, user_location: { type: 'approximate', country: 'ZA', city: 'Pretoria' } },
+          { type: 'web_search_20250305', name: 'web_search', max_uses: Math.min(MAX_SEARCHES, Math.max(1, stores.length)), allowed_domains: domains.length ? domains : STORE_DOMAINS, user_location: { type: 'approximate', country: 'ZA', city: 'Pretoria' } },
           REPORT_TOOL,
         ],
         messages,

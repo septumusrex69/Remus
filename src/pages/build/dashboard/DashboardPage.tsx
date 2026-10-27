@@ -22,6 +22,8 @@ import {
   quotes as quotesApi,
   getSettings,
   loadClaudeCredit,
+  usdAndZar,
+  USD_TO_ZAR,
 } from '../../../lib/api'
 import { formatDate, formatPct, formatZAR, labelize, ymd } from '../../../lib/format'
 import { outstandingInvoices } from '../../../lib/finance'
@@ -314,8 +316,9 @@ export function DashboardPage() {
           icon={<Bot size={18} />}
           chip={data.claude && data.claude.boughtUsd > 0 && data.claude.leftUsd < data.claude.boughtUsd * 0.2 ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-700'}
           value={data.claude && data.claude.boughtUsd > 0 ? `$${data.claude.leftUsd.toFixed(2)} left` : '—'}
+          // The rand under the dollars: Anthropic bills in dollars, Urban Haus thinks in rand.
           hint={data.claude
-            ? `Used $${data.claude.usedUsd.toFixed(2)} of $${data.claude.boughtUsd.toFixed(2)} · $${data.claude.monthUsd.toFixed(2)} this month`
+            ? `≈ ${formatZAR(data.claude.leftUsd * USD_TO_ZAR, { decimals: 0 })} left · used ${usdAndZar(data.claude.usedUsd)} · this month ${usdAndZar(data.claude.monthUsd)}`
             : 'Set what you bought in Settings'}
           to={paths.settings('Integrations')}
         />

@@ -6,6 +6,7 @@
  */
 import { supabase, BRANDING_BUCKET, QUOTE_FILES_BUCKET, RECEIPTS_BUCKET } from './supabase'
 import { quoteTotals } from './quoteMath'
+import { formatZAR } from './format'
 import { stagesFromQuote } from './projectPlan'
 import type {
   Activity,
@@ -1053,6 +1054,16 @@ export async function findPrices(query: string, engine: PriceEngine, storeIds: s
   }
   const cached = !!body.cached
   return { engine, hits, stores, ms: Date.now() - started, zar: cached ? 0 : c?.usage.zar ?? 0, error: c?.error ?? null, cached, searchedAt: body.searchedAt ?? null }
+}
+
+/*
+ * DOLLARS AND RAND (Stephan, 27 Oct: "put it in dollar and in rand"). Anthropic bills in dollars; the
+ * rand is a guide at a fixed rate, shown with "≈" so nobody reads it as the bank's figure. The same rate
+ * as the server's (api/_lib/priceClaude.ts USD_TO_ZAR).
+ */
+export const USD_TO_ZAR = 18
+export function usdAndZar(usd: number): string {
+  return `$${usd.toFixed(2)} · ≈ ${formatZAR(usd * USD_TO_ZAR, { decimals: usd * USD_TO_ZAR >= 100 ? 0 : 2 })}`
 }
 
 export interface ClaudeCredit { boughtUsd: number; usedUsd: number; leftUsd: number; monthUsd: number; monthCalls: number }

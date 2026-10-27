@@ -36,7 +36,7 @@ describe('reading what Claude reports', () => {
     // Only the chosen stores' own sites.
     const tools = (calls[0] as { tools: { name: string; allowed_domains?: string[] }[] }).tools
     expect(tools.find((t) => t.name === 'web_search')?.allowed_domains).toEqual(['builders.co.za', 'cashbuild.co.za'])
-    // The cheap version: no page is opened, and two searches at most.
+    // The cheap version: no page is opened, and one search per store asked about.
     expect(tools.map((t) => t.name)).toEqual(['web_search', 'report_prices'])
     expect((tools[0] as { max_uses?: number }).max_uses).toBe(2)
   })

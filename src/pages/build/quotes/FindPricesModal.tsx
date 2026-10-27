@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Bot, ExternalLink, Loader2, Search, Zap } from 'lucide-react'
+import { Bot, ExternalLink, Loader2, Package, Search, Zap } from 'lucide-react'
 import { Button, Modal } from '../../../components/ui'
 import { formatZAR } from '../../../lib/format'
 import { findPrices, PRICE_STORES, type PriceEngine, type PriceHit, type PriceSearch, type PriceSource } from '../../../lib/api'
@@ -135,7 +135,10 @@ export function FindPricesModal({ open, onClose, initialQuery, onPick }: {
                     <ul className="divide-y divide-slate-100">
                       {hits.map((h, i) => (
                         <li key={i} className="flex items-center gap-3 px-4 py-2">
-                          {h.image ? <img src={h.image} alt="" className="h-10 w-10 shrink-0 rounded object-cover" loading="lazy" /> : <span className="h-10 w-10 shrink-0 rounded bg-slate-100" />}
+                          {h.image
+                            ? <img src={h.image} alt="" className="h-10 w-10 shrink-0 rounded object-cover" loading="lazy" />
+                            // Claude reads search results, which carry no picture; say "no picture" rather than draw a hole.
+                            : <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded bg-slate-50 text-slate-300" title="No picture from this store"><Package size={18} /></span>}
                           <span className="min-w-0 flex-1">
                             <span className="block truncate text-sm text-slate-800">{h.name}</span>
                             <span className="flex flex-wrap items-center gap-1.5 text-[11px] text-slate-500">

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Bot } from 'lucide-react'
-import { loadClaudeCredit, updateSettings, type ClaudeCredit } from '../../../lib/api'
+import { loadClaudeCredit, updateSettings, usdAndZar, type ClaudeCredit } from '../../../lib/api'
 import { Button, Card, ErrorBanner, Field } from '../../../components/ui'
 import { NumInput } from '../../../components/ui/NumInput'
 import { useBuild } from '../BuildContext'
@@ -41,12 +41,12 @@ export function ClaudeCreditCard() {
       <ErrorBanner error={error} />
       {credit && (
         <div className="mb-4 grid grid-cols-3 gap-3 text-center">
-          <Figure label="Bought" value={`$${credit.boughtUsd.toFixed(2)}`} />
-          <Figure label="Used" value={`$${credit.usedUsd.toFixed(2)}`} hint={`$${credit.monthUsd.toFixed(2)} this month`} />
-          <Figure label="Left" value={`$${credit.leftUsd.toFixed(2)}`} strong />
+          <Figure label="Bought" value={usdAndZar(credit.boughtUsd)} />
+          <Figure label="Used" value={usdAndZar(credit.usedUsd)} hint={`${usdAndZar(credit.monthUsd)} this month`} />
+          <Figure label="Left" value={usdAndZar(credit.leftUsd)} strong />
         </div>
       )}
-      <Field label="Credit bought, all together (US$)" hint="Add each top-up you buy in the Claude Console. Remus counts what it spends; the Console's own figure is the final word.">
+      <Field label="Credit bought, all together (US$)" hint="Add each top-up you buy in the Claude Console. Rand is a guide at R18 to the dollar. Remus counts what it spends; the Console's own figure is the final word.">
         <div className="flex gap-2">
           <NumInput prefix="$" value={bought} onValue={(n) => setBought(n)} />
           <Button variant="primary" onClick={() => void save()} loading={saving} disabled={!settings || bought === settings.ai_credit_usd}>Save</Button>
@@ -60,7 +60,7 @@ function Figure({ label, value, hint, strong }: { label: string; value: string; 
   return (
     <div className="rounded-xl bg-slate-50 p-3">
       <p className="text-xs text-slate-500">{label}</p>
-      <p className={`tabular text-lg font-bold ${strong ? 'text-emerald-700' : 'text-slate-800'}`}>{value}</p>
+      <p className={`tabular text-base font-bold ${strong ? 'text-emerald-700' : 'text-slate-800'}`}>{value}</p>
       {hint && <p className="text-[11px] text-slate-400">{hint}</p>}
     </div>
   )

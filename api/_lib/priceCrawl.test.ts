@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { crawlStore, diagnose, fromEmbeddedJson, fromJsonLd, fromMicrodata, fromProductCards, parsePrice, type StoreDef } from './priceCrawl.js'
+import { crawlStore, diagnose, matchScore, rankByQuery, fromEmbeddedJson, fromJsonLd, fromMicrodata, fromProductCards, parsePrice, type StoreDef } from './priceCrawl.js'
 
 /* Pages written by hand in the shapes shops use; the real stores are checked on the preview. */
 
@@ -100,5 +100,21 @@ describe('one store, end to end', () => {
     expect([r.outcome, r.products.length]).toEqual(['blocked', 0])
     const down = await crawlStore(store, 'toilet', (async () => { throw new Error('getaddrinfo ENOTFOUND') }) as unknown as typeof fetch)
     expect(down.outcome).toBe('error')
+  })
+})
+
+describe('best match first (Cashbuild, 27 Oct: more seats than toilets)', () => {
+  const q = 'close coupled toilet'
+  it('a suite outranks a seat when a toilet was asked for', () => {
+    const ranked = rankByQuery([
+      { name: 'Toilet Seat Mahogany' }, { name: 'Cistern Mechanism - Close Couple' }, { name: 'Close Couple Suite in Box' },
+      { name: 'Astina Top Flush Close Couple Toilet Suite' }, { name: 'Toilet Seat Oak' },
+    ], q).map((p) => p.name)
+    expect(ranked.slice(0, 2)).toEqual(['Astina Top Flush Close Couple Toilet Suite', 'Close Couple Suite in Box'])
+    // The three parts (two seats, a mechanism) all sit below both suites.
+    expect(ranked.slice(2).sort()).toEqual(['Cistern Mechanism - Close Couple', 'Toilet Seat Mahogany', 'Toilet Seat Oak'])
+  })
+  it('a part is not pushed down when the part is what was asked for', () => {
+    expect(matchScore('Toilet Seat Oak', 'toilet seat')).toBeGreaterThan(matchScore('Close Couple Suite', 'toilet seat'))
   })
 })
