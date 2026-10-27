@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { StageSelect } from './StageSelect'
 import { NumInput } from '../../../components/ui/NumInput'
 import { expenses } from '../../../lib/api'
 import { round2, todayYmd } from '../../../lib/format'
@@ -101,8 +102,9 @@ export function ExpenseFormModal({
           </select>
         </Field>
         <Field label="Project" className="sm:col-span-2">
-          <ProjectSelect projects={projects} value={form.project_id ?? null} onChange={(v) => set('project_id', v)} />
+          <ProjectSelect projects={projects} value={form.project_id ?? null} onChange={(v) => { set('project_id', v); set('stage_id', null) }} />
         </Field>
+        <StageSelect className="sm:col-span-2" projectId={form.project_id ?? null} value={form.stage_id ?? null} onChange={(v) => set('stage_id', v)} />
         <Field label="Supplier">
           <input className="input" value={form.supplier ?? ''} onChange={(e) => set('supplier', e.target.value)} placeholder="e.g. Builders Warehouse" />
         </Field>

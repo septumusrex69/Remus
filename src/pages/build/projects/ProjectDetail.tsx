@@ -43,8 +43,9 @@ import { paths } from '../paths'
 import { LazyCategoryBarChart } from '../components/LazyCharts'
 import { useVatRate } from '../BuildContext'
 import { ProjectFormModal } from './ProjectFormModal'
+import { PlanTab } from './PlanTab'
 
-type Tab = 'overview' | 'expenses' | 'invoices' | 'variations' | 'diary' | 'schedule'
+type Tab = 'overview' | 'plan' | 'expenses' | 'invoices' | 'variations' | 'diary' | 'schedule'
 
 /** Runs a click action, reporting any failure to the page's error banner. */
 type Act = (fn: () => Promise<unknown>) => Promise<void>
@@ -128,15 +129,17 @@ export function ProjectDetail() {
         onChange={(t) => setParams({ tab: t }, { replace: true })}
         tabs={[
           { id: 'overview', label: 'Overview' },
+          { id: 'plan', label: 'Plan & crew' },
           { id: 'expenses', label: `Expenses (${data.exp.length})` },
           { id: 'invoices', label: 'Invoices & payments' },
           { id: 'variations', label: `Variations (${data.vars.length})` },
           { id: 'diary', label: 'Site diary' },
-          { id: 'schedule', label: 'Schedule' },
+          { id: 'schedule', label: 'Events' },
         ]}
       />
 
       {tab === 'overview' && <Overview data={data} />}
+      {tab === 'plan' && <PlanTab project={project} quote={data.quote} onProjectChanged={reload} />}
       {tab === 'expenses' && <ExpensesTab projectId={project.id} rows={data.exp} projects={data.allProjects} linked={data.linked} reload={reload} act={act} />}
       {tab === 'invoices' && <InvoicesTab data={data} reload={reload} act={act} />}
       {tab === 'variations' && <VariationsTab projectId={project.id} rows={data.vars} reload={reload} act={act} />}

@@ -14,6 +14,9 @@ import {
   listQuoteTotals,
   listRecentExpenses,
   loadBankBalances,
+  projectStages,
+  stageBookings,
+  workers as workersApi,
   payments as paymentsApi,
   projects as projectsApi,
   quotes as quotesApi,
@@ -43,7 +46,7 @@ async function load() {
   const now = new Date()
   const from = ymd(startOfMonth(now))
   const to = ymd(endOfMonth(now))
-  const [projects, fin, quotes, totals, invoices, allPayments, monthPayments, monthExpenses, events, recent, bank, claude] = await Promise.all([
+  const [projects, fin, quotes, totals, invoices, allPayments, monthPayments, monthExpenses, events, recent, bank, claude, stages, bookings, workers] = await Promise.all([
     projectsApi.list(),
     listProjectFinancials(),
     quotesApi.list(),
@@ -58,8 +61,11 @@ async function load() {
     loadBankBalances().catch(() => null),
     // Claude credit (Remus · Handoff 1): Remus's own count against what was bought; never blocks the page.
     getSettings().then((st) => loadClaudeCredit(st.ai_credit_usd)).catch(() => null),
+    projectStages.list().catch(() => []),
+    stageBookings.list().catch(() => []),
+    workersApi.list().catch(() => []),
   ])
-  return { projects, fin, quotes, totals, invoices, allPayments, monthPayments, monthExpenses, events, recent, bank, claude }
+  return { projects, fin, quotes, totals, invoices, allPayments, monthPayments, monthExpenses, events, recent, bank, claude, stages, bookings, workers }
 }
 
 /** Is the project on site that day: active, and the day inside its dates (or it has none). */
@@ -157,8 +163,14 @@ export function DashboardPage() {
     }
     return items
   }
-  const sitesToday = data.projects.filter((p) => onSite(p, today))
-  const sitesTomorrow = data.projects.filter((p) => onSite(p, tomorrow))
+  // Who is booked on a project's stages that day (Plan & crew); a booked job counts as on site.
+  const stageProject = new Map(data.stages.map((s) => [s.id, s.project_id]))
+  const workerName = new Map(data.workers.map((w) => [w.id, w.name]))
+  const crewOn = (projectId: string, day: string) =>
+    data.bookings.filter((b) => stageProject.get(b.stage_id) === projectId && b.start_date <= day && b.end_date >= day).map((b) => workerName.get(b.worker_id) ?? 'Worker')
+  const bookedOn = (day: string) => new Set(data.bookings.filter((b) => b.start_date <= day && b.end_date >= day).map((b) => stageProject.get(b.stage_id)))
+  const sitesToday = data.projects.filter((p) => onSite(p, today) || bookedOn(today).has(p.id))
+  const sitesTomorrow = data.projects.filter((p) => onSite(p, tomorrow) || bookedOn(tomorrow).has(p.id))
   const later = data.events.filter((e) => ymd(new Date(e.start_at)) > tomorrow).slice(0, 5)
 
   // ---------- Needs attention ----------
@@ -213,8 +225,8 @@ export function DashboardPage() {
       {/* ---------- Today, tomorrow, next job ---------- */}
       <SectionLabel>What is happening</SectionLabel>
       <div className="grid gap-4 lg:grid-cols-3">
-        <DayCard title="Today" date={now} sites={sitesToday} items={dayItems(today)} empty="Nothing booked for today." accent="bg-brand-600" />
-        <DayCard title="Tomorrow" date={addDays(now, 1)} sites={sitesTomorrow} items={dayItems(tomorrow)} empty="Nothing booked for tomorrow." accent="bg-ink-900" />
+        <DayCard title="Today" date={now} sites={sitesToday} crew={(p) => crewOn(p.id, today)} items={dayItems(today)} empty="Nothing booked for today." accent="bg-brand-600" />
+        <DayCard title="Tomorrow" date={addDays(now, 1)} sites={sitesTomorrow} crew={(p) => crewOn(p.id, tomorrow)} items={dayItems(tomorrow)} empty="Nothing booked for tomorrow." accent="bg-ink-900" />
         <section className="card overflow-hidden">
           <header className="flex items-center justify-between bg-emerald-700 px-5 py-3 text-white">
             <span>
@@ -419,7 +431,7 @@ function MoneyTile({ label, icon, chip, value, valueClass, hint, to }: { label: 
 }
 
 /** One day: the jobs on site, then what is booked or due, each with a coloured tag. */
-function DayCard({ title, date, sites, items, empty, accent }: { title: string; date: Date; sites: Project[]; items: DayItem[]; empty: string; accent: string }) {
+function DayCard({ title, date, sites, crew, items, empty, accent }: { title: string; date: Date; sites: Project[]; crew: (p: Project) => string[]; items: DayItem[]; empty: string; accent: string }) {
   const count = sites.length + items.length
   return (
     <section className="card overflow-hidden">
@@ -443,6 +455,7 @@ function DayCard({ title, date, sites, items, empty, accent }: { title: string; 
                 <span className="min-w-0">
                   <span className="block truncate text-sm font-medium text-slate-800">{p.name}</span>
                   {p.site_address && <span className="block truncate text-xs text-slate-500">{p.site_address}</span>}
+                  {crew(p).length > 0 && <span className="block truncate text-xs font-medium text-emerald-700">{crew(p).join(', ')}</span>}
                 </span>
               </Link>
             </li>

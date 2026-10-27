@@ -27,6 +27,7 @@ import {
   listQuoteItems,
   listQuoteStages,
   subcontractors as subsApi,
+  planProjectFromQuote,
   invoices as invoicesApi,
   clientAddress,
   loadClientDirectory,
@@ -977,12 +978,14 @@ export function QuoteEditor() {
         quote={quote}
         totals={totals}
         hasProject={Boolean(quote.project_id)}
-        onConfirm={async ({ project, deposit }) => {
+        onConfirm={async ({ project, deposit, start }) => {
           setAccepting(false)
           await run('accepted', async () => {
             let projectId = quote.project_id
             if (project && !projectId) projectId = (await convertQuoteToProject(quote.id)).id
             else await quotesApi.update(quote.id, { status: 'accepted', updated_at: new Date().toISOString() })
+            // The quote's stages on the calendar, from the chosen start date.
+            if (projectId && start) await planProjectFromQuote(projectId, quote.id, start)
             const pct = Number(quote.deposit_pct || 0)
             if (deposit && pct > 0) {
               const excl = round2((totals.totalExcl * pct) / 100)
@@ -997,7 +1000,7 @@ export function QuoteEditor() {
                 status: 'draft',
               })
             }
-            if (projectId) navigate(paths.project(projectId, deposit ? 'invoices' : undefined))
+            if (projectId) navigate(paths.project(projectId, start ? 'plan' : deposit ? 'invoices' : undefined))
             else setQuote(await quotesApi.get(quote.id))
           })
         }}

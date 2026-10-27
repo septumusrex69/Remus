@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { StageSelect } from '../components/StageSelect'
 import { NumInput } from '../../../components/ui/NumInput'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { ArrowLeft, Camera, CheckCircle2, FileText, Images, Loader2, Sparkles, X } from 'lucide-react'
@@ -38,6 +39,7 @@ interface FormState {
   vat: string
   category: ExpenseCategory
   project_id: string | null
+  stage_id: string | null
   description: string
   paid: boolean
 }
@@ -50,6 +52,7 @@ const blankForm = (projectId: string | null): FormState => ({
   vat: '',
   category: 'materials',
   project_id: projectId,
+  stage_id: null,
   description: '',
   paid: true,
 })
@@ -185,6 +188,7 @@ export function SlipCapture() {
         receipt_number: form.receipt_number || null,
         category: form.category,
         project_id: form.project_id,
+        stage_id: form.project_id ? form.stage_id : null,
         amount_excl: round2(total - vat),
         vat: round2(vat),
         paid: form.paid,
@@ -334,7 +338,8 @@ export function SlipCapture() {
                   </select>
                 </Field>
                 <Field label="Project">
-                  <ProjectSelect projects={projects ?? []} value={form.project_id} onChange={(v) => set('project_id', v)} highlight={suggested.has('project_id')} />
+                  <ProjectSelect projects={projects ?? []} value={form.project_id} onChange={(v) => { set('project_id', v); set('stage_id', null) }} highlight={suggested.has('project_id')} />
+                  <StageSelect className="mt-2" projectId={form.project_id} value={form.stage_id} onChange={(v) => set('stage_id', v)} />
                 </Field>
                 <Field label="Description" className="col-span-2"><input className="input" value={form.description} onChange={(e) => set('description', e.target.value)} /></Field>
                 <label className="col-span-2 flex items-center gap-2 text-sm"><input type="checkbox" checked={form.paid} onChange={(e) => set('paid', e.target.checked)} /> Already paid</label>

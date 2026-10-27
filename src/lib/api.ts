@@ -6,6 +6,7 @@
  */
 import { supabase, BRANDING_BUCKET, QUOTE_FILES_BUCKET, RECEIPTS_BUCKET } from './supabase'
 import { quoteTotals } from './quoteMath'
+import { stagesFromQuote } from './projectPlan'
 import type {
   Activity,
   BankAccount,
@@ -28,6 +29,9 @@ import type {
   QuoteItem,
   QuoteStage,
   Subcontractor,
+  Worker,
+  ProjectStage,
+  StageBooking,
   QuoteTotalsRow,
   SiteDiaryEntry,
   Variation,
@@ -434,6 +438,35 @@ export async function getProjectFinancials(projectId: ID): Promise<ProjectFinanc
 // ---------- Money ----------
 
 export const expenses = crud<Expense>('expenses', ['amount_excl', 'vat'], 'date')
+
+// ---------- Workers and the project plan (migration 0016) ----------
+
+export const workers = crud<Worker>('workers', ['day_cost'], 'name', true)
+export const projectStages = crud<ProjectStage>('project_stages', ['sort_order', 'quoted_sell', 'quoted_material', 'quoted_labour', 'quoted_subcontractor'], 'sort_order', true)
+export const stageBookings = crud<StageBooking>('stage_bookings', [], 'start_date', true)
+
+/** Every stage of every project, for the company schedule and double-booking checks. */
+export async function listAllStages(): Promise<ProjectStage[]> {
+  return projectStages.list()
+}
+
+/**
+ * Puts an accepted quote's stages on the calendar for a project, from a start date, and sets the
+ * project's start and end dates to match. Replaces stages the project had (and their bookings).
+ */
+export async function planProjectFromQuote(projectId: ID, quoteId: ID, start: string): Promise<ProjectStage[]> {
+  const [items, plans] = await Promise.all([listQuoteItems(quoteId), listQuoteStages(quoteId)])
+  const rows = stagesFromQuote(items, plans, start)
+  const old = await projectStages.list({ project_id: projectId })
+  if (old.length) unwrap(await supabase.from('project_stages').delete().in('id', old.map((s) => s.id)))
+  const saved = rows.length
+    ? unwrap<ProjectStage[]>(await supabase.from('project_stages').insert(rows.map((r) => ({ ...r, project_id: projectId }))).select('*'))
+    : []
+  const starts = rows.map((r) => r.start_date!).sort()
+  const ends = rows.map((r) => r.end_date!).sort()
+  if (rows.length) await projects.update(projectId, { start_date: starts[0], end_date: ends[ends.length - 1] })
+  return saved.sort((a, b) => a.sort_order - b.sort_order)
+}
 export const invoices = crud<Invoice>('invoices', ['amount_excl', 'vat'], 'issue_date')
 export const subcontractors = crud<Subcontractor>('subcontractors', ['rate_amount', 'rating'], 'name', true)
 export const payments = crud<Payment>('payments', ['amount'], 'date')
