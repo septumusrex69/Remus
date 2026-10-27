@@ -81,6 +81,20 @@ ANTHROPIC_API_KEY in Vercel, which Remus does not have (the slip reader needs it
 - **Leroy Merlin: 403. BUCO: robot check.** Worth one retry from a South African server region
   (Vercel `cpt1`) before giving up -- a foreign address may be part of why.
 
+**The comparison, "close coupled toilet", 27 Oct 05:48 (all six stores):**
+
+| | Stores with prices | Time | Cost |
+|---|---|---|---|
+| Quick (crawler) | 1 (Cashbuild, 7 items) | ~2 s | free |
+| Claude | 4 (Leroy Merlin, Cashbuild, BUCO, Plumblink); Builders pages had no price | 49 s | R7.85 (76k in / 3.6k out tokens, 6 searches) |
+| Combined | 5 (Cashbuild by crawler; Builders, Leroy Merlin, BUCO, Plumblink by Claude) | 40 s | R7.34 |
+
+Claude varies run to run (Builders: no prices the first time, its promo listing the second). Cashbuild
+disagreed: crawler R989.95 (the page's default branch, Musina) vs Claude R1 209.95 for the same suite --
+Cashbuild prices are per branch, so choosing the branch is needed before either is trusted. Combined saves
+little while only one store is crawlable; it pays more as the crawler learns more stores. These probe runs
+(~R15) are NOT on the credit tile (no signed-in person to record them as).
+
 ## Workers, project plan and profit per stage (26 Oct 2026, branch `claude/workers-and-plan`)
 
 Planning step 2, Stephan's pick. Migration `0016_workers_and_project_plan.sql` (applied live):
