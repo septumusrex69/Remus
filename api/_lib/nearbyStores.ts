@@ -17,7 +17,8 @@ export interface Centre { label: string; lat: number; lon: number; radiusKm: num
 export interface Branch { store: string; storeName: string; name: string; lat: number; lon: number; distanceKm: number; nearest: string; address: string | null }
 
 const UA = 'Remus/1.0 (Urban Haus construction quotes; urbanhausgroup.co.za)'
-const OVERPASS = ['https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter', 'https://overpass.private.coffee/api/interpreter']
+/* As each chain is searched for by name. */
+const CHAIN_NAMES = ['Builders', 'Leroy Merlin', 'Cashbuild', 'BUCO', 'Plumblink', 'Build It']
 
 /* How each chain is written on OpenStreetMap (name or brand); matched without case. */
 const CHAIN_PATTERNS: Record<string, RegExp> = {
@@ -65,33 +66,45 @@ export async function nearbyStores(areas: Area[], fetchImpl: typeof fetch = fetc
   }
   if (!centres.length) return { centres, branches: [], problems }
 
-  const chains = 'Builders|Leroy Merlin|Cashbuild|BUCO|Buco|Plumblink|Build It|Build-It'
-  const around = centres.map((c) => `nwr["shop"](around:${Math.round(c.radiusKm * 1000)},${c.lat},${c.lon})["name"~"${chains}",i];nwr["shop"](around:${Math.round(c.radiusKm * 1000)},${c.lat},${c.lon})["brand"~"${chains}",i];`).join('')
-  const ql = `[out:json][timeout:15];(${around});out center 300;`
-  let elements: { lat?: number; lon?: number; center?: { lat: number; lon: number }; tags?: Record<string, string> }[] = []
   /*
-   * Overpass is run by volunteers on a few public servers; the main one is often busy. Try them in
-   * turn, and keep what each said, so a failure says why rather than only "did not answer".
+   * THE BRANCHES, FROM NOMINATIM'S NAME SEARCH inside the box around the areas. The first build asked
+   * Overpass, OpenStreetMap's query service; on 27 Oct its three public servers answered 502 and timed
+   * out from Remus's server, while Nominatim (the address look-up above) answered every time. So each
+   * chain is searched by name inside the box, one after another -- Nominatim asks for no more than one
+   * request a second -- and the distance check below keeps only what is inside a circle.
    */
-  const tried: string[] = []
-  const ask = async (endpoint: string) => {
+  const pad = Math.max(...centres.map((c) => c.radiusKm)) / 111
+  const box = [
+    Math.min(...centres.map((c) => c.lon)) - pad, Math.max(...centres.map((c) => c.lat)) + pad,
+    Math.max(...centres.map((c) => c.lon)) + pad, Math.min(...centres.map((c) => c.lat)) - pad,
+  ].map((n) => n.toFixed(4)).join(',')
+  let elements: { lat?: number; lon?: number; center?: { lat: number; lon: number }; tags?: Record<string, string> }[] = []
+  let failed = 0
+  for (const [i, chain] of CHAIN_NAMES.entries()) {
+    if (i > 0) await new Promise((r) => setTimeout(r, 1100))
     try {
-      const r = await fetchImpl(endpoint, {
-        method: 'POST', headers: { 'user-agent': UA, 'content-type': 'application/x-www-form-urlencoded', accept: 'application/json' },
-        body: `data=${encodeURIComponent(ql)}`, signal: AbortSignal.timeout(18_000),
-      })
-      const text = await r.text()
-      if (!r.ok) throw new Error(String(r.status))
-      return (JSON.parse(text) as { elements?: typeof elements }).elements ?? []
-    } catch (e) {
-      tried.push(`${new URL(endpoint).host}: ${e instanceof Error ? e.message : String(e)}`.slice(0, 160))
-      throw e
+      const url = `https://nominatim.openstreetmap.org/search?format=json&limit=30&countrycodes=za&bounded=1&addressdetails=1&viewbox=${box}&q=${encodeURIComponent(chain)}`
+      const r = await fetchImpl(url, { headers: { 'user-agent': UA, 'accept-language': 'en' }, signal: AbortSignal.timeout(8_000) })
+      if (!r.ok) { failed++; continue }
+      const rows = (await r.json()) as { lat: string; lon: string; name?: string; display_name: string; address?: Record<string, string> }[]
+      for (const row of rows) {
+        const ad = row.address ?? {}
+        elements.push({
+          lat: Number(row.lat), lon: Number(row.lon),
+          tags: {
+            name: row.name || row.display_name.split(',')[0], brand: chain,
+            'addr:housenumber': ad.house_number ?? '', 'addr:street': ad.road ?? '',
+            'addr:suburb': ad.suburb ?? ad.neighbourhood ?? '', 'addr:city': ad.city ?? ad.town ?? '',
+          },
+        })
+      }
+    } catch {
+      failed++
     }
   }
-  // All three at once; the first good answer wins (one after another took over a minute when busy).
-  try { elements = await Promise.any(OVERPASS.map(ask)) } catch { /* every one failed; said below */ }
-  if (elements.length) tried.length = 0
-  if (tried.length) problems.push(`The map's store directory did not answer; try again in a minute. (${tried.join('; ')})`)
+  if (failed === CHAIN_NAMES.length) problems.push("The map's store directory did not answer; try again in a minute.")
+  else if (failed) problems.push(`${failed} of the ${CHAIN_NAMES.length} stores could not be looked up on the map just now.`)
+  elements = elements.filter((e) => storeOf(e.tags ?? {}))
 
   const seen = new Set<string>()
   const branches: Branch[] = []
