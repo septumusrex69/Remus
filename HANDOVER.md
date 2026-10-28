@@ -1,48 +1,86 @@
-# Remus · Handoff 2 (written 26–28 Oct 2026 by the Remus · Handoff 1 session)
+# Remus · Handoff 6 (written 28 Oct 2026 by the Remus · Handoff 5 session)
 
 For the next Claude Code session on `septumusrex69/Remus`. Read `CLAUDE.md` (the standing rules),
 then this file, then do the Raptor check below **before** waiting for Stephan's instructions.
-**You are the Remus · Handoff 2 session**: say so on every reply and commit (`Remus H2: ...`), and
-write Handoff 3 at the top of this file before you finish (CLAUDE.md, "Say which project").
+**You are the Remus · Handoff 6 session**: say so on every reply and commit (`Remus H6: ...`), and
+write Handoff 7 at the top of this file before you finish (CLAUDE.md, "Say which project").
 
-## Start here: where things stand (28 Oct 2026, end of Remus · Handoff 1)
+**About the numbers:** the previous file said Handoff 2, but Stephan called that session "Remus ·
+Handoff 5" ("Call it 5"), so 2–4 were skipped. Numbering carries on from 5; there is no lost work.
 
-**Working branch: `claude/price-crawler`** (it carries `claude/requests` and `claude/workers-and-plan`).
-Preview: https://remus-git-claude-price-crawler-team-raptor.vercel.app · Live: https://remus-xi.vercel.app
+## Start here: where things stand (28 Oct 2026, end of Remus · Handoff 5)
 
-**LIVE (on `main` since 28 Oct, Stephan: "Let's go."), main at 2961fc3:**
-change requests + the bell + nightly review; workers, project plan and profit per stage; Find prices
-(Quick / Combined / Claude, 7-day price memory, Claude credit in $ and R on the dashboard); Where to shop
-(map and radius per quote, free OpenStreetMap + Photon address suggestions, no Google key by choice);
-Settings → My stores; shopping list; Find prices on a phone.
+**Working branch: `claude/bold-mayer-yncf1w`** (started from `claude/price-crawler`, which is all on `main`).
+Preview: https://remus-git-claude-bold-mayer-yncf1w-team-raptor.vercel.app · Live: https://remus-xi.vercel.app
 
-**ON THE PREVIEW ONLY, waiting for Stephan's "go live"** (`git log origin/main..claude/price-crawler`):
-1. Find prices easier on a desktop (labelled button, pinned search box, stores with no prices folded
-   into one list with "Ask Claude about these too").
-2. **Quoted vs actual** on every project's Overview, and **What the company made** on the dashboard
-   (invoiced − job costs = profit from jobs − overheads; overheads as % of job costs). See below.
-3. **Crew register** (`/crew`): who was on which site each day, and the weekly wage list. Migration
-   0024 is already applied live (table only). See below.
-Going live = fast-forward `main` to `claude/price-crawler` (main has nothing the branch lacks; check
-first), confirm the production deploy is READY, update this section.
+**LIVE (Stephan: "Yeah, you can go live", 28 Oct):** `main` fast-forwarded to `claude/price-crawler` at
+a3228fa, production deploy READY: Find prices on a desktop, Quoted vs actual + What the company made,
+the Crew register and weekly wage list (everything listed under Handoff 1 below is now live).
+
+**ON THE PREVIEW ONLY, waiting for Stephan's "go live"** (`git log origin/main..claude/bold-mayer-yncf1w`),
+all copied from Raptor H13 (Raptor · Handoff 14, `claude/sales-raptor-review-p1pzx2` at ba34728):
+1. **The bell:** one line per request ("and 2 more"), real times ("Today 08:05"), and opening the page a
+   notification points at marks it read. `src/lib/notificationGroups.ts` (+test).
+2. **Requests shelves say whose move it is:** Needs a decision · With Claude · To test · Done · Declined · All.
+3. **Correct a request's wording** until Claude starts building it (sender or an Administrator; old words
+   kept on the history). DIFFERENT FROM RAPTOR: the old words live in `change_request_edits`, not a new
+   event kind, because that would need a DROP of the kind check (never through the connector).
+4. **Requests count on the sidebar** (`nav_request_count`): new requests for an Administrator, your own
+   releases to test for anybody. Migration 0025 (applied live; tested in a rolled-back transaction, then the
+   R-number counter was reset to 1).
+5. **The builder first finishes a request an earlier run left In development** (skill Job 3, step 0).
+6. **Forward keeps attachments** on the Mail page: the files are listed in the box (x to leave one off); the
+   SERVER takes them out of the mailbox (`fetchAttachments`, `api/email/send` `forward`), not the browser,
+   because Vercel refuses requests over 4.5 MB. Over 20 MB or gone: named back after sending.
+7. **Search everything** from the top bar: clients/people by email or phone (any way the number is written),
+   invoices, R-numbers, workers, subcontractors. In the browser (Remus's book is small); `src/lib/globalSearch.ts`.
+8. **The client portal, phase 1** (Stephan: "Client portal can be a good idea. To see their progresses and
+   things."). See the section below.
+Email features (6, 8) cannot be tried on a preview: `SUPABASE_SERVICE_ROLE_KEY` is Production only.
+Going live = fast-forward `main` to this branch (check main has nothing it lacks), confirm READY, update here.
+
+**NOT copied from Raptor, asked of Stephan:** two kinds of Administrator (with and without money). Remus has
+no permissions system like Raptor's capabilities; doing it means hiding every money screen and adding a
+database rule to every money table. It fits the planned "Site Manager who can't see money". Ask which he wants.
 
 **Asked of Stephan, not answered yet:**
-- His message about the crew cut off at "Should also be able to, ..." -- ask what he meant.
-- Overheads only count slips filed as "Company overhead" (no project); confirm that is how slips are
-  captured, or the company profit reads high.
-- Earlier offers still open: a permission email to Leroy Merlin / BUCO / Builders for Find prices;
-  picking the Cashbuild branch nearest the site (its prices are per branch).
+- His crew message cut off at "Should also be able to, ..." -- ask what he meant.
+- Overheads only count slips filed as "Company overhead" (no project); confirm that is how slips are captured.
+- Earlier offers still open: a permission email to Leroy Merlin / BUCO / Builders; choosing the Cashbuild
+  branch nearest the site.
 - The "Waiting on Stephan" list further down (Supabase auth URLs, Resend DNS, P-0005, Duplicate quote).
 
 **Paused:** WhatsApp a quote (decided: share the PDF file itself, option 3).
-**Next on the list (suggested to Stephan, not started):** learning from finished jobs ("materials
-usually 8% over quote") once a few projects are completed.
+**Next on the list (suggested, not started):** client portal phase 2 (below); learning from finished jobs.
 
-**How things were checked this session:** no e2e suite exists in Remus. Screens were checked with a
-throwaway Playwright harness (`vite` with `VITE_SUPABASE_URL=https://fake.supabase.co`, a fake session
-in localStorage `sb-fake-auth-token`, and every `fake.supabase.co` request answered from fixtures --
-note supabase-js `maybeSingle()` fetches an ARRAY, so the fake must apply `eq.` filters). Not committed;
-worth turning into `scripts/e2e` the Raptor way if screens keep growing.
+**How screens are checked:** no e2e suite in Remus. A throwaway Playwright harness (`vite` with
+`VITE_SUPABASE_URL=https://fake.supabase.co`, fake session in localStorage `sb-fake-auth-token`, requests
+answered from fixtures; supabase-js `maybeSingle()` fetches an ARRAY). The portal was checked the same way
+with `/api/portal/*` answered from fixtures, desktop 1280 and iPhone 390, no sideways scroll.
+
+## The client portal, phase 1 (28 Oct 2026, Remus · Handoff 5, after Raptor H13)
+
+- **Who:** on each client's page (company or private) a **Client portal** card: invite a person by email
+  (the invitation goes from the inviter's own mailbox), see who has access and when they last signed in,
+  switch someone off (signs them out everywhere at once). Anyone active and not Read Only may invite.
+- **Signing in:** `/portal` (outside the app). Type the email, get six digits by email (from the inviter's
+  mailbox, else an Administrator's), 10 minutes, 5 tries, a minute between codes and 5 an hour; signed in
+  for 30 days. No password. Same answer whether or not an address may sign in.
+- **What they see:** each project (not leads or cancelled) with status in their words, start and planned
+  finish, **progress by the plan** (days of dated stages behind us / all their days; finished = 100%), and
+  each stage as Done / Under way / To come with its dates, plus "dates are the plan" clause; the quotes sent
+  to them (not drafts) with totals; invoices (sent / paid / overdue) with paid and still owing (from payments).
+  Company name, logo, phone and email from Settings. **Never** costs, markup, profit, crew or diary notes.
+- **How it is safe:** a client is never a Supabase user. `client_portal_users / _codes / _sessions`
+  (0026, applied live) have RLS on and NO policies; only `api/portal/[action].ts` -> `api/_lib/portal.ts`
+  (service role) reads them, and every read is filtered by the session's client. Codes and tokens are kept
+  only as keyed hashes (`keyedHash`, `EMAIL_CREDENTIALS_KEY`). Addresses are matched EXACTLY (Raptor's portal
+  uses `ilike`, where a typed `_` or `%` is a wildcard -- worth telling Raptor). Rules and tests:
+  `api/_lib/portalRules.ts` (+test). Screens: `src/pages/portal/PortalPage.tsx`, `clients/PortalAccessCard.tsx`.
+- **Not tried end to end yet:** it needs the service key, which is Production only. After go-live: invite
+  Stephan's own second address on a test client, sign in on a phone, check the code email arrives.
+- **Phase 2 ideas (ask Stephan):** site photos and short progress notes written for the client; download
+  the quote / invoice PDF; accept a quote from the portal; a message to Urban Haus from the portal.
 
 ## Decided and paused (27 Oct 2026, Remus · Handoff 1) -- the supplier-prices idea below has since been built
 
@@ -479,7 +517,13 @@ what Raptor gained since the last one:
 4. Tick off the Raptor checklist in `CLAUDE.md` as features land, and update the "Raptor last
    checked" line below.
 
-**Raptor last checked:** 27 Oct 2026 05:30 (Remus · Handoff 1) — `claude/sales-raptor-review-p1pzx2` at 093cf14
+**Raptor last checked:** 28 Oct 2026 09:10 (Remus · Handoff 5) — `claude/sales-raptor-review-p1pzx2` at ba34728
+(Raptor · Handoff 14, S14). Copied: the bell grouped with real times; requests shelves; correcting a request;
+the Requests count; the builder's step 0; forward keeps attachments (R-8); search everything; the client
+portal phase 1. Asked, not copied: Administrators with/without finance. Not for Remus: written-off fees,
+ticket numbers and clocks, the Communications card, Ryno's campaign tables, debtor-only bits of search.
+
+Before that: 27 Oct 2026 05:30 (Remus · Handoff 1) — `claude/sales-raptor-review-p1pzx2` at 093cf14
 (Raptor · Handoff 13). Copied: R-numbers kept on one line on Requests. Not needed: H13's "no silent reload
   over typing" (Remus's UpdateBanner never reloads by itself). Not for Remus: written-off account charges.
 
