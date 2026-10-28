@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { seesMoney, seesQuotes, useAccess } from '../../../lib/access'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, Save, Trash2 } from 'lucide-react'
 import {
@@ -24,6 +25,8 @@ import { PortalAccessCard } from './PortalAccessCard'
 export function ClientDetail({ kind }: { kind: 'company' | 'contact' }) {
   const { id = '' } = useParams()
   const navigate = useNavigate()
+  // Invoices and what was paid are money; quotes are not a site manager's (lib/access.ts).
+  const access = useAccess()
   const { data, error, loading, reload } = useLoad(async () => {
     const [company, contact, people, allQuotes, totals, allProjects, allInvoices, allPayments] = await Promise.all([
       kind === 'company' ? companies.get(id) : Promise.resolve(null),
@@ -138,10 +141,10 @@ export function ClientDetail({ kind }: { kind: 'company' | 'contact' }) {
         </Card>
 
         <div className="space-y-4 lg:col-span-2">
-          <div className="grid grid-cols-2 gap-3">
+          {seesMoney(access) && <div className="grid grid-cols-2 gap-3">
             <div className="card p-5"><p className="text-xs font-medium text-slate-400">Invoiced (incl. VAT)</p><p className="tabular text-lg font-semibold">{formatZAR(invoiced)}</p></div>
             <div className="card p-5"><p className="text-xs font-medium text-slate-400">Received</p><p className="tabular text-lg font-semibold">{formatZAR(received)}</p></div>
-          </div>
+          </div>}
           <ClientEmails company={data.company} contact={data.contact} people={data.people} />
           <PortalAccessCard
             client={kind === 'company' ? { companyId: id } : { contactId: id }}
@@ -157,7 +160,7 @@ export function ClientDetail({ kind }: { kind: 'company' | 'contact' }) {
               </ul>
             )}
           </Card>
-          <Card title="Quotes" padded={false}>
+          {seesQuotes(access) && <Card title="Quotes" padded={false}>
             {data.quotes.length === 0 ? <EmptyState title="No quotes" /> : (
               <ul className="divide-y divide-slate-100">
                 {data.quotes.map((q) => (
@@ -170,8 +173,8 @@ export function ClientDetail({ kind }: { kind: 'company' | 'contact' }) {
                 ))}
               </ul>
             )}
-          </Card>
-          <Card title="Invoices" padded={false}>
+          </Card>}
+          {seesMoney(access) && <Card title="Invoices" padded={false}>
             {data.invoices.length === 0 ? <EmptyState title="No invoices" /> : (
               <ul className="divide-y divide-slate-100">
                 {data.invoices.map((i) => (
@@ -182,7 +185,7 @@ export function ClientDetail({ kind }: { kind: 'company' | 'contact' }) {
                 ))}
               </ul>
             )}
-          </Card>
+          </Card>}
         </div>
       </div>
     </div>

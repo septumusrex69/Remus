@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { editsQuotes, useAccess } from '../../../lib/access'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { FileText, Plus, Search } from 'lucide-react'
 import { clientLabel, listQuoteTotals, loadClientDirectory, quotes as quotesApi } from '../../../lib/api'
@@ -13,6 +14,7 @@ export function QuotesList() {
   const navigate = useNavigate()
   const [params, setParams] = useSearchParams()
   const { settings } = useBuild()
+  const access = useAccess()
   const [status, setStatus] = useState<QuoteStatus | 'all'>('all')
   const [q, setQ] = useState('')
   const [creating, setCreating] = useState(false)
@@ -50,12 +52,12 @@ export function QuotesList() {
   const autoCreated = useRef(false)
   const wantsNew = params.get('new') === '1'
   useEffect(() => {
-    if (!wantsNew || !settings || autoCreated.current) return
+    if (!wantsNew || !settings || autoCreated.current || !editsQuotes(access)) return
     autoCreated.current = true
     setParams({}, { replace: true })
     void createQuote()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [wantsNew, settings])
+  }, [wantsNew, settings, access])
 
   const rows = useMemo(() => {
     if (!data) return []
@@ -75,11 +77,11 @@ export function QuotesList() {
     <div>
       <PageHeader
         title="Quotes"
-        actions={
+        actions={editsQuotes(access) ? (
           <Button variant="primary" onClick={createQuote} loading={creating}>
             <Plus size={16} /> New quote
           </Button>
-        }
+        ) : undefined}
       />
       <ErrorBanner error={error ?? createError} />
       <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">

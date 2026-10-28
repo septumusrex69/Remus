@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { seesMoney, useAccess } from '../../../lib/access'
 import { NumInput } from '../../../components/ui/NumInput'
 import { useSearchParams } from 'react-router-dom'
 import { ImageUp, PanelLeftClose, PanelLeftOpen, Save } from 'lucide-react'
@@ -28,12 +29,16 @@ const TABS = ['Profile', 'Appearance', 'Users', 'Company', 'Quotes & Invoices', 
 type Tab = (typeof TABS)[number]
 
 const isTab = (v: string | null): v is Tab => TABS.includes((v ?? '') as Tab)
+/** The company's letterhead, bank details, rates and markup, and its stores: Administrators' (lib/access.ts). */
+const MONEY_TABS: Tab[] = ['Company', 'Quotes & Invoices', 'My stores']
 
 export function SettingsPage() {
   const [navCollapsed, toggleNav] = useSettingsNavCollapsed()
   const [params, setParams] = useSearchParams()
   const fromUrl = params.get('tab')
-  const tab: Tab = isTab(fromUrl) ? fromUrl : 'Profile'
+  const money = seesMoney(useAccess())
+  const tabs = TABS.filter((t) => money || !MONEY_TABS.includes(t))
+  const tab: Tab = isTab(fromUrl) && tabs.includes(fromUrl) ? fromUrl : 'Profile'
 
   /* Replace, not push (Raptor): six tabs clicked in a row should not mean six taps of Back. */
   const setTab = (next: Tab) => {
@@ -51,11 +56,11 @@ export function SettingsPage() {
           <label className="flex items-center gap-2 md:hidden">
             <span className="text-sm font-medium text-slate-500">Settings:</span>
             <select className="input flex-1 font-medium" value={tab} onChange={(e) => setTab(e.target.value as (typeof TABS)[number])} aria-label="Settings section">
-              {TABS.map((t) => <option key={t} value={t}>{t}</option>)}
+              {tabs.map((t) => <option key={t} value={t}>{t}</option>)}
             </select>
           </label>
           <div className="hidden md:block md:space-y-0.5">
-            {TABS.map((t) => (
+            {tabs.map((t) => (
               <button
                 key={t}
                 onClick={() => setTab(t)}
@@ -101,8 +106,8 @@ export function SettingsPage() {
         {tab === 'Integrations' && (
           <div className="grid gap-4 xl:grid-cols-2">
             <MailboxCard />
-            <ConnectorCard />
-            <ClaudeCreditCard />
+            {money && <ConnectorCard />}
+            {money && <ClaudeCreditCard />}
           </div>
         )}
       </div>

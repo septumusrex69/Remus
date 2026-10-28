@@ -15,18 +15,29 @@
 import { round2 } from './format'
 import { workingDaysBetween } from './workdays'
 import { quoteTotals } from './quoteMath'
-import type { Expense, ProjectStatus, Quote, QuoteItem } from '../types'
+import type { Expense, ProjectStage, ProjectStatus, Quote, QuoteItem } from '../types'
 
 export interface CostSplit { material: number; labour: number; subcontractor: number; other: number; total: number }
 
 export const NO_COST: CostSplit = { material: 0, labour: 0, subcontractor: 0, other: 0, total: 0 }
 
-/** The quote's cost by kind, or, with no quote, the project's budget as a total with no breakdown. */
-export function quotedCost(quote: Quote | null, items: QuoteItem[], budget: number): CostSplit | null {
+/**
+ * The quoted cost by kind: the quote's lines; else the plan's stages (made from the quote, and carrying
+ * its cost by kind -- what the dashboard reads); else the project's budget as a total with no breakdown.
+ * One order for the project page and the dashboard, so the two never give a job different percentages.
+ */
+export function quotedCost(
+  quote: Quote | null,
+  items: QuoteItem[],
+  budget: number,
+  stages: Pick<ProjectStage, 'quoted_material' | 'quoted_labour' | 'quoted_subcontractor'>[] = [],
+): CostSplit | null {
   if (quote && items.length) {
     const t = quoteTotals(items, quote.discount, quote.vat_rate, quote.management_fee_pct)
     return { material: t.costByKind.material, labour: t.costByKind.labour, subcontractor: t.costByKind.subcontractor, other: 0, total: t.estimatedCost }
   }
+  const sq = stages.reduce((t, x) => ({ m: t.m + Number(x.quoted_material), l: t.l + Number(x.quoted_labour), s: t.s + Number(x.quoted_subcontractor) }), { m: 0, l: 0, s: 0 })
+  if (sq.m + sq.l + sq.s > 0) return { material: round2(sq.m), labour: round2(sq.l), subcontractor: round2(sq.s), other: 0, total: round2(sq.m + sq.l + sq.s) }
   return budget > 0 ? { material: 0, labour: 0, subcontractor: 0, other: 0, total: round2(budget) } : null
 }
 
@@ -42,6 +53,9 @@ export function actualCost(expenses: Expense[], crew = 0): CostSplit {
 
 export type Tone = 'good' | 'warn' | 'bad' | 'neutral'
 
+/** A running job with this much of its quoted cost gone is warned about (see scoreJob). */
+export const NEARING_PCT = 90
+
 export interface JobScore {
   tone: Tone
   headline: string
@@ -52,6 +66,11 @@ export interface JobScore {
   profitForecast: number | null
   costPct: number | null
   timePct: number | null
+  /**
+   * The verdict with no rand in it, for a contractor (lib/access.ts): "they can't see the finances, but
+   * ... if we're working in budget". Percentages of the quoted cost only.
+   */
+  plain: string
 }
 
 /*
@@ -87,25 +106,34 @@ export function scoreJob(p: {
   const R = (n: number) => `R ${Math.abs(Math.round(n)).toLocaleString('en-ZA').replace(/ /g, ' ')}`
 
   if (!quotedCost) {
-    return { tone: 'neutral', headline: 'No quoted cost to compare with', detail: 'Link the accepted quote to this project (or set a budget) to see quoted against actual.', quotedProfit, profitNow, profitForecast: null, costPct, timePct }
+    return { tone: 'neutral', headline: 'No quoted cost to compare with', detail: 'Link the accepted quote to this project (or set a budget) to see quoted against actual.', quotedProfit, profitNow, profitForecast: null, costPct, timePct, plain: 'No budget to compare with yet' }
   }
   if (p.status === 'completed') {
     const pct = (diff / quotedCost) * 100
-    if (pct > 5) return { tone: 'bad', headline: `Came in over budget by ${R(diff)} (${Math.round(pct)}%)`, detail: overWhere(p.quoted!, p.actual), quotedProfit, profitNow, profitForecast: null, costPct, timePct }
-    if (pct < -10) return { tone: 'warn', headline: `Came in ${R(diff)} under the quoted cost (${Math.round(-pct)}%)`, detail: 'You may have quoted high. A sharper price on the next job like this could win more work.', quotedProfit, profitNow, profitForecast: null, costPct, timePct }
-    return { tone: 'good', headline: 'Finished on budget', detail: `Within ${R(diff)} of the quoted cost.`, quotedProfit, profitNow, profitForecast: null, costPct, timePct }
+    if (pct > 5) return { tone: 'bad', headline: `Came in over budget by ${R(diff)} (${Math.round(pct)}%)`, detail: overWhere(p.quoted!, p.actual), quotedProfit, profitNow, profitForecast: null, costPct, timePct, plain: `Finished ${Math.round(pct)}% over budget` }
+    if (pct < -10) return { tone: 'warn', headline: `Came in ${R(diff)} under the quoted cost (${Math.round(-pct)}%)`, detail: 'You may have quoted high. A sharper price on the next job like this could win more work.', quotedProfit, profitNow, profitForecast: null, costPct, timePct, plain: `Finished ${Math.round(-pct)}% under budget` }
+    return { tone: 'good', headline: 'Finished on budget', detail: `Within ${R(diff)} of the quoted cost.`, quotedProfit, profitNow, profitForecast: null, costPct, timePct, plain: 'Finished on budget' }
   }
 
   // Not finished: where it is heading, if what is left costs what was quoted for it.
   const forecastCost = Math.max(p.actual.total, quotedCost)
   const profitForecast = round2(income - forecastCost)
+  const used = costPct != null ? `${costPct}% of the budget used${timePct != null ? `, ${timePct}% of the time gone` : ''}` : ''
   if (diff > 0) {
-    return { tone: 'bad', headline: `Already ${R(diff)} over the quoted cost`, detail: overWhere(p.quoted!, p.actual), quotedProfit, profitNow, profitForecast, costPct, timePct }
+    return { tone: 'bad', headline: `Already ${R(diff)} over the quoted cost`, detail: overWhere(p.quoted!, p.actual), quotedProfit, profitNow, profitForecast, costPct, timePct, plain: `Over budget: ${used}` }
+  }
+  /*
+   * NEARING THE BUDGET (Stephan, 28 Oct: "it should start giving a warning when you start ... spending too
+   * much, or you're nearing your budget"). 90% of the quoted cost gone on a job not yet finished is the
+   * warning, whatever the calendar says: the last tenth is where a job tips into a loss.
+   */
+  if (costPct != null && costPct >= NEARING_PCT && (timePct == null || timePct < 100 - (100 - NEARING_PCT) / 2)) {
+    return { tone: 'warn', headline: `Nearly at the quoted cost: ${costPct}% used${timePct != null ? `, ${timePct}% of the time gone` : ''}`, detail: `${R(quotedCost - p.actual.total)} of the quoted cost is left.`, quotedProfit, profitNow, profitForecast, costPct, timePct, plain: `Nearing the budget: ${used}` }
   }
   if (costPct != null && timePct != null && costPct - timePct >= 15) {
-    return { tone: 'warn', headline: `Spending ahead of the work: ${costPct}% of the cost used, ${timePct}% of the time gone`, detail: 'Worth a look before it runs over.', quotedProfit, profitNow, profitForecast, costPct, timePct }
+    return { tone: 'warn', headline: `Spending ahead of the work: ${costPct}% of the cost used, ${timePct}% of the time gone`, detail: 'Worth a look before it runs over.', quotedProfit, profitNow, profitForecast, costPct, timePct, plain: `Spending ahead of the work: ${used}` }
   }
-  return { tone: 'good', headline: 'On track', detail: costPct != null ? `${costPct}% of the quoted cost used${timePct != null ? `, ${timePct}% of the time gone` : ''}.` : null, quotedProfit, profitNow, profitForecast, costPct, timePct }
+  return { tone: 'good', headline: 'On track', detail: costPct != null ? `${costPct}% of the quoted cost used${timePct != null ? `, ${timePct}% of the time gone` : ''}.` : null, quotedProfit, profitNow, profitForecast, costPct, timePct, plain: used ? `On budget: ${used}` : 'On budget' }
 }
 
 /** Which kind of cost ran over the most, in words. */

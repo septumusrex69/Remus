@@ -8,6 +8,7 @@ import {
 import { listRequests } from '../../lib/changeRequestsApi'
 import { requestLabel, titleOf, type ChangeRequest } from '../../lib/changeRequests'
 import { matchesAny, requestNumberOf } from '../../lib/globalSearch'
+import { seesMoney, seesQuotes, useAccess } from '../../lib/access'
 import { paths } from '../../pages/build/paths'
 import type { Invoice, Project, Quote, Subcontractor, Worker } from '../../types'
 
@@ -39,6 +40,7 @@ export function GlobalSearch({ compact }: { compact?: boolean }) {
   const loading = useRef(false)
   const ref = useRef<HTMLDivElement>(null)
   const navigate = useNavigate()
+  const access = useAccess()
 
   useEffect(() => {
     function onClick(e: MouseEvent) {
@@ -86,10 +88,11 @@ export function GlobalSearch({ compact }: { compact?: boolean }) {
     for (const p of data.projects) {
       if (has(p.name, p.code, p.site_address)) out.push({ id: p.id, label: p.name, sub: `Project${p.code ? ` · ${p.code}` : ''}`, path: paths.project(p.id), kind: 'project' })
     }
-    for (const qu of data.quotes) {
+    // Quotes and invoices only for those who see them (lib/access.ts).
+    for (const qu of seesQuotes(access) ? data.quotes : []) {
       if (has(qu.title, qu.number, qu.site_address)) out.push({ id: qu.id, label: qu.title, sub: `Quote${qu.number ? ` · ${qu.number}` : ''}`, path: paths.quote(qu.id), kind: 'quote' })
     }
-    for (const inv of data.invoices) {
+    for (const inv of seesMoney(access) ? data.invoices : []) {
       if (inv.project_id && has(inv.number, inv.description)) {
         const project = data.projects.find((p) => p.id === inv.project_id)
         out.push({ id: inv.id, label: inv.number ?? 'Invoice', sub: `Invoice${project ? ` · ${project.name}` : ''}`, path: paths.project(inv.project_id, 'invoices'), kind: 'invoice' })
@@ -98,13 +101,13 @@ export function GlobalSearch({ compact }: { compact?: boolean }) {
     for (const w of data.workers) {
       if (has(w.name, w.trade, w.phone)) out.push({ id: w.id, label: w.name, sub: `Worker${w.trade ? ` · ${w.trade}` : ''}`, path: paths.workers(), kind: 'worker' })
     }
-    for (const sc of data.subs) {
+    for (const sc of seesQuotes(access) ? data.subs : []) {
       if (has(sc.name, sc.trade, sc.contact_person, sc.phone, sc.email)) {
         out.push({ id: sc.id, label: sc.name, sub: `Subcontractor${sc.trade ? ` · ${sc.trade}` : ''}`, path: paths.subcontractors(), kind: 'subcontractor' })
       }
     }
     return out.slice(0, 12)
-  }, [query, data])
+  }, [query, data, access])
 
   if (compact && !expanded) {
     return (

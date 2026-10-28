@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { seesMoney, useAccess } from '../../../lib/access'
 import { NumInput } from '../../../components/ui/NumInput'
 import { clientAddress, loadClientDirectory, projects as projectsApi, type ClientDirectory } from '../../../lib/api'
 import { labelize } from '../../../lib/format'
@@ -11,6 +12,7 @@ export function ProjectFormModal({ open, onClose, onSaved, editing }: { open: bo
   const [dir, setDir] = useState<ClientDirectory | null>(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const money = seesMoney(useAccess())
 
   useEffect(() => {
     if (!open) return
@@ -70,8 +72,9 @@ export function ProjectFormModal({ open, onClose, onSaved, editing }: { open: bo
         <Field label="Site address" className="sm:col-span-2" hint={form.site_address && form.site_address.trim() === clientAddress(dir, { company_id: form.company_id ?? null, contact_id: form.contact_id ?? null }) ? "From the client's address. Change it if the site is elsewhere." : undefined}><input className="input" value={form.site_address ?? ''} onChange={(e) => set('site_address', e.target.value)} /></Field>
         <Field label="Start date"><input type="date" className="input" value={form.start_date ?? ''} onChange={(e) => set('start_date', e.target.value)} /></Field>
         <Field label="End date"><input type="date" className="input" value={form.end_date ?? ''} onChange={(e) => set('end_date', e.target.value)} /></Field>
-        <Field label="Contract value (excl. VAT)"><NumInput prefix="R" value={form.contract_value ?? 0} onValue={(n) => set('contract_value', n)} /></Field>
-        <Field label="Budget (cost)"><NumInput prefix="R" value={form.budget ?? 0} onValue={(n) => set('budget', n)} /></Field>
+        {/* The money is the Administrator's (lib/access.ts); a contractor edits the rest. */}
+        {money && <Field label="Contract value (excl. VAT)"><NumInput prefix="R" value={form.contract_value ?? 0} onValue={(n) => set('contract_value', n)} /></Field>}
+        {money && <Field label="Budget (cost)"><NumInput prefix="R" value={form.budget ?? 0} onValue={(n) => set('budget', n)} /></Field>}
         <Field label="Notes" className="sm:col-span-2"><textarea className="input" value={form.notes ?? ''} onChange={(e) => set('notes', e.target.value)} /></Field>
       </div>
       {error && <p className="mt-3 text-sm text-red-600">{error}</p>}

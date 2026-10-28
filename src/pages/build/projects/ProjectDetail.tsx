@@ -1,4 +1,5 @@
 import { parseISO } from 'date-fns'
+import { seesBudget, seesMoney, seesQuotes, useAccess } from '../../../lib/access'
 import { NumInput } from '../../../components/ui/NumInput'
 import { useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
@@ -53,6 +54,7 @@ import { JobScorecard } from './JobScorecard'
 import { projectCrewCost } from '../../../lib/crewDays'
 
 type Tab = 'overview' | 'plan' | 'expenses' | 'invoices' | 'variations' | 'diary' | 'schedule'
+const MONEY_TABS: Tab[] = ['expenses', 'invoices', 'variations']
 
 /** Runs a click action, reporting any failure to the page's error banner. */
 type Act = (fn: () => Promise<unknown>) => Promise<void>
@@ -87,14 +89,18 @@ async function load(id: string) {
   const bookings = allBookings.filter((b) => stageIds.has(b.stage_id))
   const workerMap = new Map(workerRows.map((w) => [w.id, w]))
   const crew = projectCrewCost({ bookings, register, stageProject: new Map(stages.map((st) => [st.id, st.project_id])), workers: workerMap }, id, todayYmd())
-  return { project, fin, dir, exp, inv, pay, vars, entries, events, linked, team, allProjects, quote, items, crew }
+  return { project, fin, dir, exp, inv, pay, vars, entries, events, linked, team, allProjects, quote, items, stages, crew }
 }
 
 export function ProjectDetail() {
   const { id = '' } = useParams()
   const navigate = useNavigate()
   const [params, setParams] = useSearchParams()
-  const tab = (params.get('tab') as Tab) || 'overview'
+  // Who sees what (lib/access.ts): slips, invoices and variations are money; the rest is everybody's.
+  const access = useAccess()
+  const money = seesMoney(access)
+  const asked = (params.get('tab') as Tab) || 'overview'
+  const tab: Tab = !money && MONEY_TABS.includes(asked) ? 'overview' : asked
   const { data, error, loading, reload } = useLoad(() => load(id), [id], 'project')
   const [editing, setEditing] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
@@ -126,8 +132,8 @@ export function ProjectDetail() {
         }
         actions={
           <>
-            <Button onClick={() => setEditing(true)}><Pencil size={14} /> Edit</Button>
-            <Button
+            {seesQuotes(access) && <Button onClick={() => setEditing(true)}><Pencil size={14} /> Edit</Button>}
+            {money && <Button
               variant="danger"
               onClick={() => {
                 if (!window.confirm('Delete this project? Its variations, site diary and scheduled events are deleted with it; expenses and invoices are kept as unassigned.')) return
@@ -138,7 +144,7 @@ export function ProjectDetail() {
               }}
             >
               <Trash2 size={14} />
-            </Button>
+            </Button>}
           </>
         }
       />
@@ -146,7 +152,7 @@ export function ProjectDetail() {
       <Tabs<Tab>
         value={tab}
         onChange={(t) => setParams({ tab: t }, { replace: true })}
-        tabs={[
+        tabs={([
           { id: 'overview', label: 'Overview' },
           { id: 'plan', label: 'Plan & crew' },
           { id: 'expenses', label: `Expenses (${data.exp.length})` },
@@ -154,10 +160,10 @@ export function ProjectDetail() {
           { id: 'variations', label: `Variations (${data.vars.length})` },
           { id: 'diary', label: 'Site diary' },
           { id: 'schedule', label: 'Events' },
-        ]}
+        ] as { id: Tab; label: string }[]).filter((t) => money || !MONEY_TABS.includes(t.id))}
       />
 
-      {tab === 'overview' && <Overview data={data} />}
+      {tab === 'overview' && (money ? <Overview data={data} /> : <PlainOverview data={data} budget={seesBudget(access)} quotes={seesQuotes(access)} />)}
       {tab === 'plan' && <PlanTab project={project} quote={data.quote} onProjectChanged={reload} />}
       {tab === 'expenses' && <ExpensesTab projectId={project.id} rows={data.exp} projects={data.allProjects} linked={data.linked} reload={reload} act={act} />}
       {tab === 'invoices' && <InvoicesTab data={data} reload={reload} act={act} />}
@@ -171,6 +177,32 @@ export function ProjectDetail() {
 }
 
 type Data = Awaited<ReturnType<typeof load>>
+
+/**
+ * THE OVERVIEW WITHOUT MONEY (lib/access.ts): a contractor sees whether the job is on budget, in words
+ * and percentages (the same verdict as the Administrator's scorecard); a site manager sees the dates.
+ */
+function PlainOverview({ data, budget, quotes }: { data: Data; budget: boolean; quotes: boolean }) {
+  const p = data.project!
+  return (
+    <div className="space-y-4">
+      {budget && <JobScorecard plain project={p} quote={data.quote} items={data.items} stages={data.stages} expenses={data.exp} crew={data.crew} variations={Number(data.fin?.approved_variations ?? 0)} />}
+      <Card title="The job">
+        <dl className="grid grid-cols-2 gap-y-2 text-sm sm:grid-cols-4">
+          <dt className="text-slate-500">Start</dt><dd>{formatDate(p.start_date)}</dd>
+          <dt className="text-slate-500">End</dt><dd>{formatDate(p.end_date)}</dd>
+          {quotes && data.quote && (
+            <>
+              <dt className="text-slate-500">Quote</dt>
+              <dd><Link className="text-brand-700 hover:underline" to={paths.quotePrint(data.quote.id)}>{data.quote.number}</Link></dd>
+            </>
+          )}
+        </dl>
+        {p.notes && <p className="mt-3 whitespace-pre-line text-sm text-slate-600">{p.notes}</p>}
+      </Card>
+    </div>
+  )
+}
 
 function Overview({ data }: { data: Data }) {
   const p = data.project!
@@ -190,7 +222,7 @@ function Overview({ data }: { data: Data }) {
         <StatTile label="Gross profit" value={formatZAR(profit, { decimals: 0 })} tone={profit < 0 ? 'bad' : 'good'} hint={`Margin ${formatPct(margin)}`} />
         <StatTile label="Received" value={formatZAR(f?.received ?? 0, { decimals: 0 })} hint={`Invoiced ${formatZAR(f?.invoiced_incl ?? 0, { decimals: 0 })} incl. VAT`} />
       </div>
-      <JobScorecard project={p} quote={data.quote} items={data.items} expenses={data.exp} crew={data.crew} variations={Number(f?.approved_variations ?? 0)} />
+      <JobScorecard project={p} quote={data.quote} items={data.items} stages={data.stages} expenses={data.exp} crew={data.crew} variations={Number(f?.approved_variations ?? 0)} />
       <div className="grid gap-4 lg:grid-cols-2">
         <Card title="Budget">
           <div className="mb-2 flex justify-between text-sm">

@@ -27,7 +27,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(403).json({ error: 'Only administrators can invite people.' })
   }
 
-  const { email, name, role } = (req.body ?? {}) as { email?: unknown; name?: unknown; role?: unknown }
+  const { email, name, role, job } = (req.body ?? {}) as { email?: unknown; name?: unknown; role?: unknown; job?: unknown }
+  // A contractor or a site manager (0027, src/lib/access.ts); a new team member is a site manager unless said.
+  if (job !== undefined && job !== 'contractor' && job !== 'site_manager') return res.status(400).json({ error: 'Invalid job.' })
   if (typeof email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
     return res.status(400).json({ error: 'Enter a valid email address.' })
   }
@@ -47,9 +49,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // handle_new_user() already created the profile with the default role; apply the chosen one.
   // This runs as the inviting admin, not the service role: protect_profile_privileged_fields only
   // lets an Administrator's own session change a role, and silently keeps the old one otherwise.
-  if (data.user?.id && role && role !== 'Sales Representative') {
-    const { data: rows, error: roleErr } = await caller.db.from('profiles').update({ role }).eq('id', data.user.id).select('role')
-    if (roleErr || rows?.[0]?.role !== role) {
+  const wantsJob = job === 'contractor'
+  if (data.user?.id && ((role && role !== 'Sales Representative') || wantsJob)) {
+    const patch = { ...(role ? { role } : {}), ...(wantsJob ? { job } : {}) }
+    const { data: rows, error: roleErr } = await caller.db.from('profiles').update(patch).eq('id', data.user.id).select('role, job')
+    if (roleErr || (role && rows?.[0]?.role !== role) || (wantsJob && rows?.[0]?.job !== job)) {
       return res.status(500).json({ error: `Invite sent, but their access could not be set to ${role}. Change it in the team list.` })
     }
   }

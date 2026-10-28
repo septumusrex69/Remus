@@ -29,6 +29,8 @@ export interface Profile {
   avatar_color: string
   created_at: string
   email_signature?: string | null
+  /** For a team member (role Sales Representative): a contractor or a site manager (0027, lib/access.ts). */
+  job?: 'contractor' | 'site_manager'
 }
 
 export interface Company {

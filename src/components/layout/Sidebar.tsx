@@ -12,6 +12,7 @@ import { useSidebarCollapsed } from '../../lib/sidebarCollapsed'
 import { useUnreadMail } from '../../lib/unreadMail'
 import { useRequestCount } from '../../lib/requestCount'
 import { useTheme } from '../../store/ThemeContext'
+import { ACCESS_LABEL, seesMoney, seesQuotes, useAccess, type Access } from '../../lib/access'
 
 /**
  * The navigation, copied from Raptor's Sidebar: folds to an icon rail (remembered per device),
@@ -21,28 +22,28 @@ import { useTheme } from '../../store/ThemeContext'
  * person can clear today (unread client mail, bank lines to link, requests waiting on me).
  */
 type Badge = 'mail' | 'bank' | 'requests'
-const NAV: { to: string; label: string; icon: LucideIcon; end?: boolean; badge?: Badge }[] = [
+/** `when`: who sees the item (lib/access.ts); everybody when absent. */
+const NAV: { to: string; label: string; icon: LucideIcon; end?: boolean; badge?: Badge; when?: (a: Access) => boolean }[] = [
   { to: paths.dashboard(), label: 'Dashboard', icon: LayoutDashboard, end: true },
   // Second, under Dashboard, as in Raptor: client mail is the first thing to check.
   { to: paths.mail(), label: 'Mail', icon: Inbox, badge: 'mail' },
-  { to: paths.quotes(), label: 'Quotes', icon: FileText },
+  { to: paths.quotes(), label: 'Quotes', icon: FileText, when: seesQuotes },
   { to: paths.projects(), label: 'Projects', icon: FolderKanban },
   { to: paths.clients(), label: 'Clients', icon: Users },
   { to: paths.schedule(), label: 'Schedule', icon: CalendarRange },
   { to: paths.workers(), label: 'Workers', icon: UsersRound },
   { to: paths.crew(), label: 'Crew register', icon: ClipboardCheck },
-  { to: paths.subcontractors(), label: 'Subcontractors', icon: HardHat },
-  { to: paths.expenses(), label: 'Expenses', icon: Receipt },
-  { to: paths.bank(), label: 'Bank', icon: Banknote, badge: 'bank' },
+  { to: paths.subcontractors(), label: 'Subcontractors', icon: HardHat, when: seesQuotes },
+  { to: paths.expenses(), label: 'Expenses', icon: Receipt, when: seesMoney },
+  { to: paths.bank(), label: 'Bank', icon: Banknote, badge: 'bank', when: seesMoney },
   { to: paths.diary(), label: 'Diary', icon: CalendarDays },
-  { to: paths.finance(), label: 'Finance', icon: LineChart },
+  { to: paths.finance(), label: 'Finance', icon: LineChart, when: seesMoney },
   // Everybody's, at Raptor's firm's word: "anyone can see requests".
   // With a count (Raptor H13): new requests for an Administrator, my releases to test for anybody.
   { to: paths.requests(), label: 'Requests', icon: Lightbulb, badge: 'requests' },
   { to: paths.settings(), label: 'Settings', icon: Settings },
 ]
 
-const ROLE_LABEL: Record<string, string> = { 'Read Only': 'Read only', Administrator: 'Administrator' }
 
 /**
  * `drawer` is the phone version: always full width (a folded rail inside a slide-out drawer is
@@ -58,6 +59,7 @@ export function Sidebar({ drawer, onNavigate }: { drawer?: boolean; onNavigate?:
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
   const requestCount = useRequestCount()
+  const access = useAccess()
   const counts: Record<Badge, number> = { mail: unreadMail.count, bank: needsLinking, requests: requestCount }
 
   useEffect(() => {
@@ -113,7 +115,7 @@ export function Sidebar({ drawer, onNavigate }: { drawer?: boolean; onNavigate?:
       </div>
 
       <nav className={clsx('flex-1 space-y-0.5 overflow-y-auto py-4', collapsed ? 'px-2' : 'px-3')}>
-        {NAV.map(({ to, label, icon: Icon, end, badge }) => {
+        {NAV.filter((n) => !n.when || n.when(access)).map(({ to, label, icon: Icon, end, badge }) => {
           const count = badge ? counts[badge] : 0
           return (
             <NavLink
@@ -211,7 +213,7 @@ export function Sidebar({ drawer, onNavigate }: { drawer?: boolean; onNavigate?:
             <>
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-[13px] font-semibold text-white">{currentUser?.name || 'Loading…'}</span>
-                <span className="block truncate text-[11px] text-slate-400">{currentUser ? ROLE_LABEL[currentUser.role] ?? 'Team member' : ''}</span>
+                <span className="block truncate text-[11px] text-slate-400">{currentUser ? ACCESS_LABEL[access] : ''}</span>
               </span>
               <ChevronDown size={14} className="shrink-0 text-slate-500" />
             </>

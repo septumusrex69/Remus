@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
+import { editsQuotes, seesBudget, seesMoney, useAccess } from '../../../lib/access'
 import { Link, useSearchParams } from 'react-router-dom'
 import { FolderKanban, Plus } from 'lucide-react'
 import { clientLabel, listProjectFinancials, loadClientDirectory, projects as projectsApi } from '../../../lib/api'
-import { formatPct, formatZAR, labelize } from '../../../lib/format'
+import { formatDate, formatPct, formatZAR, labelize } from '../../../lib/format'
 import { useLoad } from '../../../hooks/useLoad'
 import { Button, Card, EmptyState, ErrorBanner, PageHeader, ProgressBar, Spinner, StatusBadge } from '../../../components/ui'
 import { PROJECT_STATUSES, type ProjectStatus } from '../../../types'
@@ -15,6 +16,8 @@ export function ProjectsList() {
 
   // The top bar's "+ Add" lands here with ?new=1: open the form, then drop the flag so a refresh doesn't reopen it.
   const [params, setParams] = useSearchParams()
+  const access = useAccess()
+  const money = seesMoney(access)
   useEffect(() => {
     if (params.get('new') !== '1') return
     setCreating(true)
@@ -34,7 +37,7 @@ export function ProjectsList() {
 
   return (
     <div>
-      <PageHeader title="Projects" actions={<Button variant="primary" onClick={() => setCreating(true)}><Plus size={16} /> New project</Button>} />
+      <PageHeader title="Projects" actions={editsQuotes(access) ? <Button variant="primary" onClick={() => setCreating(true)}><Plus size={16} /> New project</Button> : undefined} />
       <ErrorBanner error={error} />
       <div className="mb-3 flex flex-wrap gap-1">
         {(['open', 'all', ...PROJECT_STATUSES] as const).map((s) => (
@@ -60,6 +63,19 @@ export function ProjectsList() {
                   </div>
                   <StatusBadge status={p.status} />
                 </div>
+                {/* Rand for Administrators; a contractor sees the budget bar; a site manager the dates (lib/access.ts). */}
+                {!money && (
+                  <p className="mt-3 text-xs text-slate-500">
+                    {p.start_date ? `${formatDate(p.start_date, 'd MMM')} – ${formatDate(p.end_date, 'd MMM yyyy')}` : 'No dates yet'}{p.site_address ? ` · ${p.site_address}` : ''}
+                  </p>
+                )}
+                {!money && seesBudget(access) && p.budget > 0 && (
+                  <div className="mt-3">
+                    <div className="mb-1 flex justify-between text-[11px] text-slate-500"><span>Budget used</span><span>{formatPct(((f?.expenses_total ?? 0) / p.budget) * 100, 0)}</span></div>
+                    <ProgressBar value={f?.expenses_total ?? 0} max={p.budget} />
+                  </div>
+                )}
+                {money && <>
                 <div className="tabular mt-3 grid grid-cols-3 gap-2 text-xs">
                   <div><p className="text-slate-500">Contract</p><p className="font-medium text-slate-800">{formatZAR(f?.revised_contract ?? p.contract_value, { decimals: 0 })}</p></div>
                   <div><p className="text-slate-500">Spent</p><p className="font-medium text-slate-800">{formatZAR(f?.expenses_total ?? 0, { decimals: 0 })}</p></div>
@@ -69,6 +85,7 @@ export function ProjectsList() {
                   <div className="mb-1 flex justify-between text-[11px] text-slate-500"><span>Budget used</span><span>{p.budget ? formatPct(((f?.expenses_total ?? 0) / p.budget) * 100, 0) : '—'} · margin {formatPct(f?.margin_pct)}</span></div>
                   <ProgressBar value={f?.expenses_total ?? 0} max={p.budget} />
                 </div>
+                </>}
               </Link>
             )
           })}

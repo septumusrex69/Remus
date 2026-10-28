@@ -45,6 +45,19 @@ describe('quoted against actual, for one job', () => {
   it('no quoted cost: says so instead of guessing', () => {
     expect(scoreJob({ ...base, quoted: null, actual: split(1, 0), status: 'active' }).tone).toBe('neutral')
   })
+  it('warns when a running job nears its budget, and says it without rand for a contractor', () => {
+    const quoted = split(40_000, 30_000)
+    const running = { ...base, status: 'active' as const, today: '2026-10-15' }
+    const near = scoreJob({ ...running, quoted, actual: split(36_000, 28_000) })
+    expect(near.tone).toBe('warn')
+    expect(near.headline).toMatch(/Nearly at the quoted cost: 91% used/)
+    expect(near.plain).toMatch(/^Nearing the budget: 91% of the budget used/)
+    const over = scoreJob({ ...running, quoted, actual: split(45_000, 30_000) })
+    expect(over.plain).toMatch(/^Over budget: 107%/)
+    for (const j of [near, over, scoreJob({ ...running, quoted, actual: split(10_000, 5_000) })]) expect(j.plain).not.toMatch(/R\s?\d/)
+    // Nearly all the time gone too: spending 90% is normal, not a warning.
+    expect(scoreJob({ ...running, today: '2026-10-29', quoted, actual: split(36_000, 28_000) }).tone).toBe('good')
+  })
 })
 
 describe('what the company made', () => {

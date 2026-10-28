@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { seesMoney, useAccess } from '../../../lib/access'
 import { NumInput } from '../../../components/ui/NumInput'
 import { useSearchParams } from 'react-router-dom'
 import { HardHat, Plus, Search, Star } from 'lucide-react'
@@ -24,6 +25,7 @@ export function SubcontractorsPage() {
   const [q, setQ] = useState('')
   const [editing, setEditing] = useState<Partial<Subcontractor> | null>(null)
   const [showInactive, setShowInactive] = useState(false)
+  const money = seesMoney(useAccess())
   const { data, error, loading, reload } = useLoad(() => subsApi.list(), [], 'subcontractors')
 
   // The top bar's "+ Add" can land here with ?new=1.
@@ -77,7 +79,7 @@ export function SubcontractorsPage() {
                     <span className="block truncate text-xs text-slate-500">{[s.contact_person, s.phone, s.email].filter(Boolean).join(' · ')}</span>
                   </span>
                   <span className="hidden text-right sm:block">
-                    <span className="tabular block text-sm text-slate-700">{rateLabel(s)}</span>
+                    {money && <span className="tabular block text-sm text-slate-700">{rateLabel(s)}</span>}
                     {s.rating ? <Stars value={s.rating} /> : null}
                   </span>
                 </button>
@@ -102,6 +104,7 @@ function Stars({ value }: { value: number }) {
 /** Add or edit one. Also used from a quote line ("New subcontractor…"). */
 export function SubcontractorModal({ initial, onClose, onSaved }: { initial: Partial<Subcontractor>; onClose: () => void; onSaved: (s: Subcontractor) => void }) {
   const [form, setForm] = useState<Partial<Subcontractor>>(initial)
+  const money = seesMoney(useAccess())
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const set = <K extends keyof Subcontractor>(k: K, v: Subcontractor[K] | null) => setForm((f) => ({ ...f, [k]: v }))
@@ -158,14 +161,15 @@ export function SubcontractorModal({ initial, onClose, onSaved }: { initial: Par
         <Field label="Contact person"><input className="input" value={form.contact_person ?? ''} onChange={(e) => set('contact_person', e.target.value)} /></Field>
         <Field label="Phone"><input className="input" type="tel" value={form.phone ?? ''} onChange={(e) => set('phone', e.target.value)} /></Field>
         <Field label="Email"><input className="input" type="email" value={form.email ?? ''} onChange={(e) => set('email', e.target.value)} /></Field>
-        <Field label="Usual rate (R)" hint="Fills in the cost when you pick them on a quote.">
+        {/* Their rate and bank details are money (lib/access.ts). */}
+        {money && <Field label="Usual rate (R)" hint="Fills in the cost when you pick them on a quote.">
           <div className="flex gap-2">
             <NumInput allowEmpty prefix="R" value={form.rate_amount ?? null} onValue={(n) => set('rate_amount', n === null ? null : Math.max(0, n))} />
             <select className="input w-auto" value={form.rate_unit ?? 'job'} onChange={(e) => set('rate_unit', e.target.value as SubRateUnit)} aria-label="Rate per">
               {SUB_RATE_UNITS.map((u) => <option key={u} value={u}>{RATE_UNIT_LABEL[u]}</option>)}
             </select>
           </div>
-        </Field>
+        </Field>}
         <Field label="VAT no."><input className="input" value={form.vat_no ?? ''} onChange={(e) => set('vat_no', e.target.value)} /></Field>
         <Field label="How good are they?">
           <div className="flex items-center gap-1 py-1.5">
@@ -176,9 +180,9 @@ export function SubcontractorModal({ initial, onClose, onSaved }: { initial: Par
             ))}
           </div>
         </Field>
-        <Field label="Bank details" className="sm:col-span-2">
+        {money && <Field label="Bank details" className="sm:col-span-2">
           <textarea className="input min-h-20" value={form.bank_details ?? ''} onChange={(e) => set('bank_details', e.target.value)} placeholder={'Bank: …\nAccount no: …\nBranch code: …'} />
-        </Field>
+        </Field>}
         <Field label="Notes" className="sm:col-span-2">
           <textarea className="input min-h-20" value={form.notes ?? ''} onChange={(e) => set('notes', e.target.value)} placeholder="Areas they work in, reliability, anything worth remembering" />
         </Field>

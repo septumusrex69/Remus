@@ -1,5 +1,8 @@
 import { lazy } from 'react'
-import { Route } from 'react-router-dom'
+import { Route, useParams } from 'react-router-dom'
+import { Allow } from '../../components/Allow'
+import { editsQuotes, seesMoney, seesQuotes } from '../../lib/access'
+import { paths as P } from './paths'
 
 // Each page loads on demand (charts in particular are heavy); AppLayout supplies the Suspense boundary.
 const pages = {
@@ -46,6 +49,14 @@ const MailPage = lazy(() => pages.MailPage().then((x) => ({ default: x.MailPage 
 const RequestsPage = lazy(() => pages.RequestsPage().then((x) => ({ default: x.RequestsPage })))
 const SettingsPage = lazy(() => pages.SettingsPage().then((x) => ({ default: x.SettingsPage })))
 
+/** The quote editor carries costs and markup: a contractor reads the quote as the client does. */
+function QuoteEditorOrPrint() {
+  const { id = '' } = useParams()
+  return <Allow when={editsQuotes} otherwise={seesQuotesPath(id)}><QuoteEditor /></Allow>
+}
+const seesQuotesPath = (id: string) => P.quotePrint(id)
+const notSiteManager = seesQuotes
+
 /**
  * Fetches the everyday pages' code in the background once the app is idle, so the first visit to
  * each one doesn't wait on a download. Charts load with them (dashboard, project, finance).
@@ -65,25 +76,26 @@ export function preloadPages() {
 export const buildRoutes = (
   <>
     <Route index element={<DashboardPage />} />
-    <Route path="quotes" element={<QuotesList />} />
-    <Route path="quotes/:id" element={<QuoteEditor />} />
-    <Route path="quotes/:id/print" element={<QuotePrint />} />
+    <Route path="quotes" element={<Allow when={seesQuotes}><QuotesList /></Allow>} />
+    <Route path="quotes/:id" element={<QuoteEditorOrPrint />} />
+    <Route path="quotes/:id/print" element={<Allow when={seesQuotes}><QuotePrint /></Allow>} />
     <Route path="clients" element={<ClientsList />} />
     <Route path="clients/company/:id" element={<ClientDetail kind="company" />} />
     <Route path="clients/contact/:id" element={<ClientDetail kind="contact" />} />
-    <Route path="subcontractors" element={<SubcontractorsPage />} />
+    <Route path="subcontractors" element={<Allow when={notSiteManager}><SubcontractorsPage /></Allow>} />
     <Route path="workers" element={<WorkersPage />} />
     <Route path="crew" element={<CrewRegisterPage />} />
     <Route path="schedule" element={<SchedulePage />} />
     <Route path="projects" element={<ProjectsList />} />
     <Route path="projects/:id" element={<ProjectDetail />} />
-    <Route path="expenses" element={<ExpensesPage />} />
+    <Route path="expenses" element={<Allow when={seesMoney}><ExpensesPage /></Allow>} />
     <Route path="expenses/capture" element={<SlipCapture />} />
     <Route path="diary" element={<DiaryPage />} />
-    <Route path="bank" element={<BankPage />} />
-    <Route path="finance" element={<FinancePage />} />
+    <Route path="bank" element={<Allow when={seesMoney}><BankPage /></Allow>} />
+    <Route path="finance" element={<Allow when={seesMoney}><FinancePage /></Allow>} />
     <Route path="mail" element={<MailPage />} />
     <Route path="settings" element={<SettingsPage />} />
+    {/* WHO SEES WHAT (lib/access.ts): money pages for Administrators; quotes not for site managers. */}
     {/* CHANGE REQUESTS (copied from Raptor): open to everybody -- "anyone can see requests". */}
     <Route path="requests" element={<RequestsPage />} />
   </>

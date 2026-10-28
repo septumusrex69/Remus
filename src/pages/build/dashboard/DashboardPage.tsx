@@ -31,9 +31,10 @@ import { outstandingInvoices } from '../../../lib/finance'
 import { approvalCurrent } from '../../../lib/quoteMath'
 import { useLoad } from '../../../hooks/useLoad'
 import { useAuth } from '../../../store/AuthContext'
+import { editsQuotes, seesBudget, seesMoney, seesQuotes, useAccess } from '../../../lib/access'
 import { Card, EmptyState, ErrorBanner, Spinner } from '../../../components/ui'
 import type { DiaryEvent, Project } from '../../../types'
-import { NO_COST, scoreJob, type CostSplit } from '../../../lib/jobScore'
+import { quotedCost, scoreJob, type CostSplit } from '../../../lib/jobScore'
 import { projectCrewCost } from '../../../lib/crewDays'
 import { lastMonths, monthlyProfit, overheadRecovery } from '../../../lib/companyProfit'
 import { CompanyProfit } from './CompanyProfit'
@@ -116,6 +117,11 @@ export function DashboardPage() {
   const { data, error, loading } = useLoad(load, [], 'dashboard')
   const { needsLinking } = useBuild()
   const { currentUser } = useAuth()
+  // Who sees what (lib/access.ts): the money for Administrators, the budget for contractors too.
+  const access = useAccess()
+  const money = seesMoney(access)
+  const budget = seesBudget(access)
+  const quotesToo = seesQuotes(access)
 
   if (loading && !data) return <Spinner page />
   if (!data) return <ErrorBanner error={error} />
@@ -169,10 +175,10 @@ export function DashboardPage() {
     for (const p of data!.projects.filter((x) => x.end_date === day && x.status === 'active')) {
       items.push({ key: `f:${p.id}`, tone: 'plain', when: 'Finishes', title: p.name, sub: p.site_address ?? undefined, to: paths.project(p.id) })
     }
-    for (const q of data!.quotes.filter((x) => (x.status === 'sent' || x.status === 'draft') && x.valid_until === day)) {
+    for (const q of data!.quotes.filter((x) => quotesToo && (x.status === 'sent' || x.status === 'draft') && x.valid_until === day)) {
       items.push({ key: `q:${q.id}`, tone: 'deadline', when: 'Quote ends', title: `${q.number ?? ''} ${q.title}`.trim(), to: paths.quote(q.id) })
     }
-    for (const o of outstanding.filter((x) => x.invoice.due_date === day)) {
+    for (const o of outstanding.filter((x) => money && x.invoice.due_date === day)) {
       items.push({ key: `i:${o.invoice.id}`, tone: 'money', when: 'Payment due', title: `${o.invoice.number ?? 'Invoice'} · ${formatZAR(o.outstanding, { decimals: 0 })}`, to: paths.finance() })
     }
     return items
@@ -186,17 +192,6 @@ export function DashboardPage() {
   const sitesToday = data.projects.filter((p) => onSite(p, today) || bookedOn(today).has(p.id))
   const sitesTomorrow = data.projects.filter((p) => onSite(p, tomorrow) || bookedOn(tomorrow).has(p.id))
   const later = data.events.filter((e) => ymd(new Date(e.start_at)) > tomorrow).slice(0, 5)
-
-  // ---------- Needs attention ----------
-  const attention: AttentionItem[] = [
-    { label: overdue.length === 1 ? 'invoice overdue' : 'invoices overdue', detail: 'Chase payment', count: overdue.length, to: paths.finance(), severity: 'late' },
-    { label: expired.length === 1 ? 'sent quote has expired' : 'sent quotes have expired', detail: 'Follow up or mark declined', count: expired.length, to: paths.quotes(), severity: 'late' },
-    { label: waitingApproval.length === 1 ? 'quote waiting for approval' : 'quotes waiting for approval', detail: 'Approve before sending', count: waitingApproval.length, to: paths.quotes() },
-    { label: expiringSoon.length === 1 ? 'quote expires this week' : 'quotes expire this week', detail: 'Get an answer', count: expiringSoon.length, to: paths.quotes() },
-    { label: noAnswer.length === 1 ? 'quote sent a week ago, no answer' : 'quotes sent a week ago, no answer', detail: 'Phone the client', count: noAnswer.length, to: paths.quotes() },
-    { label: draftInvoices.length === 1 ? 'draft invoice not sent' : 'draft invoices not sent', detail: 'Check and send', count: draftInvoices.length, to: paths.finance() },
-    { label: needsLinking === 1 ? 'bank line to link' : 'bank lines to link', detail: 'Reconcile the bank', count: needsLinking, to: paths.bank() },
-  ]
 
   const hour = now.getHours()
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
@@ -218,17 +213,36 @@ export function DashboardPage() {
       other: (f?.expenses_total ?? 0) - (f?.expenses_materials ?? 0) - (f?.expenses_labour ?? 0) - (f?.expenses_subcontractor ?? 0),
       total: (f?.expenses_total ?? 0) + crew,
     }
-    const st = data.stages.filter((x) => x.project_id === p.id)
-    const sq = st.reduce((t, x) => ({ m: t.m + Number(x.quoted_material), l: t.l + Number(x.quoted_labour), s: t.s + Number(x.quoted_subcontractor) }), { m: 0, l: 0, s: 0 })
-    const quoted: CostSplit | null = sq.m + sq.l + sq.s > 0
-      ? { material: sq.m, labour: sq.l, subcontractor: sq.s, other: 0, total: sq.m + sq.l + sq.s }
-      : p.budget > 0 ? { ...NO_COST, total: Number(p.budget) } : null
+    const quoted = quotedCost(null, [], Number(p.budget), data.stages.filter((x) => x.project_id === p.id))
     return scoreJob({ quoted, actual, contract: Number(p.contract_value), variations: f?.approved_variations ?? 0, status: p.status, start: p.start_date, end: p.end_date, today })
   }
   const jobs = new Map(active.map((p) => [p.id, jobOf(p)]))
   // Where each running job is heading, not contract-less-costs-so-far (that flatters a job half done).
   const expected = (id: string) => { const j = jobs.get(id)!; return j.profitForecast ?? j.profitNow }
   const profitData = active.map((p) => ({ name: p.code || p.name.slice(0, 14), profit: expected(p.id), full: p.name }))
+
+  // ---------- Needs attention ----------
+  /*
+   * THE BUDGET WARNING (Stephan, 28 Oct: "it should start giving a warning when you start ... spending too
+   * much, or you're nearing your budget"): every running job over, nearing or racing through its quoted
+   * cost (scoreJob). Shown to whoever sees budgets; the money lines to Administrators only.
+   */
+  const overBudget = active.filter((p) => jobs.get(p.id)!.tone === 'bad')
+  const nearBudget = active.filter((p) => jobs.get(p.id)!.tone === 'warn')
+  const onlyOne = (ps: Project[]) => (ps.length === 1 ? paths.project(ps[0].id) : paths.projects())
+  const attention: AttentionItem[] = budget ? [
+    { label: overBudget.length === 1 ? `job over budget: ${overBudget[0].name}` : 'jobs over budget', detail: 'See where it went', count: overBudget.length, to: onlyOne(overBudget), severity: 'late' },
+    { label: nearBudget.length === 1 ? `job nearing its budget: ${nearBudget[0].name}` : 'jobs nearing their budget', detail: 'Check before it runs over', count: nearBudget.length, to: onlyOne(nearBudget) },
+  ] : []
+  if (money) attention.push(
+    { label: overdue.length === 1 ? 'invoice overdue' : 'invoices overdue', detail: 'Chase payment', count: overdue.length, to: paths.finance(), severity: 'late' },
+    { label: expired.length === 1 ? 'sent quote has expired' : 'sent quotes have expired', detail: 'Follow up or mark declined', count: expired.length, to: paths.quotes(), severity: 'late' },
+    { label: waitingApproval.length === 1 ? 'quote waiting for approval' : 'quotes waiting for approval', detail: 'Approve before sending', count: waitingApproval.length, to: paths.quotes() },
+    { label: expiringSoon.length === 1 ? 'quote expires this week' : 'quotes expire this week', detail: 'Get an answer', count: expiringSoon.length, to: paths.quotes() },
+    { label: noAnswer.length === 1 ? 'quote sent a week ago, no answer' : 'quotes sent a week ago, no answer', detail: 'Phone the client', count: noAnswer.length, to: paths.quotes() },
+    { label: draftInvoices.length === 1 ? 'draft invoice not sent' : 'draft invoices not sent', detail: 'Check and send', count: draftInvoices.length, to: paths.finance() },
+    { label: needsLinking === 1 ? 'bank line to link' : 'bank lines to link', detail: 'Reconcile the bank', count: needsLinking, to: paths.bank() },
+  )
 
   // ---------- What the company made ----------
   const months = lastMonths(today, 6)
@@ -246,7 +260,7 @@ export function DashboardPage() {
             <h2 className="text-2xl font-extrabold tracking-tight">{greeting}{firstName ? `, ${firstName}` : ''}</h2>
             <p className="mt-0.5 text-[13px] text-white/60">
               {todayCount === 0 ? 'Nothing booked for today.' : `${sitesToday.length} job${sitesToday.length === 1 ? '' : 's'} on site today`}
-              {` · ${live.length} open quote${live.length === 1 ? '' : 's'}`}
+              {quotesToo ? ` · ${live.length} open quote${live.length === 1 ? '' : 's'}` : ''}
               {next ? ` · next job starts ${formatDate(next.start_date)}` : ''}
             </p>
           </div>
@@ -254,9 +268,11 @@ export function DashboardPage() {
             <Link to={paths.capture()} className="inline-flex items-center gap-1.5 rounded-lg bg-brand-500 px-3.5 py-2 text-sm font-semibold text-white hover:bg-brand-600">
               <Camera size={16} /> Snap slip
             </Link>
-            <Link to={`${paths.quotes()}?new=1`} className="inline-flex items-center gap-1.5 rounded-lg bg-white/10 px-3.5 py-2 text-sm font-medium text-white hover:bg-white/20">
-              <FileText size={16} /> New quote
-            </Link>
+            {editsQuotes(access) && (
+              <Link to={`${paths.quotes()}?new=1`} className="inline-flex items-center gap-1.5 rounded-lg bg-white/10 px-3.5 py-2 text-sm font-medium text-white hover:bg-white/20">
+                <FileText size={16} /> New quote
+              </Link>
+            )}
           </div>
         </div>
       </section>
@@ -285,7 +301,7 @@ export function DashboardPage() {
                 </p>
                 <p className="mt-1 text-sm font-semibold text-slate-900">{next.name}</p>
                 {next.site_address && <p className="text-xs text-slate-600">{next.site_address}</p>}
-                <p className="tabular mt-1.5 text-xs text-slate-600">{formatZAR(next.contract_value, { decimals: 0 })} contract{next.end_date ? ` · until ${formatDate(next.end_date, 'd MMM')}` : ''}</p>
+                <p className="tabular mt-1.5 text-xs text-slate-600">{[money ? `${formatZAR(next.contract_value, { decimals: 0 })} contract` : null, next.end_date ? `until ${formatDate(next.end_date, 'd MMM')}` : null].filter(Boolean).join(' · ')}</p>
               </Link>
             ) : (
               <p className="text-sm text-slate-500">No project has a start date coming up.</p>
@@ -309,7 +325,8 @@ export function DashboardPage() {
         </section>
       </div>
 
-      {/* ---------- Money ---------- */}
+      {/* ---------- Money (Administrators: lib/access.ts) ---------- */}
+      {money && <>
       <SectionLabel>Money</SectionLabel>
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
         <MoneyTile
@@ -363,6 +380,7 @@ export function DashboardPage() {
           to={paths.settings('Integrations')}
         />
       </div>
+      </>}
 
       {later.length > 0 && (
         <Card title="Later in the next two weeks" actions={<Link to={paths.diary()} className="text-xs text-slate-500 hover:text-slate-800">Diary →</Link>} padded={false}>
@@ -384,9 +402,10 @@ export function DashboardPage() {
       )}
 
       {/* ---------- How the jobs are doing ---------- */}
+      {budget && <>
       <SectionLabel>How the jobs are doing</SectionLabel>
       <div className="grid gap-4 lg:grid-cols-3">
-        <Card title="Profit per active project" subtitle="Where each job is heading, if the rest costs what was quoted." className="lg:col-span-2">
+        {money && <Card title="Profit per active project" subtitle="Where each job is heading, if the rest costs what was quoted." className="lg:col-span-2">
           {profitData.length === 0 ? (
             <EmptyState title="No active projects">Projects marked active show their gross profit here.</EmptyState>
           ) : (
@@ -394,7 +413,7 @@ export function DashboardPage() {
               <LazyProfitPerProjectChart data={profitData} />
             </div>
           )}
-        </Card>
+        </Card>}
         <Card title="Active projects" padded={false} actions={<Link to={paths.projects()} className="text-xs text-slate-500 hover:text-slate-800">All →</Link>}>
           {active.length === 0 ? (
             <EmptyState title="No active projects" />
@@ -410,13 +429,15 @@ export function DashboardPage() {
                         <span className="block truncate text-sm font-medium text-slate-800">{p.name}</span>
                         <span className="block text-xs text-slate-500">{p.end_date ? `Until ${formatDate(p.end_date, 'd MMM')}` : p.code ?? ''}</span>
                         <span className={`mt-0.5 inline-block rounded px-1.5 py-0.5 text-[11px] font-medium ${JOB_TONE[j.tone]}`} title={j.detail ?? undefined}>
-                          {j.tone === 'good' ? 'On track' : j.tone === 'neutral' ? 'No quote to compare' : j.tone === 'bad' ? 'Over the quoted cost' : 'Spending ahead of the work'}
+                          {money ? (j.tone === 'good' ? 'On track' : j.tone === 'neutral' ? 'No quote to compare' : j.tone === 'bad' ? 'Over the quoted cost' : 'Watch the spending') : j.plain}
                         </span>
                       </span>
-                      <span className="tabular shrink-0 text-right text-sm">
-                        <span className={expected(p.id) < 0 ? 'text-red-600' : 'text-slate-800'}>{formatZAR(expected(p.id), { decimals: 0 })}</span>
-                        <span className="block text-xs text-slate-500">{formatPct(revised ? (expected(p.id) / revised) * 100 : null)} expected</span>
-                      </span>
+                      {money && (
+                        <span className="tabular shrink-0 text-right text-sm">
+                          <span className={expected(p.id) < 0 ? 'text-red-600' : 'text-slate-800'}>{formatZAR(expected(p.id), { decimals: 0 })}</span>
+                          <span className="block text-xs text-slate-500">{formatPct(revised ? (expected(p.id) / revised) * 100 : null)} expected</span>
+                        </span>
+                      )}
                     </Link>
                   </li>
                 )
@@ -426,7 +447,10 @@ export function DashboardPage() {
         </Card>
       </div>
 
+      </>}
+
       {/* ---------- What the company made (Remus · Handoff 1, 28 Oct) ---------- */}
+      {money && <>
       <SectionLabel>What the company made</SectionLabel>
       <CompanyProfit ladder={ladder} recovery={recovery} />
 
@@ -449,6 +473,7 @@ export function DashboardPage() {
           </ul>
         )}
       </Card>
+      </>}
     </div>
   )
 }

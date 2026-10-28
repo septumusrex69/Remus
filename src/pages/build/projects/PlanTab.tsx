@@ -16,6 +16,7 @@ import { useLoad } from '../../../hooks/useLoad'
 import { Button, Card, EmptyState, ErrorBanner, Spinner } from '../../../components/ui'
 import type { Project, ProjectStage, Quote, StageBooking, Worker } from '../../../types'
 import { WorkerModal } from '../workers/WorkersPage'
+import { seesBudget, seesMoney, useAccess } from '../../../lib/access'
 
 /**
  * A project's plan and crew (Stephan, 26 Oct 2026): the accepted quote's stages on real dates,
@@ -47,6 +48,10 @@ export function PlanTab({ project, quote, onProjectChanged }: { project: Project
   const [start, setStart] = useState(() => nextWorkingDay(project.start_date ?? todayYmd()))
   const [newWorkerFor, setNewWorkerFor] = useState<string | null>(null)
   const today = todayYmd()
+  // Who sees what (lib/access.ts): rand for Administrators, percentages for contractors, neither for site managers.
+  const access = useAccess()
+  const money = seesMoney(access)
+  const budget = seesBudget(access)
 
   const ctx = useMemo(() => {
     if (!data) return null
@@ -254,7 +259,7 @@ export function PlanTab({ project, quote, onProjectChanged }: { project: Project
               </button>
             </header>
 
-            <div className="grid gap-4 p-4 md:grid-cols-2">
+            <div className={`grid gap-4 p-4 ${budget ? 'md:grid-cols-2' : ''}`}>
               {/* Crew */}
               <div>
                 <p className="mb-2 text-xs font-semibold tracking-wide text-slate-500 uppercase">Crew</p>
@@ -303,8 +308,20 @@ export function PlanTab({ project, quote, onProjectChanged }: { project: Project
                 </div>
               </div>
 
-              {/* Quoted vs actual */}
-              <div>
+              {/* Quoted vs actual: rand for Administrators; a contractor gets the bar and the percentage. */}
+              {budget && !money && (
+                <div>
+                  <p className="mb-2 text-xs font-semibold tracking-wide text-slate-500 uppercase">Budget</p>
+                  <div className="mb-2 h-2 overflow-hidden rounded-full bg-slate-100">
+                    <div className={`h-full ${over ? 'bg-red-500' : pct >= 90 ? 'bg-amber-500' : 'bg-emerald-500'}`} style={{ width: `${pct}%` }} />
+                  </div>
+                  <p className={`text-sm ${over ? 'font-semibold text-red-700' : 'text-slate-700'}`}>
+                    {quoted > 0 ? (over ? `Over this stage's budget (${Math.round((a.total / quoted) * 100)}% used).` : `${Math.round(pct)}% of this stage's budget used.`) : 'No budget for this stage.'}
+                  </p>
+                  {a.labourDays ? <p className="mt-1 text-xs text-slate-500">Labour: {a.labourDays} worker-day{a.labourDays === 1 ? '' : 's'} worked so far.</p> : null}
+                </div>
+              )}
+              {money && <div>
                 <p className="mb-2 text-xs font-semibold tracking-wide text-slate-500 uppercase">Quoted cost vs actual so far</p>
                 <div className="mb-2 h-2 overflow-hidden rounded-full bg-slate-100">
                   <div className={`h-full ${over ? 'bg-red-500' : 'bg-emerald-500'}`} style={{ width: `${pct}%` }} />
@@ -336,14 +353,14 @@ export function PlanTab({ project, quote, onProjectChanged }: { project: Project
                   {over ? `Over the quoted cost by ${formatZAR(round2(a.total - quoted), { decimals: 0 })}.` : quoted > 0 ? `${formatZAR(round2(quoted - a.total), { decimals: 0 })} left of the quoted cost.` : ''}
                   {a.labourDays ? ` Labour: ${a.labourDays} worker-day${a.labourDays === 1 ? '' : 's'} worked so far.` : ''}
                 </p>
-              </div>
+              </div>}
             </div>
           </section>
         )
       })}
 
-      {/* ---------- The whole project ---------- */}
-      <Card title="The whole project">
+      {/* ---------- The whole project (Administrators: lib/access.ts) ---------- */}
+      {money && <Card title="The whole project">
         <div className="tabular grid gap-3 text-sm sm:grid-cols-4">
           <Figure label="Client pays (stages)" value={formatZAR(totals.sell, { decimals: 0 })} />
           <Figure label="Quoted cost" value={formatZAR(totals.quoted, { decimals: 0 })} />
@@ -355,7 +372,7 @@ export function PlanTab({ project, quote, onProjectChanged }: { project: Project
             {formatZAR(unfiled)} of this project's slips aren't filed on a stage, so they count in the project's total but not in any stage. Pick the stage when you capture a slip.
           </p>
         )}
-      </Card>
+      </Card>}
 
       {newWorkerFor && (
         <WorkerModal

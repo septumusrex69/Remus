@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { seesMoney, useAccess } from '../../../lib/access'
 import { Link, useSearchParams } from 'react-router-dom'
 import { addDays, format, parseISO, startOfWeek } from 'date-fns'
 import { Check, ChevronLeft, ChevronRight, ClipboardCheck, Copy, Printer, UserPlus, X } from 'lucide-react'
@@ -44,7 +45,9 @@ const STATES: { days: number; label: string; tone: string }[] = [
 
 export function CrewRegisterPage() {
   const [params, setParams] = useSearchParams()
-  const tab: Tab = params.get('tab') === 'wages' ? 'wages' : 'day'
+  // The wage list is money: Administrators only (lib/access.ts). Everybody fills in the day.
+  const money = seesMoney(useAccess())
+  const tab: Tab = money && params.get('tab') === 'wages' ? 'wages' : 'day'
   const day = params.get('day') ?? todayYmd()
   const weekStart = ymd(startOfWeek(parseISO(day), { weekStartsOn: 1 }))
   const weekEnd = ymd(addDays(parseISO(weekStart), 6))
@@ -95,9 +98,9 @@ export function CrewRegisterPage() {
         actions={<Link to={paths.workers()} className="text-sm text-slate-500 hover:text-slate-800">Workers →</Link>}
       />
       <ErrorBanner error={err ?? error} />
-      <Tabs<Tab> value={tab} onChange={(t) => set({ tab: t })} tabs={[{ id: 'day', label: 'Day' }, { id: 'wages', label: 'Wages for the week' }]} />
+      {money && <Tabs<Tab> value={tab} onChange={(t) => set({ tab: t })} tabs={[{ id: 'day', label: 'Day' }, { id: 'wages', label: 'Wages for the week' }]} />}
       {tab === 'day'
-        ? <DayView day={day} data={data} ctx={ctx} busy={busy} onDay={(d) => set({ day: d })} onMark={mark} onClear={clear} />
+        ? <DayView day={day} data={data} ctx={ctx} busy={busy} money={money} onDay={(d) => set({ day: d })} onMark={mark} onClear={clear} />
         : <WagesView weekStart={weekStart} weekEnd={weekEnd} ctx={ctx} onWeek={(d) => set({ day: d })} />}
     </div>
   )
@@ -117,7 +120,9 @@ function DayPicker({ day, onDay, step }: { day: string; onDay: (d: string) => vo
   )
 }
 
-function DayView({ day, data, ctx, busy, onDay, onMark, onClear }: {
+function DayView({ day, data, ctx, busy, money, onDay, onMark, onClear }: {
+  /** Show each person's day rate (Administrators only). */
+  money: boolean
   day: string
   data: Data
   ctx: Ctx
@@ -178,7 +183,7 @@ function DayView({ day, data, ctx, busy, onDay, onMark, onClear }: {
                     <span className="min-w-[10rem] flex-1">
                       <span className="block text-sm font-medium text-slate-800">{worker.name}</span>
                       <span className="block text-xs text-slate-500">
-                        {[worker.trade, worker.grade === 'senior' ? 'Senior' : 'Junior', `${formatZAR(row ? row.day_cost : worker.day_cost, { decimals: 0 })} a day`].filter(Boolean).join(' · ')}
+                        {[worker.trade, worker.grade === 'senior' ? 'Senior' : 'Junior', money ? `${formatZAR(row ? row.day_cost : worker.day_cost, { decimals: 0 })} a day` : null].filter(Boolean).join(' · ')}
                         {!row && !away && <span className="ml-1 font-medium text-amber-700">· booked, not confirmed</span>}
                         {!row && away && <span className="ml-1 text-slate-500">· registered at {ctx.projects.get(away.project_id)?.name ?? 'another site'}</span>}
                       </span>

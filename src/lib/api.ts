@@ -142,12 +142,12 @@ export async function updateOwnProfile(id: ID, values: Pick<Partial<Profile>, 'n
 }
 
 /** Administrators only (enforced by RLS and the protect_profile_privileged_fields trigger). */
-export async function updateProfileAccess(id: ID, values: Pick<Partial<Profile>, 'role' | 'status'>): Promise<void> {
+export async function updateProfileAccess(id: ID, values: Pick<Partial<Profile>, 'role' | 'status' | 'job'>): Promise<void> {
   const rows = unwrap<Profile[]>(await supabase.from('profiles').update(values).eq('id', id).select('*'))
   if (rows.length === 0) throw new Error('Only administrators can change access.')
 }
 
-export async function inviteUser(payload: { email: string; name?: string; role: Profile['role'] }): Promise<void> {
+export async function inviteUser(payload: { email: string; name?: string; role: Profile['role']; job?: Profile['job'] }): Promise<void> {
   const res = await fetch('/api/team/invite', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...(await authHeader()) },

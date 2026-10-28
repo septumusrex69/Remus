@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { seesMoney, useAccess } from '../../../lib/access'
 import { StageSelect } from '../components/StageSelect'
 import { NumInput } from '../../../components/ui/NumInput'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
@@ -65,6 +66,8 @@ const blankForm = (projectId: string | null): FormState => ({
 export function SlipCapture() {
   const navigate = useNavigate()
   const [params] = useSearchParams()
+  // Someone without the Expenses page (lib/access.ts) goes back to the dashboard when done.
+  const back = seesMoney(useAccess()) ? paths.expenses() : paths.dashboard()
   const presetProject = params.get('project')
   const vatRate = useVatRate()
   const { data: projects } = useLoad(() => projectsApi.list(), [], 'projects-list')
@@ -244,7 +247,7 @@ export function SlipCapture() {
     return (
       <div>
         {pickers}
-        <Link to={paths.expenses()} className="mb-3 inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-800"><ArrowLeft size={14} /> Expenses</Link>
+        <Link to={back} className="mb-3 inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-800"><ArrowLeft size={14} /> {back === paths.expenses() ? 'Expenses' : 'Dashboard'}</Link>
         <PageHeader title="Snap slip" subtitle="Photograph a till slip or supplier invoice. It's stored with the expense." />
         {savedCount > 0 && (
           <div className="mb-4 flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
@@ -263,7 +266,7 @@ export function SlipCapture() {
           <Button size="lg" onClick={() => filesRef.current?.click()}>
             <Images size={18} /> Choose files (several at once)
           </Button>
-          <Button variant="ghost" onClick={() => navigate(paths.expenses())}>Done</Button>
+          <Button variant="ghost" onClick={() => navigate(back)}>Done</Button>
         </div>
       </div>
     )

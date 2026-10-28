@@ -2,17 +2,18 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { CalendarPlus, Camera, ChevronDown, FileText, FolderKanban, HardHat, Mail, Plus, UserPlus, type LucideIcon } from 'lucide-react'
 import { paths } from '../../pages/build/paths'
+import { editsQuotes, seesQuotes, useAccess, type Access } from '../../lib/access'
 
 /**
  * Raptor's "+ Add" menu in the top bar. Each item opens the same form its own page uses (the page
  * reads `?new=1`), so there is one form per thing, not a second copy here.
  */
-const OPTIONS: { label: string; icon: LucideIcon; to: () => string }[] = [
-  { label: 'New quote', icon: FileText, to: () => `${paths.quotes()}?new=1` },
-  { label: 'New project', icon: FolderKanban, to: () => `${paths.projects()}?new=1` },
-  { label: 'New client', icon: UserPlus, to: () => `${paths.clients()}?new=1` },
+const OPTIONS: { label: string; icon: LucideIcon; to: () => string; when?: (a: Access) => boolean }[] = [
+  { label: 'New quote', icon: FileText, to: () => `${paths.quotes()}?new=1`, when: editsQuotes },
+  { label: 'New project', icon: FolderKanban, to: () => `${paths.projects()}?new=1`, when: editsQuotes },
+  { label: 'New client', icon: UserPlus, to: () => `${paths.clients()}?new=1`, when: seesQuotes },
   { label: 'New worker', icon: UserPlus, to: () => `${paths.workers()}?new=1` },
-  { label: 'New subcontractor', icon: HardHat, to: () => `${paths.subcontractors()}?new=1` },
+  { label: 'New subcontractor', icon: HardHat, to: () => `${paths.subcontractors()}?new=1`, when: seesQuotes },
   { label: 'Snap slip', icon: Camera, to: () => paths.capture() },
   { label: 'Diary event', icon: CalendarPlus, to: () => `${paths.diary()}?new=1` },
   { label: 'New email', icon: Mail, to: () => `${paths.mail()}?new=1` },
@@ -22,6 +23,7 @@ export function QuickAdd() {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
   const navigate = useNavigate()
+  const access = useAccess()
 
   useEffect(() => {
     function onClick(e: MouseEvent) {
@@ -41,7 +43,7 @@ export function QuickAdd() {
       </button>
       {open && (
         <div className="absolute top-full right-0 z-50 mt-2 w-52 rounded-xl border border-slate-100 bg-white py-1.5 shadow-lg">
-          {OPTIONS.map(({ label, icon: Icon, to }) => (
+          {OPTIONS.filter((o) => !o.when || o.when(access)).map(({ label, icon: Icon, to }) => (
             <button
               key={label}
               onClick={() => { setOpen(false); navigate(to()) }}

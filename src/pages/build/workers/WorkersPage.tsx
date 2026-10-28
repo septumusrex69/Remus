@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { seesMoney, useAccess } from '../../../lib/access'
 import { useSearchParams } from 'react-router-dom'
 import { Plus, Search, UserRound } from 'lucide-react'
 import { workers as workersApi } from '../../../lib/api'
@@ -19,6 +20,7 @@ export function WorkersPage() {
   const [editing, setEditing] = useState<Partial<Worker> | null>(null)
   const [showInactive, setShowInactive] = useState(false)
   const { data, error, loading, reload } = useLoad(() => workersApi.list(), [], 'workers')
+  const money = seesMoney(useAccess())
 
   const [params, setParams] = useSearchParams()
   useEffect(() => {
@@ -71,7 +73,7 @@ export function WorkersPage() {
                     </span>
                     <span className="block truncate text-xs text-slate-500">{w.grade === 'senior' ? 'Senior' : 'Junior'}{w.phone ? ` · ${w.phone}` : ''}</span>
                   </span>
-                  <span className="tabular shrink-0 text-sm text-slate-700">{formatZAR(Number(w.day_cost))} <span className="text-xs text-slate-400">a day</span></span>
+                  {money && <span className="tabular shrink-0 text-sm text-slate-700">{formatZAR(Number(w.day_cost))} <span className="text-xs text-slate-400">a day</span></span>}
                 </button>
               </li>
             ))}
@@ -86,6 +88,8 @@ export function WorkersPage() {
 /** Add or edit a worker. A new one starts from the day rate for their grade in Settings. */
 export function WorkerModal({ initial, onClose, onSaved }: { initial: Partial<Worker>; onClose: () => void; onSaved: (w: Worker) => void }) {
   const { settings } = useBuild()
+  // A day's cost is money (lib/access.ts): a new worker added by someone else starts at the grade's rate.
+  const money = seesMoney(useAccess())
   const rateFor = (g: LabourGrade) => Number((g === 'junior' ? settings?.labour_day_rate_junior : settings?.labour_day_rate_senior) ?? 0)
   const [form, setForm] = useState<Partial<Worker>>(() => (initial.id ? initial : { ...initial, day_cost: initial.day_cost ?? rateFor(initial.grade ?? 'senior') }))
   const [saving, setSaving] = useState(false)
@@ -138,9 +142,11 @@ export function WorkerModal({ initial, onClose, onSaved }: { initial: Partial<Wo
             <option value="junior">Junior</option>
           </select>
         </Field>
-        <Field label="Cost per day" hint="What a day of this person costs you.">
-          <NumInput prefix="R" value={form.day_cost ?? 0} onValue={(n) => set('day_cost', Math.max(0, n))} />
-        </Field>
+        {money && (
+          <Field label="Cost per day" hint="What a day of this person costs you.">
+            <NumInput prefix="R" value={form.day_cost ?? 0} onValue={(n) => set('day_cost', Math.max(0, n))} />
+          </Field>
+        )}
         <Field label="Phone"><input className="input" type="tel" value={form.phone ?? ''} onChange={(e) => set('phone', e.target.value)} /></Field>
         <Field label="Notes" className="sm:col-span-2"><textarea className="input min-h-20" value={form.notes ?? ''} onChange={(e) => set('notes', e.target.value)} /></Field>
         {form.id && (

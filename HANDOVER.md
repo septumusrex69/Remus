@@ -39,9 +39,8 @@ all copied from Raptor H13 (Raptor · Handoff 14, `claude/sales-raptor-review-p1
 Email features (6, 8) cannot be tried on a preview: `SUPABASE_SERVICE_ROLE_KEY` is Production only.
 Going live = fast-forward `main` to this branch (check main has nothing it lacks), confirm READY, update here.
 
-**NOT copied from Raptor, asked of Stephan:** two kinds of Administrator (with and without money). Remus has
-no permissions system like Raptor's capabilities; doing it means hiding every money screen and adding a
-database rule to every money table. It fits the planned "Site Manager who can't see money". Ask which he wants.
+9. **Who sees the money** (Stephan answered instead of Raptor's two Administrators, see the section below):
+   Administrator / Contractor / Site manager / Read only, and the **budget warning**. Migration 0027 applied live.
 
 **Asked of Stephan, not answered yet:**
 - His crew message cut off at "Should also be able to, ..." -- ask what he meant.
@@ -57,6 +56,39 @@ database rule to every money table. It fits the planned "Site Manager who can't 
 `VITE_SUPABASE_URL=https://fake.supabase.co`, fake session in localStorage `sb-fake-auth-token`, requests
 answered from fixtures; supabase-js `maybeSingle()` fetches an ARRAY). The portal was checked the same way
 with `/api/portal/*` answered from fixtures, desktop 1280 and iPhone 390, no sideways scroll.
+
+## Who sees the money, and the budget warning (28 Oct 2026, Remus · Handoff 5)
+
+Stephan: "administrators can see it. Contractors can't see the finances, but everything else they should know
+more or less ... if we're working in budget ... And then you get site managers." General workers do NOT sign
+in ("I don't think they need to sign in"); the contractor or a site manager fills in the crew register.
+"It should start giving a warning when you start ... spending too much or you're nearing your budget."
+- **Kinds of login** (`src/lib/access.ts`, +test; Settings → Users offers the four, with what each sees):
+  - **Administrator**: everything.
+  - **Contractor**: jobs, plan & crew, schedule, crew register (no wage list), clients (no invoices), quotes
+    *as the client sees them* (the print view; the editor with costs/markup is Administrators'), workers
+    and subcontractors without rates or bank details, diary, mail, requests. Each job's budget in words and
+    percentages only (`JobScorecard plain`, `scoreJob().plain`), never rand.
+  - **Site manager**: the same minus quotes, subcontractors and the budget. No money anywhere.
+  - **Read only**: unchanged (sees everything, changes nothing).
+- **Database** (0027): `profiles.job` ('contractor' | 'site_manager'; role stays Raptor's list, both are role
+  'Sales Representative' -- growing the role check would need a DROP). Only an Administrator may change it
+  (`protect_profile_privileged_fields`). `sees_money_records()` + RESTRICTIVE select policies
+  `remus_money_select` on invoices, payments, variations, bank_*, ai_usage, and expenses (a site manager sees
+  only the slips they captured). Tested in rolled-back transactions. **A contractor is NOT blocked by the
+  database** (their budget % is worked out from the same slips as the Administrator's), only by the screens;
+  someone technical with a contractor login could read the money through the API. Said to Stephan.
+- **Existing team member** (the one 'Sales Representative' profile, probably Stephan's old login) is now a
+  Site manager. Change it in Settings → Users if not.
+- **Budget warning** (`scoreJob`, `NEARING_PCT` 90): a running job at 90%+ of its quoted cost (unless 95%+ of
+  the time is gone) is "Nearing the budget"; over is "Over budget"; spending 15 points ahead of the calendar
+  stays a warning. They show on the dashboard's Needs attention (for Administrators and contractors), on the
+  Active projects list and the project's Overview. The quoted cost is now worked out ONE way for both screens
+  (`quotedCost`: quote lines, else the plan's stages, else the budget) -- they used to differ (86% vs 92%).
+- Pages are guarded by `components/Allow.tsx` (waits for the profile, so a fresh load doesn't bounce an
+  Administrator). Checked in Playwright as contractor, site manager and Administrator with fixtures.
+- Not done: a bell notification when a job nears its budget (the warning is on screen only); hiding money
+  from a contractor at database level (would need views for projects, stages, workers, quote lines).
 
 ## The client portal, phase 1 (28 Oct 2026, Remus · Handoff 5, after Raptor H13)
 

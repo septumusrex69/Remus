@@ -1,4 +1,5 @@
 import { useEffect, useMemo } from 'react'
+import { editsQuotes, useAccess } from '../../../lib/access'
 import { Link, useParams } from 'react-router-dom'
 import { ArrowLeft, Printer } from 'lucide-react'
 import { contactName, listQuoteItems, listQuoteStages, loadClientDirectory, quoteAttachments, quotes as quotesApi, signedUrls } from '../../../lib/api'
@@ -25,6 +26,7 @@ const isPlaceholder = (it: QuoteItem) => !it.description.trim() && !Number(it.un
 export function QuotePrint() {
   const { id = '' } = useParams()
   const { settings } = useBuild()
+  const editor = editsQuotes(useAccess())
   const { data, error, loading } = useLoad(async () => {
     const [quote, items, dir, attachments, stages] = await Promise.all([quotesApi.get(id), listQuoteItems(id), loadClientDirectory(), quoteAttachments.list({ quote_id: id }), listQuoteStages(id)])
     // HEIC/HEIF photos don't render in most browsers: leave them out rather than print a broken image.
@@ -66,8 +68,9 @@ export function QuotePrint() {
   return (
     <div className="min-h-dvh bg-slate-100 py-6 print:bg-white print:py-0">
       <div className="no-print mx-auto mb-4 flex max-w-[210mm] items-center justify-between px-4">
-        <Link to={paths.quote(quote.id)} className="inline-flex items-center gap-1 text-sm text-slate-600 hover:text-slate-900">
-          <ArrowLeft size={14} /> Back to editor
+        {/* A contractor reads the quote here, as the client does (lib/access.ts): there is no editor to go back to. */}
+        <Link to={editor ? paths.quote(quote.id) : paths.quotes()} className="inline-flex items-center gap-1 text-sm text-slate-600 hover:text-slate-900">
+          <ArrowLeft size={14} /> {editor ? 'Back to editor' : 'Quotes'}
         </Link>
         <Button variant="dark" onClick={() => window.print()}>
           <Printer size={15} /> Print / Save as PDF

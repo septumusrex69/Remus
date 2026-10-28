@@ -2,7 +2,7 @@ import { AlertTriangle, CheckCircle2, Info, TrendingDown } from 'lucide-react'
 import { Card } from '../../../components/ui'
 import { formatZAR, round2, todayYmd } from '../../../lib/format'
 import { actualCost, quotedCost, scoreJob, type Tone } from '../../../lib/jobScore'
-import type { Expense, Project, Quote, QuoteItem } from '../../../types'
+import type { Expense, Project, ProjectStage, Quote, QuoteItem } from '../../../types'
 
 /**
  * THE JOB'S SCORECARD (Remus · Handoff 1, 28 Oct 2026). Stephan: "what was estimated for the project.
@@ -16,7 +16,11 @@ const TONE: Record<Tone, { box: string; icon: typeof Info }> = {
   neutral: { box: 'border-slate-200 bg-slate-50 text-slate-700', icon: Info },
 }
 
-export function JobScorecard({ project, quote, items, expenses, crew, variations }: {
+export function JobScorecard({ project, quote, items, stages, expenses, crew, variations, plain }: {
+  /** The plan's stages: the quoted cost when the quote's lines are not to hand (lib/jobScore quotedCost). */
+  stages: ProjectStage[]
+  /** For a contractor (lib/access.ts): the verdict and the percentages, never a rand amount. */
+  plain?: boolean
   project: Project
   quote: Quote | null
   items: QuoteItem[]
@@ -26,10 +30,10 @@ export function JobScorecard({ project, quote, items, expenses, crew, variations
   variations: number
 }) {
   const today = todayYmd()
-  const quoted = quotedCost(quote, items, Number(project.budget))
+  const quoted = quotedCost(quote, items, Number(project.budget), stages)
   const actual = actualCost(expenses, crew)
   const s = scoreJob({ quoted, actual, contract: Number(project.contract_value), variations, status: project.status, start: project.start_date, end: project.end_date, today })
-  const fromBudget = !!quoted && !(quote && items.length)
+  const fromBudget = !!quoted && !(quote && items.length) && quoted.material + quoted.labour + quoted.subcontractor === 0
   const Icon = TONE[s.tone].icon
   const rows: [string, number | null, number][] = fromBudget || !quoted
     ? [['Total cost', quoted?.total ?? null, actual.total]]
@@ -41,6 +45,23 @@ export function JobScorecard({ project, quote, items, expenses, crew, variations
       ['Total cost', quoted.total, actual.total],
     ]
   const z = (n: number) => formatZAR(n, { decimals: 0 })
+
+  if (plain) {
+    return (
+      <Card title="Budget" subtitle="How the job is doing against what the quote estimated it would cost.">
+        <div className={`flex items-start gap-3 rounded-xl border px-4 py-3 ${TONE[s.tone].box}`}>
+          <Icon size={20} className="mt-0.5 shrink-0" />
+          <p className="font-semibold">{s.plain}</p>
+        </div>
+        {s.costPct != null && (
+          <div className="mt-4 space-y-2 text-sm">
+            <Meter label="Budget used" pct={s.costPct} tone={s.tone} />
+            {s.timePct != null && <Meter label="Time gone" pct={s.timePct} tone="neutral" />}
+          </div>
+        )}
+      </Card>
+    )
+  }
 
   return (
     <Card title="Quoted vs actual" subtitle={quote ? `Against quote ${quote.number ?? ''}, excl. VAT. Labour includes the crew's days on site.` : fromBudget ? 'Against the project budget (no quote linked), excl. VAT.' : undefined}>
@@ -97,5 +118,15 @@ export function JobScorecard({ project, quote, items, expenses, crew, variations
         </div>
       )}
     </Card>
+  )
+}
+
+function Meter({ label, pct, tone }: { label: string; pct: number; tone: Tone }) {
+  const bar = tone === 'bad' ? 'bg-red-500' : tone === 'warn' ? 'bg-amber-500' : tone === 'good' ? 'bg-emerald-500' : 'bg-slate-400'
+  return (
+    <div>
+      <div className="mb-1 flex justify-between text-xs"><span className="text-slate-500">{label}</span><span className="tabular font-medium text-slate-800">{pct}%</span></div>
+      <div className="h-2 overflow-hidden rounded-full bg-slate-100"><div className={`h-full rounded-full ${bar}`} style={{ width: `${Math.min(100, pct)}%` }} /></div>
+    </div>
   )
 }
