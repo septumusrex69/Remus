@@ -58,3 +58,19 @@ export function decrypt(encoded: string): string {
   decipher.setAuthTag(Buffer.from(tagPart, 'base64url'))
   return Buffer.concat([decipher.update(Buffer.from(dataPart, 'base64url')), decipher.final()]).toString('utf8')
 }
+
+/**
+ * A keyed one-way hash (HMAC-SHA256 with the same key), for things that are only ever compared --
+ * a client portal's sign-in codes and session tokens (Raptor's keyedHash). `purpose` keeps a code
+ * and a token from ever hashing alike.
+ */
+export function keyedHash(purpose: string, value: string): string {
+  return crypto.createHmac('sha256', getKey()).update(`${purpose}:${value}`).digest('hex')
+}
+
+/** Equal hex strings, in constant time, so a wrong code is not refused faster than a near one. */
+export function sameHex(a: string, b: string): boolean {
+  const x = Buffer.from(a, 'hex')
+  const y = Buffer.from(b, 'hex')
+  return x.length === y.length && x.length > 0 && crypto.timingSafeEqual(x, y)
+}

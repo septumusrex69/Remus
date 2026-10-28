@@ -18,6 +18,7 @@ import { Button, Card, EmptyState, ErrorBanner, Field, PageHeader, Spinner, Stat
 import type { Company, Contact } from '../../../types'
 import { paths } from '../paths'
 import { ClientEmails } from './ClientEmails'
+import { PortalAccessCard } from './PortalAccessCard'
 
 /** One page for both client kinds: /clients/company/:id and /clients/contact/:id. */
 export function ClientDetail({ kind }: { kind: 'company' | 'contact' }) {
@@ -142,6 +143,11 @@ export function ClientDetail({ kind }: { kind: 'company' | 'contact' }) {
             <div className="card p-5"><p className="text-xs font-medium text-slate-400">Received</p><p className="tabular text-lg font-semibold">{formatZAR(received)}</p></div>
           </div>
           <ClientEmails company={data.company} contact={data.contact} people={data.people} />
+          <PortalAccessCard
+            client={kind === 'company' ? { companyId: id } : { contactId: id }}
+            clientName={name}
+            suggest={{ email: (data.contact ?? data.company)?.email ?? null, name: data.contact ? contactName(data.contact) : '' }}
+          />
           <Card title="Projects" padded={false}>
             {data.projects.length === 0 ? <EmptyState title="No projects" /> : (
               <ul className="divide-y divide-slate-100">
