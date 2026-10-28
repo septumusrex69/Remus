@@ -17,8 +17,8 @@ Preview: https://remus-git-claude-bold-mayer-yncf1w-team-raptor.vercel.app · Li
 a3228fa, production deploy READY: Find prices on a desktop, Quoted vs actual + What the company made,
 the Crew register and weekly wage list (everything listed under Handoff 1 below is now live).
 
-**ON THE PREVIEW ONLY, waiting for Stephan's "go live"** (`git log origin/main..claude/bold-mayer-yncf1w`),
-all copied from Raptor H13 (Raptor · Handoff 14, `claude/sales-raptor-review-p1pzx2` at ba34728):
+**ALSO LIVE since 28 Oct (Stephan: "go live"), main at 1d736ad, production READY.** Everything below was on the
+preview and is now live -- items 1-8 copied from Raptor H13 (Raptor · Handoff 14, `claude/sales-raptor-review-p1pzx2` at ba34728):
 1. **The bell:** one line per request ("and 2 more"), real times ("Today 08:05"), and opening the page a
    notification points at marks it read. `src/lib/notificationGroups.ts` (+test).
 2. **Requests shelves say whose move it is:** Needs a decision · With Claude · To test · Done · Declined · All.
@@ -37,7 +37,7 @@ all copied from Raptor H13 (Raptor · Handoff 14, `claude/sales-raptor-review-p1
 8. **The client portal, phase 1** (Stephan: "Client portal can be a good idea. To see their progresses and
    things."). See the section below.
 Email features (6, 8) cannot be tried on a preview: `SUPABASE_SERVICE_ROLE_KEY` is Production only.
-Going live = fast-forward `main` to this branch (check main has nothing it lacks), confirm READY, update here.
+Next go-live: fast-forward `main` to the working branch (check main has nothing it lacks), confirm READY, update here.
 
 9. **Who sees the money** (Stephan answered instead of Raptor's two Administrators, see the section below):
    Administrator / Contractor / Site manager / Read only, and the **budget warning**. Migration 0027 applied live.
