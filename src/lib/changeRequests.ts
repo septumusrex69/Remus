@@ -79,7 +79,8 @@ export const VERDICT_LABEL: Record<ReviewVerdict, string> = {
 export interface RequestEvent {
   id: string
   request_id: string
-  kind: 'sent' | 'reviewed' | 'status' | 'tested' | 'assigned' | 'comment' | 'question'
+  /** 'edited' comes from change_request_edits (0024), drawn on the same history. */
+  kind: 'sent' | 'reviewed' | 'status' | 'tested' | 'assigned' | 'comment' | 'question' | 'edited'
   body: string | null
   from_status: RequestStatus | null
   to_status: RequestStatus | null
@@ -234,18 +235,29 @@ export function titleOf(r: Pick<ChangeRequest, 'review_title' | 'description'>):
   return (r.review_title ?? '').trim() || r.description.trim().split(/\n+/)[0] || 'Untitled request'
 }
 
-/* THE SHELVES OF THE LIST: what is waiting, what is moving, what is finished. */
 /*
- * OPEN IS ONE SHELF (Stephan, Raptor H12: "instead of separating new and in progress, make one. Open --
- * then mark them inside as new or in progress. (Need feedback from) or whatever."). Everything not yet
- * released or declined is Open; the row's own pill says where in the workflow it is, and a second one
- * says when it waits on the person who asked (waitingOnAsker).
+ * THE SHELVES SAY WHOSE MOVE IT IS (Raptor · Handoff 14, copied in Remus · Handoff 2; Stephan on
+ * Raptor, 27 Oct: "everything is a little bit confusing here"). One Open shelf mixed what waits on
+ * HIM with what waits on Claude, and Released mixed what waits on the tester with what is finished:
+ *   decide    -- Needs a decision: new (read by the night or not), or approved and not yet given to Claude
+ *   claude    -- With Claude: on the build queue, or being built
+ *   test      -- To test: released and not yet tested ("Not right yet" sends it back to approved)
+ *   finished  -- Done: released and tested ✓
+ * The stored statuses are unchanged; this is only how the list sorts them.
  */
-export type Shelf = 'open' | 'done' | 'declined' | 'all'
-export function onShelf(r: Pick<ChangeRequest, 'status'>, shelf: Shelf): boolean {
-  if (shelf === 'all') return true
-  if (shelf === 'open') return r.status === 'new' || r.status === 'accepted' || r.status === 'building'
-  return r.status === shelf
+export type Shelf = 'decide' | 'claude' | 'test' | 'finished' | 'declined' | 'all'
+export const SHELVES: readonly [Shelf, string][] = [
+  ['decide', 'Needs a decision'], ['claude', 'With Claude'], ['test', 'To test'], ['finished', 'Done'], ['declined', 'Declined'], ['all', 'All'],
+]
+export function onShelf(r: Pick<ChangeRequest, 'status' | 'build_requested_at' | 'tested_ok'>, shelf: Shelf): boolean {
+  switch (shelf) {
+    case 'all': return true
+    case 'decide': return r.status === 'new' || (r.status === 'accepted' && !r.build_requested_at)
+    case 'claude': return r.status === 'building' || (r.status === 'accepted' && !!r.build_requested_at)
+    case 'test': return r.status === 'done' && r.tested_ok !== true
+    case 'finished': return r.status === 'done' && r.tested_ok === true
+    case 'declined': return r.status === 'declined'
+  }
 }
 
 /**
@@ -257,7 +269,7 @@ export function waitingOnAsker(
   r: Pick<ChangeRequest, 'id' | 'created_by' | 'status'>,
   events: Pick<RequestEvent, 'id' | 'request_id' | 'kind' | 'by_id' | 'at' | 'answers' | 'choices'>[],
 ): boolean {
-  if (!onShelf(r, 'open')) return false
+  if (!isOpen(r.status)) return false
   const mine = events.filter((e) => e.request_id === r.id)
   return mine.some((q) => q.kind === 'question' && !mine.some((a) => a.kind === 'comment' && (
     (q.choices?.length ?? 0) >= 2 ? a.answers === q.id : (a.by_id === r.created_by && a.at > q.at))))
@@ -275,7 +287,7 @@ export function reviewTiles(rows: Pick<ChangeRequest, 'id' | 'review_verdict'>[]
 }
 export const PRIORITY_LABEL: Record<RequestPriority, string> = { low: 'Low', normal: 'Normal', high: 'High' }
 
-/** Open is everything still to be decided or built; the list opens on it. */
+/** Open is everything still to be decided or built: not yet released or declined. */
 export function isOpen(s: RequestStatus): boolean {
   return s === 'new' || s === 'accepted' || s === 'building'
 }
@@ -283,6 +295,16 @@ export function isOpen(s: RequestStatus): boolean {
 /** The firm decides what gets built: the role, as the database's policy writes it. */
 export function mayDecide(user: Pick<User, 'role'> | null | undefined): boolean {
   return user?.role === 'Administrator'
+}
+
+/*
+ * WHO MAY CORRECT THE WORDS, AND UNTIL WHEN (Raptor · Handoff 14; Stephan: "edit a request after it's
+ * already been sent through, just to correct spelling, mistakes"). The sender or an Administrator, until
+ * Claude starts building -- New or Approved (the build queue included). The database holds the same rule
+ * (change_request_edit, 0024) and keeps the words it replaced.
+ */
+export function mayEdit(user: Pick<User, 'id' | 'role'> | null | undefined, r: Pick<ChangeRequest, 'created_by' | 'status'>): boolean {
+  return !!user && (user.id === r.created_by || user.role === 'Administrator') && (r.status === 'new' || r.status === 'accepted')
 }
 
 /** The person who sent it may take it back while nobody has looked at it. */

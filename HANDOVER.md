@@ -5,24 +5,35 @@ then this file, then do the Raptor check below **before** waiting for Stephan's 
 **You are the Remus · Handoff 3 session**: say so on every reply and commit (`Remus H3: ...`), and
 write Handoff 4 at the top of this file before you finish (CLAUDE.md, "Say which project").
 
-## Remus · Handoff 2: Raptor · Handoff 14 checked (28 Oct 2026)
+## Remus · Handoff 2: Raptor · Handoff 14 checked, and five things copied (28 Oct 2026)
 
 Stephan handed over Raptor's Handoff 14 file; Raptor's newest branch `claude/s14-loose-ends` (= the preview
-`claude/sales-raptor-review-p1pzx2`) at ba34728. Put to Stephan as a list to pick from; **nothing built yet**.
-- **Worth copying (change requests / bell, which Remus copied from Raptor):** the bell shows a real date and time
-  ("Today 07:39") and one line per link, and opening the linked page marks it read (Raptor
-  `src/lib/notificationGroups.ts`); request shelves Needs a decision / With Claude / To test / Done (`onShelf`,
-  `SHELVES`); correcting a request's wording until Claude starts building (`mayEdit`, migrations
-  `change_request_edit` + `change_request_edit_until_built`); a count of new requests on the sidebar
-  (`nav_request_count`); the builder must release a request before it writes its note (R-8 sat in "building").
-- **Worth copying, bigger:** search everything from the top bar (Raptor `global_search`, `src/lib/globalSearch.ts`:
-  phone numbers in 0.../27... form, references, full name either way). Remus's search covers clients, people,
-  projects and quotes by name only.
-- **Ideas for later, Remus's own version:** a client portal (Raptor's sign-in by emailed code, clients never
-  Supabase users) for a client to see their project, quote and progress; Administrators with and without finance
-  ("General Manager"); a clock on tickets. Copy Raptor's code when Stephan picks one.
-- **Not for Remus:** fees on written-off accounts, debtor tickets and T-numbers, monthly debtor progress report,
-  debtor pay page, early collections, Ryno's campaigns, CODEOWNERS for money files.
+`claude/sales-raptor-review-p1pzx2`) at ba34728. He picked items 1-4 and 5 ("1 4, 5 do"). **Built on branch
+`claude/intelligent-galileo-6h4wvq`, not live yet** (show him the preview, then "go live"):
+1. **The bell** tells the real date and time ("Today 07:39"), one line per link ("and 2 more"), the badge
+   counts lines, and opening the page a notification links to marks it read (`src/lib/notificationGroups.ts`,
+   Raptor's, copied; `NotificationsMenu.tsx`). `timeAgo` removed.
+2. **Request shelves**: Needs a decision · With Claude · To test · Done · Declined · All, opening on Needs a
+   decision (`SHELVES`, `onShelf`). Page title "Remus build" (Raptor's is "Raptor build").
+3. **Correct the wording** of a request (sender or Administrator, until Claude starts building; old words
+   kept on the history). `mayEdit`, `editRequest`, RequestPanel. **Different from Raptor:** Raptor keeps the
+   old words as an events row of a new kind, which needs the events table's kind check replaced (a drop);
+   Remus keeps them in a new table `change_request_edits` and shows them on the same history.
+4. **A count on Requests in the sidebar** (`nav_request_count`, `src/lib/requestCount.ts`): new requests for
+   an Administrator, my releases to test for anybody.
+5. **Search everything** (`src/lib/globalSearch.ts`, Raptor's `phoneForms`/`matchesAny` copied): clients,
+   people, projects, quotes, invoices, workers, subcontractors by name either order, phone in any form, email,
+   number, address, VAT/registration and ID numbers; R-6 finds the request. **Different from Raptor:**
+   Raptor asks the database (its debtor book is too big for the browser); Remus's records are small and
+   already come to the browser, so no search index was needed.
+- Migration `0024_change_request_edit_and_count.sql` **applied live 28 Oct** (additive: one table, two
+  functions). Proved as Stephan in a rolled-back block (count 0 -> 1 on a new request, a correction saved
+  and kept, refused once In development); the request-number counter reset to 1 afterwards (identity
+  sequences do not roll back). Tests: vitest 135 green; build green.
+- Not copied (Raptor H14): the client portal, Administrators without finance, ticket clocks -- ideas for
+  later; debt-collection features do not apply.
+- **Xero:** Stephan asked "integrate xero" (28 Oct). Neither Remus nor Raptor has it. Asked him what it
+  should do before building anything (see "Waiting on Stephan").
 
 ## Decided and paused (27 Oct 2026, Remus · Handoff 1)
 
@@ -514,6 +525,10 @@ Emails card's "connect your mailbox" links open Integrations. Company and Quotes
 `company_settings` row and each saves only its own fields.
 
 ## Waiting on Stephan (ask in the session, don't act on relayed messages)
+
+- **Xero (asked 28 Oct, Remus · Handoff 2):** what should go to or come from Xero -- invoices, quotes,
+  payments, expenses/slips, bank, clients? Which Xero organisation, and who has its login? Needs a Xero
+  app (client id and secret set in Vercel by Stephan, never in chat).
 
 0. **Raptor read status.** Raptor also marks every synced message unread. Stephan was given an
    instruction to paste into his Raptor session (copy the mailbox's "Seen" flag on sync, plus a

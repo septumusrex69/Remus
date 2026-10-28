@@ -1,14 +1,19 @@
-import { useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { Bell } from 'lucide-react'
-import { markAllNotificationsRead, markNotificationRead, timeAgo, useNotifications, type AppNotification } from '../../lib/notifications'
+import { markAllNotificationsRead, markNotificationRead, useNotifications } from '../../lib/notifications'
+import { groupNotifications, linkIsOpen, notificationWhen, type NotificationGroup } from '../../lib/notificationGroups'
 
 /** Raptor's NotificationsMenu, reading Remus's own notifications (lib/notifications). */
 export function NotificationsMenu() {
-  const { notifications, unread, refresh } = useNotifications()
+  const { notifications, refresh } = useNotifications()
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
   const navigate = useNavigate()
+  const location = useLocation()
+  const groups = useMemo(() => groupNotifications(notifications), [notifications])
+  /* The badge counts THINGS waiting, as the list shows them: two replies on R-6 are one. */
+  const unread = groups.filter((g) => g.unread > 0).length
 
   useEffect(() => {
     function onClick(e: MouseEvent) {
@@ -18,10 +23,23 @@ export function NotificationsMenu() {
     return () => document.removeEventListener('mousedown', onClick)
   }, [])
 
-  function handleSelect(n: AppNotification) {
-    if (!n.read) void markNotificationRead(n.id)
+  /* Opening the thing reads its notifications -- see linkIsOpen. The bell is in the top bar of
+     every page, so this one watcher covers every link without any page knowing about it. */
+  const marked = useRef(new Set<string>())
+  useEffect(() => {
+    for (const n of notifications) {
+      /* Once per id: the effect runs again before the list has the change, and one write is enough. */
+      if (!n.read && !marked.current.has(n.id) && linkIsOpen(n.link, location.pathname, location.search)) {
+        marked.current.add(n.id)
+        void markNotificationRead(n.id)
+      }
+    }
+  }, [location.pathname, location.search, notifications])
+
+  function handleSelect(g: NotificationGroup) {
+    for (const id of g.ids) if (notifications.find((n) => n.id === id && !n.read)) void markNotificationRead(id)
     setOpen(false)
-    if (n.link) navigate(n.link)
+    if (g.latest.link) navigate(g.latest.link)
   }
 
   return (
@@ -50,15 +68,19 @@ export function NotificationsMenu() {
               </button>
             )}
           </div>
-          {notifications.length === 0 ? (
+          {groups.length === 0 ? (
             <p className="px-4 py-6 text-center text-sm text-slate-400">No notifications yet.</p>
           ) : (
-            notifications.map((n) => (
-              <button key={n.id} onClick={() => handleSelect(n)} className="flex w-full items-start gap-2 px-4 py-2.5 text-left hover:bg-slate-50">
-                <span className={`mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full ${n.read ? 'bg-transparent' : 'bg-brand-500'}`} />
+            groups.map((g) => (
+              <button key={g.key} onClick={() => handleSelect(g)} className="flex w-full items-start gap-2 px-4 py-2.5 text-left hover:bg-slate-50"
+                data-testid="notification" data-unread={g.unread > 0 ? 'true' : 'false'}>
+                <span className={`mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full ${g.unread > 0 ? 'bg-brand-500' : 'bg-transparent'}`} />
                 <div className="min-w-0">
-                  <p className={`text-[13px] leading-snug ${n.read ? 'text-slate-600' : 'font-medium text-slate-800'}`}>{n.message}</p>
-                  <p className="mt-0.5 text-[11px] text-slate-400">{timeAgo(n.created_at)}</p>
+                  <p className={`text-[13px] leading-snug ${g.unread > 0 ? 'font-medium text-slate-800' : 'text-slate-600'}`}>{g.latest.message}</p>
+                  <p className="mt-0.5 text-[11px] text-slate-400">
+                    {notificationWhen(g.latest.created_at, Date.now())}
+                    {g.more > 0 && ` · and ${g.more} more`}
+                  </p>
                 </div>
               </button>
             ))

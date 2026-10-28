@@ -49,15 +49,6 @@ export async function markAllNotificationsRead(): Promise<void> {
   await supabase.from('notifications').update({ read: true }).in('id', ids)
 }
 
-/** "5m ago", "3h ago", "2d ago": a bell is read for what is new, not for the exact time. */
-export function timeAgo(iso: string, now = Date.now()): string {
-  const s = Math.max(0, Math.round((now - new Date(iso).getTime()) / 1000))
-  if (s < 60) return 'just now'
-  if (s < 3600) return `${Math.floor(s / 60)}m ago`
-  if (s < 86400) return `${Math.floor(s / 3600)}h ago`
-  return `${Math.floor(s / 86400)}d ago`
-}
-
 export function useNotifications() {
   const [list, setList] = useState(items)
   useEffect(() => {
@@ -74,5 +65,5 @@ export function useNotifications() {
     }
   }, [])
   const refresh = useCallback(() => refreshNotifications(), [])
-  return { notifications: list, unread: list.filter((n) => !n.read).length, refresh }
+  return { notifications: list, refresh }
 }

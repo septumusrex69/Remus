@@ -10,16 +10,17 @@ import { useBuild } from '../../pages/build/BuildContext'
 import { paths } from '../../pages/build/paths'
 import { useSidebarCollapsed } from '../../lib/sidebarCollapsed'
 import { useUnreadMail } from '../../lib/unreadMail'
+import { useRequestCount } from '../../lib/requestCount'
 import { useTheme } from '../../store/ThemeContext'
 
 /**
  * The navigation, copied from Raptor's Sidebar: folds to an icon rail (remembered per device),
  * labels become tooltips when folded, and a count becomes a dot.
  *
- * Only two items carry a count, Raptor's rule: a badge earns its place if it counts something one
- * person can clear today (unread client mail, bank lines to link).
+ * Only a few items carry a count, Raptor's rule: a badge earns its place if it counts something one
+ * person can clear today (unread client mail, bank lines to link, requests waiting on you).
  */
-type Badge = 'mail' | 'bank'
+type Badge = 'mail' | 'bank' | 'requests'
 const NAV: { to: string; label: string; icon: LucideIcon; end?: boolean; badge?: Badge }[] = [
   { to: paths.dashboard(), label: 'Dashboard', icon: LayoutDashboard, end: true },
   // Second, under Dashboard, as in Raptor: client mail is the first thing to check.
@@ -35,7 +36,9 @@ const NAV: { to: string; label: string; icon: LucideIcon; end?: boolean; badge?:
   { to: paths.diary(), label: 'Diary', icon: CalendarDays },
   { to: paths.finance(), label: 'Finance', icon: LineChart },
   // Everybody's, at Raptor's firm's word: "anyone can see requests".
-  { to: paths.requests(), label: 'Requests', icon: Lightbulb },
+  // With a count since Remus · Handoff 2 (Raptor · Handoff 14): new requests for an Administrator,
+  // my releases to test for anybody.
+  { to: paths.requests(), label: 'Requests', icon: Lightbulb, badge: 'requests' },
   { to: paths.settings(), label: 'Settings', icon: Settings },
 ]
 
@@ -50,11 +53,12 @@ export function Sidebar({ drawer, onNavigate }: { drawer?: boolean; onNavigate?:
   const { needsLinking, settings } = useBuild()
   const { theme } = useTheme()
   const unreadMail = useUnreadMail()
+  const requestCount = useRequestCount()
   const [foldedPref, toggleCollapsed] = useSidebarCollapsed()
   const collapsed = !drawer && foldedPref
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
-  const counts: Record<Badge, number> = { mail: unreadMail.count, bank: needsLinking }
+  const counts: Record<Badge, number> = { mail: unreadMail.count, bank: needsLinking, requests: requestCount }
 
   useEffect(() => {
     function onClick(e: MouseEvent) {

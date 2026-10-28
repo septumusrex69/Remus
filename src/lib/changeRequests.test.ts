@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import {
-  OTHER_CHOICE, REQUEST_DEPARTMENTS, answerBody, answerTo, base64Bytes, choicesOk, mayAnswer, parseChoices, tickedOf, waitingOnAsker, fileProblem, fitWithin, mayDecide, mayTest, mayWithdraw, onShelf, paneOf,
+  OTHER_CHOICE, REQUEST_DEPARTMENTS, answerBody, answerTo, base64Bytes, choicesOk, mayAnswer, parseChoices, tickedOf, waitingOnAsker, fileProblem, fitWithin, mayDecide, mayEdit, mayTest, mayWithdraw, onShelf, paneOf,
   parseReviewGroups, requestLabel, sortRequests, stageOf, testState, titleOf,
 } from './changeRequests'
-import { timeAgo } from './notifications'
+import { groupNotifications, linkIsOpen, notificationWhen } from './notificationGroups'
 import migration from '../../supabase/migrations/0017_change_requests.sql?raw'
 import choicesMigration from '../../supabase/migrations/0018_change_request_choices.sql?raw'
+import editMigration from '../../supabase/migrations/0024_change_request_edit_and_count.sql?raw'
 
 /* Raptor's check-change-requests, as Remus's vitest. */
 
@@ -62,11 +63,13 @@ describe('where a request stands', () => {
     expect(testState({ status: 'accepted', decided_at: null, tested_ok: false, tested_at: '2026-10-27T11:00:00Z' })).toBe('sent back')
     expect(testState({ status: 'new', decided_at: null, tested_ok: null, tested_at: null })).toBe('not done')
   })
-  it('Submitted, Approved and In development are all Open', () => {
-    const shelves = (['new', 'accepted', 'building', 'done', 'declined'] as const)
-      .map((st) => (['open', 'done', 'declined'] as const).filter((sh) => onShelf({ status: st }, sh)).join(''))
-    expect(shelves).toEqual(['open', 'open', 'open', 'done', 'declined'])
-    expect(onShelf({ status: 'declined' }, 'all')).toBe(true)
+  it('every status sits on exactly one shelf, which says whose move it is (Raptor · Handoff 14)', () => {
+    const r = (status: 'new' | 'accepted' | 'building' | 'done' | 'declined', build_requested_at: string | null = null, tested_ok: boolean | null = null) =>
+      ({ status, build_requested_at, tested_ok })
+    const cases = [r('new'), r('accepted'), r('accepted', '2026-10-27T08:00:00Z'), r('building'), r('done'), r('done', null, false), r('done', null, true), r('declined')]
+    const shelves = cases.map((c) => (['decide', 'claude', 'test', 'finished', 'declined'] as const).filter((sh) => onShelf(c, sh)).join(','))
+    expect(shelves).toEqual(['decide', 'decide', 'claude', 'claude', 'test', 'test', 'finished', 'declined'])
+    expect(cases.every((c) => onShelf(c, 'all'))).toBe(true)
   })
   it('a title: the night’s, else the first line written', () => {
     expect(titleOf({ review_title: 'Quotes · Show the deposit', description: 'x' })).toBe('Quotes · Show the deposit')
@@ -117,13 +120,36 @@ describe('the night’s groups, read defensively', () => {
   })
 })
 
-describe('the bell', () => {
-  it('says how long ago, roughly', () => {
-    const now = Date.parse('2026-10-27T12:00:00Z')
-    expect(timeAgo('2026-10-27T11:59:30Z', now)).toBe('just now')
-    expect(timeAgo('2026-10-27T11:55:00Z', now)).toBe('5m ago')
-    expect(timeAgo('2026-10-27T09:00:00Z', now)).toBe('3h ago')
-    expect(timeAgo('2026-10-25T12:00:00Z', now)).toBe('2d ago')
+describe('the bell (Raptor · Handoff 14)', () => {
+  const n = (id: string, at: string, link: string | null, read = false) => ({ id, type: 'change_request.reply', message: `m-${id}`, created_at: at, read, link })
+  it('is one line per link, newest first, unread while any of it is', () => {
+    const groups = groupNotifications([
+      n('a', '2026-10-27T05:43:50Z', '/requests?r=6'),
+      n('b', '2026-10-27T05:43:51Z', '/requests?r=6', true),
+      n('c', '2026-10-27T05:39:00Z', '/requests?r=8'),
+      n('d', '2026-10-26T10:00:00Z', null, true),
+      n('e', '2026-10-26T09:00:00Z', null),
+    ])
+    expect(groups.map((g) => g.key)).toEqual(['link:/requests?r=6', 'link:/requests?r=8', 'id:d', 'id:e'])
+    expect([groups[0].latest.id, groups[0].more, groups[0].ids]).toEqual(['b', 1, ['b', 'a']])
+    expect([groups[0].unread, groups[2].unread]).toEqual([1, 0])
+  })
+  it('knows when the page a notification links to is open', () => {
+    expect(linkIsOpen('/requests?r=8', '/requests', '?r=8')).toBe(true)
+    expect(linkIsOpen('/requests?r=8', '/requests', '?view=list&r=8')).toBe(true)
+    expect(linkIsOpen('/requests?r=8', '/requests', '?r=18')).toBe(false)
+    expect(linkIsOpen('/requests?r=8', '/requests', '')).toBe(false)
+    expect(linkIsOpen('/requests?r=8', '/projects', '?r=8')).toBe(false)
+    expect(linkIsOpen('/clients/c1', '/clients/c1', '?tab=Emails')).toBe(true)
+    expect(linkIsOpen(null, '/requests', '?r=8')).toBe(false)
+  })
+  it('says the real date and time, in Johannesburg', () => {
+    const NOW = Date.parse('2026-10-27T07:00:00Z')
+    expect(notificationWhen('2026-10-27T05:39:00Z', NOW)).toBe('Today 07:39')
+    expect(notificationWhen('2026-10-26T12:36:00Z', NOW)).toBe('Yesterday 14:36')
+    expect(notificationWhen('2026-10-23T08:05:00Z', NOW)).toBe('23 Oct 10:05')
+    expect(notificationWhen('2025-12-30T08:05:00Z', NOW)).toBe('30 Dec 2025 10:05')
+    expect(notificationWhen('2026-10-26T22:30:00Z', NOW)).toBe('Today 00:30')
   })
 })
 
@@ -179,5 +205,23 @@ describe('a question with options to tick', () => {
     expect(last).toMatch(/public\.change_request_answers_ok\(answers, request_id\)/)
     expect(last).not.toMatch(/from public\.change_request_events/)
     expect(choicesMigration).toMatch(/function public\.change_request_answers_ok[\s\S]*security definer/)
+  })
+})
+
+describe('correcting the wording (Raptor · Handoff 14)', () => {
+  const asker = { id: 'u1', role: 'Read Only' as const }
+  const admin = { id: 'u2', role: 'Administrator' as const }
+  const other = { id: 'u3', role: 'Read Only' as const }
+  it('the sender or an Administrator, until Claude starts building', () => {
+    for (const st of ['new', 'accepted'] as const) {
+      expect([mayEdit(asker, { created_by: 'u1', status: st }), mayEdit(admin, { created_by: 'u1', status: st }), mayEdit(other, { created_by: 'u1', status: st })]).toEqual([true, true, false])
+    }
+    for (const st of ['building', 'done', 'declined'] as const) expect(mayEdit(admin, { created_by: 'u1', status: st })).toBe(false)
+    expect(mayEdit(null, { created_by: 'u1', status: 'new' })).toBe(false)
+  })
+  it('the database holds the same rule and keeps the old words', () => {
+    expect(editMigration).toMatch(/r\.status not in \('new', 'accepted'\)/)
+    expect(editMigration).toMatch(/insert into public\.change_request_edits/)
+    expect(editMigration).not.toMatch(/\bdrop\b/i)
   })
 })

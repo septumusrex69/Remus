@@ -52,10 +52,24 @@ export async function listQuestionThreads(): Promise<Pick<RequestEvent, 'id' | '
 
 /** One request's history, oldest first. */
 export async function listEvents(requestId: string): Promise<RequestEvent[]> {
-  const { data, error } = await supabase.from('change_request_events').select('id, request_id, kind, body, from_status, to_status, by_id, at, choices, answers')
-    .eq('request_id', requestId).order('at')
+  const [ev, ed] = await Promise.all([
+    supabase.from('change_request_events').select('id, request_id, kind, body, from_status, to_status, by_id, at, choices, answers')
+      .eq('request_id', requestId).order('at'),
+    supabase.from('change_request_edits').select('id, request_id, old_description, by_id, at').eq('request_id', requestId),
+  ])
+  if (ev.error) throw new Error(ev.error.message)
+  /* A correction of the words (0024) is drawn on the same history, the old words as its body. */
+  const edits = ed.error ? [] : (ed.data ?? []).map((e) => ({
+    id: e.id as string, request_id: e.request_id as string, kind: 'edited' as const, body: e.old_description as string,
+    from_status: null, to_status: null, by_id: e.by_id as string | null, at: e.at as string, choices: null, answers: null,
+  }))
+  return [...((ev.data ?? []) as RequestEvent[]), ...(edits as unknown as RequestEvent[])].sort((a, b) => a.at.localeCompare(b.at))
+}
+
+/** Correct a request's words (the sender or an Administrator, until Claude starts) -- see mayEdit. */
+export async function editRequest(number: number, description: string): Promise<void> {
+  const { error } = await supabase.rpc('change_request_edit', { p_number: number, p_description: description })
   if (error) throw new Error(error.message)
-  return (data ?? []) as RequestEvent[]
 }
 
 /** A comment, or (an Administrator's) question to the person who asked -- they are notified. */
