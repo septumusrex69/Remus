@@ -1,11 +1,50 @@
-# Remus · Handoff 2 (written 26 Oct 2026 by the Remus · Handoff 1 session)
+# Remus · Handoff 2 (written 26–28 Oct 2026 by the Remus · Handoff 1 session)
 
 For the next Claude Code session on `septumusrex69/Remus`. Read `CLAUDE.md` (the standing rules),
 then this file, then do the Raptor check below **before** waiting for Stephan's instructions.
 **You are the Remus · Handoff 2 session**: say so on every reply and commit (`Remus H2: ...`), and
 write Handoff 3 at the top of this file before you finish (CLAUDE.md, "Say which project").
 
-## Decided and paused (27 Oct 2026, Remus · Handoff 1)
+## Start here: where things stand (28 Oct 2026, end of Remus · Handoff 1)
+
+**Working branch: `claude/price-crawler`** (it carries `claude/requests` and `claude/workers-and-plan`).
+Preview: https://remus-git-claude-price-crawler-team-raptor.vercel.app · Live: https://remus-xi.vercel.app
+
+**LIVE (on `main` since 28 Oct, Stephan: "Let's go."), main at 2961fc3:**
+change requests + the bell + nightly review; workers, project plan and profit per stage; Find prices
+(Quick / Combined / Claude, 7-day price memory, Claude credit in $ and R on the dashboard); Where to shop
+(map and radius per quote, free OpenStreetMap + Photon address suggestions, no Google key by choice);
+Settings → My stores; shopping list; Find prices on a phone.
+
+**ON THE PREVIEW ONLY, waiting for Stephan's "go live"** (`git log origin/main..claude/price-crawler`):
+1. Find prices easier on a desktop (labelled button, pinned search box, stores with no prices folded
+   into one list with "Ask Claude about these too").
+2. **Quoted vs actual** on every project's Overview, and **What the company made** on the dashboard
+   (invoiced − job costs = profit from jobs − overheads; overheads as % of job costs). See below.
+3. **Crew register** (`/crew`): who was on which site each day, and the weekly wage list. Migration
+   0024 is already applied live (table only). See below.
+Going live = fast-forward `main` to `claude/price-crawler` (main has nothing the branch lacks; check
+first), confirm the production deploy is READY, update this section.
+
+**Asked of Stephan, not answered yet:**
+- His message about the crew cut off at "Should also be able to, ..." -- ask what he meant.
+- Overheads only count slips filed as "Company overhead" (no project); confirm that is how slips are
+  captured, or the company profit reads high.
+- Earlier offers still open: a permission email to Leroy Merlin / BUCO / Builders for Find prices;
+  picking the Cashbuild branch nearest the site (its prices are per branch).
+- The "Waiting on Stephan" list further down (Supabase auth URLs, Resend DNS, P-0005, Duplicate quote).
+
+**Paused:** WhatsApp a quote (decided: share the PDF file itself, option 3).
+**Next on the list (suggested to Stephan, not started):** learning from finished jobs ("materials
+usually 8% over quote") once a few projects are completed.
+
+**How things were checked this session:** no e2e suite exists in Remus. Screens were checked with a
+throwaway Playwright harness (`vite` with `VITE_SUPABASE_URL=https://fake.supabase.co`, a fake session
+in localStorage `sb-fake-auth-token`, and every `fake.supabase.co` request answered from fixtures --
+note supabase-js `maybeSingle()` fetches an ARRAY, so the fake must apply `eq.` filters). Not committed;
+worth turning into `scripts/e2e` the Raptor way if screens keep growing.
+
+## Decided and paused (27 Oct 2026, Remus · Handoff 1) -- the supplier-prices idea below has since been built
 
 - **WhatsApp a quote: option 3, the PDF file itself.** Stephan: "send the PDF file itself, that's the
   best one ... like share it" -- then "just pause this for now". So when it is picked up: a WhatsApp
@@ -556,7 +595,7 @@ Emails card's "connect your mailbox" links open Integrations. Company and Quotes
 3. **Duplicate quote:** remove the button, or replace it with templates or revisions?
 4. **Project P-0005** sits at R 0 because it was converted before its lines were saved. Update it to
    its quote's value (R 4,296.52 excl. VAT)?
-5. Optional: `ANTHROPIC_API_KEY` in Vercel for reading slips.
+5. ~~`ANTHROPIC_API_KEY` in Vercel~~ -- done 27 Oct (production, preview, development).
 
 ## Where Stephan wants Remus to go (22 Oct)
 
