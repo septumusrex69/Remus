@@ -162,6 +162,25 @@ as Combined) instead of five empty boxes; "Stores · tap one to leave it out"; a
 nothing matched; the "Buy at" boxes say what they are on hover; distances on the map list no longer
 break. Preview first, per the rule; live on Stephan's word.
 
+## Quoted vs actual, and what the company made (28 Oct 2026, branch `claude/price-crawler`)
+
+Stephan: "what was estimated for the project. Did we overquote? ... profit per project, and then we have
+expenses, and then overall profit. Overhead expenses". Recommended (1) a per-project scorecard and (2) a
+company profit ladder; he said proceed. Point 3 (learning from finished jobs) waits for finished jobs.
+- `src/lib/jobScore.ts` (+test): quoted cost by kind vs actual (slips by category + crew booked days to
+  today, the Plan & crew sum), and the verdict in words. Finished: >5% over is over, >10% under says
+  "you may have quoted high". Running: over already, or spending 15+ points ahead of the calendar. A
+  running job's profit is shown as where it is HEADING (rest costs as quoted), not contract − costs so far.
+- `projects/JobScorecard.tsx` on the project Overview; the Spent / Gross profit tiles now include crew.
+- `src/lib/companyProfit.ts` (+test) and `dashboard/CompanyProfit.tsx`: invoiced (sent, by issue date) −
+  job costs (project slips + crew days) = profit from jobs − overheads (slips on no project) = what the
+  company made; this month, six months, and overheads as a % of job costs (finished months only) =
+  what every quote must add on cost to cover overheads. Says so when no overheads are recorded.
+- Dashboard active projects carry a verdict chip and the expected profit (quoted cost from the plan's
+  stages, else budget). Same sums as the project page.
+- Open question to Stephan: are wages for booked crew ALSO captured as slips? If so labour double counts.
+- Checked in Playwright (desktop) with fixture data. Preview first; not live.
+
 ## Workers, project plan and profit per stage (26 Oct 2026, branch `claude/workers-and-plan`)
 
 Planning step 2, Stephan's pick. Migration `0016_workers_and_project_plan.sql` (applied live):

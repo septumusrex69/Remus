@@ -11,6 +11,10 @@ import {
   invoices as invoicesApi,
   listLinkedExpenseIds,
   listProfiles,
+  listQuoteItems,
+  projectStages,
+  stageBookings,
+  workers as workersApi,
   loadClientDirectory,
   payments as paymentsApi,
   projects as projectsApi,
@@ -44,6 +48,8 @@ import { LazyCategoryBarChart } from '../components/LazyCharts'
 import { useVatRate } from '../BuildContext'
 import { ProjectFormModal } from './ProjectFormModal'
 import { PlanTab } from './PlanTab'
+import { JobScorecard } from './JobScorecard'
+import { crewCost } from '../../../lib/jobScore'
 
 type Tab = 'overview' | 'plan' | 'expenses' | 'invoices' | 'variations' | 'diary' | 'schedule'
 
@@ -67,8 +73,18 @@ async function load(id: string) {
     listProfiles(),
     projectsApi.list(),
   ])
-  const quote = project?.quote_id ? await quotesApi.get(project.quote_id) : null
-  return { project, fin, dir, exp, inv, pay, vars, entries, events, linked, team, allProjects, quote }
+  // For the scorecard: the quote's lines (quoted cost by kind) and the crew's booked days (actual labour).
+  const [quote, items, stages, allBookings, workerRows] = await Promise.all([
+    project?.quote_id ? quotesApi.get(project.quote_id) : Promise.resolve(null),
+    project?.quote_id ? listQuoteItems(project.quote_id) : Promise.resolve([]),
+    projectStages.list({ project_id: id }),
+    stageBookings.list(),
+    workersApi.list(),
+  ])
+  const stageIds = new Set(stages.map((st) => st.id))
+  const bookings = allBookings.filter((b) => stageIds.has(b.stage_id))
+  const workerMap = new Map(workerRows.map((w) => [w.id, w]))
+  return { project, fin, dir, exp, inv, pay, vars, entries, events, linked, team, allProjects, quote, items, bookings, workerMap }
 }
 
 export function ProjectDetail() {
@@ -157,20 +173,26 @@ function Overview({ data }: { data: Data }) {
   const p = data.project!
   const f = data.fin
   const byCat = EXPENSE_CATEGORIES.map((c) => ({ name: labelize(c), value: Number(f?.[`expenses_${c}` as const] ?? 0) })).filter((x) => x.value > 0)
-  const spent = f?.expenses_total ?? 0
+  // Spent and profit include the crew's booked days, as the scorecard below and Plan & crew count them.
+  const crew = crewCost(data.bookings, data.workerMap, todayYmd())
+  const spent = round2((f?.expenses_total ?? 0) + crew)
+  const revised = f?.revised_contract ?? p.contract_value
+  const profit = round2(revised - spent)
+  const margin = revised ? (profit / revised) * 100 : null
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatTile label="Revised contract" value={formatZAR(f?.revised_contract ?? p.contract_value, { decimals: 0 })} hint={f?.approved_variations ? `incl. ${formatZAR(f.approved_variations, { decimals: 0 })} variations` : 'excl. VAT'} />
-        <StatTile label="Spent" value={formatZAR(spent, { decimals: 0 })} hint="excl. VAT" />
-        <StatTile label="Gross profit" value={formatZAR(f?.gross_profit ?? 0, { decimals: 0 })} tone={(f?.gross_profit ?? 0) < 0 ? 'bad' : 'good'} hint={`Margin ${formatPct(f?.margin_pct)}`} />
+        <StatTile label="Spent" value={formatZAR(spent, { decimals: 0 })} hint={crew ? `excl. VAT, incl. ${formatZAR(crew, { decimals: 0 })} crew` : 'excl. VAT'} />
+        <StatTile label="Gross profit" value={formatZAR(profit, { decimals: 0 })} tone={profit < 0 ? 'bad' : 'good'} hint={`Margin ${formatPct(margin)}`} />
         <StatTile label="Received" value={formatZAR(f?.received ?? 0, { decimals: 0 })} hint={`Invoiced ${formatZAR(f?.invoiced_incl ?? 0, { decimals: 0 })} incl. VAT`} />
       </div>
+      <JobScorecard project={p} quote={data.quote} items={data.items} expenses={data.exp} bookings={data.bookings} workers={data.workerMap} variations={Number(f?.approved_variations ?? 0)} />
       <div className="grid gap-4 lg:grid-cols-2">
         <Card title="Budget">
           <div className="mb-2 flex justify-between text-sm">
             <span className="text-slate-600">{formatZAR(spent)} of {formatZAR(p.budget)}</span>
-            <span className={`font-medium ${(f?.budget_remaining ?? 0) < 0 ? 'text-red-600' : 'text-slate-800'}`}>{formatZAR(f?.budget_remaining ?? p.budget)} left</span>
+            <span className={`font-medium ${p.budget - spent < 0 ? 'text-red-600' : 'text-slate-800'}`}>{formatZAR(round2(p.budget - spent))} left</span>
           </div>
           <ProgressBar value={spent} max={p.budget} />
           <p className="mt-2 text-xs text-slate-500">{p.budget ? `${formatPct((spent / p.budget) * 100, 0)} of budget used` : 'No budget set'}</p>

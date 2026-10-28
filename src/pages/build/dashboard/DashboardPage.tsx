@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { addDays, differenceInCalendarDays, endOfMonth, format, startOfDay, startOfMonth } from 'date-fns'
+import { addDays, addMonths, differenceInCalendarDays, endOfMonth, format, startOfDay, startOfMonth } from 'date-fns'
 import {
   AlertCircle, AlertTriangle, Camera, CheckCircle2, ChevronRight, FileText, HardHat, Receipt, Wallet,
   Bot,
@@ -32,6 +32,9 @@ import { useLoad } from '../../../hooks/useLoad'
 import { useAuth } from '../../../store/AuthContext'
 import { Card, EmptyState, ErrorBanner, Spinner } from '../../../components/ui'
 import type { DiaryEvent, Project } from '../../../types'
+import { crewCost, NO_COST, scoreJob, type CostSplit } from '../../../lib/jobScore'
+import { lastMonths, monthlyProfit, overheadRecovery } from '../../../lib/companyProfit'
+import { CompanyProfit } from './CompanyProfit'
 import { paths } from '../paths'
 import { LazyProfitPerProjectChart } from '../components/LazyCharts'
 import { useBuild } from '../BuildContext'
@@ -48,7 +51,9 @@ async function load() {
   const now = new Date()
   const from = ymd(startOfMonth(now))
   const to = ymd(endOfMonth(now))
-  const [projects, fin, quotes, totals, invoices, allPayments, monthPayments, monthExpenses, events, recent, bank, claude, stages, bookings, workers] = await Promise.all([
+  // Six months of slips for "What the company made" (this month's are a subset of them).
+  const sixFrom = ymd(startOfMonth(addMonths(now, -5)))
+  const [projects, fin, quotes, totals, invoices, allPayments, monthPayments, sixMonthExpenses, events, recent, bank, claude, stages, bookings, workers] = await Promise.all([
     projectsApi.list(),
     listProjectFinancials(),
     quotesApi.list(),
@@ -56,7 +61,7 @@ async function load() {
     invoicesApi.list(),
     paymentsApi.list(),
     listPaymentsBetween(from, to),
-    listExpensesBetween(from, to),
+    listExpensesBetween(sixFrom, to),
     // From the start of today, so today's earlier and all-day events still show.
     listEventsBetween(startOfDay(now).toISOString(), addDays(startOfDay(now), 15).toISOString()),
     listRecentExpenses(6),
@@ -67,7 +72,8 @@ async function load() {
     stageBookings.list().catch(() => []),
     workersApi.list().catch(() => []),
   ])
-  return { projects, fin, quotes, totals, invoices, allPayments, monthPayments, monthExpenses, events, recent, bank, claude, stages, bookings, workers }
+  const monthExpenses = sixMonthExpenses.filter((e) => e.date >= from)
+  return { projects, fin, quotes, totals, invoices, allPayments, monthPayments, monthExpenses, sixMonthExpenses, events, recent, bank, claude, stages, bookings, workers }
 }
 
 /** Is the project on site that day: active, and the day inside its dates (or it has none). */
@@ -191,10 +197,38 @@ export function DashboardPage() {
   const firstName = (currentUser?.name ?? '').split(' ')[0]
   const todayCount = sitesToday.length + dayItems(today).length
 
-  const profitData = active.map((p) => {
+  /*
+   * EACH JOB'S PROFIT AND VERDICT, the same sums as the project's own scorecard (lib/jobScore.ts):
+   * slips by category plus the crew's booked days, against the quoted cost the plan was made from
+   * (its stages carry the quote's cost by kind), or the budget where there is no plan.
+   */
+  const workerMap = new Map(data.workers.map((w) => [w.id, w]))
+  const jobOf = (p: Project) => {
     const f = data.fin.get(p.id)
-    return { name: p.code || p.name.slice(0, 14), profit: f?.gross_profit ?? 0, full: p.name }
-  })
+    const mine = new Set(data.stages.filter((st) => st.project_id === p.id).map((st) => st.id))
+    const crew = crewCost(data.bookings.filter((b) => mine.has(b.stage_id)), workerMap, today)
+    const actual: CostSplit = {
+      material: f?.expenses_materials ?? 0, labour: (f?.expenses_labour ?? 0) + crew, subcontractor: f?.expenses_subcontractor ?? 0,
+      other: (f?.expenses_total ?? 0) - (f?.expenses_materials ?? 0) - (f?.expenses_labour ?? 0) - (f?.expenses_subcontractor ?? 0),
+      total: (f?.expenses_total ?? 0) + crew,
+    }
+    const st = data.stages.filter((x) => x.project_id === p.id)
+    const sq = st.reduce((t, x) => ({ m: t.m + Number(x.quoted_material), l: t.l + Number(x.quoted_labour), s: t.s + Number(x.quoted_subcontractor) }), { m: 0, l: 0, s: 0 })
+    const quoted: CostSplit | null = sq.m + sq.l + sq.s > 0
+      ? { material: sq.m, labour: sq.l, subcontractor: sq.s, other: 0, total: sq.m + sq.l + sq.s }
+      : p.budget > 0 ? { ...NO_COST, total: Number(p.budget) } : null
+    return scoreJob({ quoted, actual, contract: Number(p.contract_value), variations: f?.approved_variations ?? 0, status: p.status, start: p.start_date, end: p.end_date, today })
+  }
+  const jobs = new Map(active.map((p) => [p.id, jobOf(p)]))
+  // Where each running job is heading, not contract-less-costs-so-far (that flatters a job half done).
+  const expected = (id: string) => { const j = jobs.get(id)!; return j.profitForecast ?? j.profitNow }
+  const profitData = active.map((p) => ({ name: p.code || p.name.slice(0, 14), profit: expected(p.id), full: p.name }))
+
+  // ---------- What the company made ----------
+  const months = lastMonths(today, 6)
+  const ladder = monthlyProfit({ months, invoices: data.invoices, expenses: data.sixMonthExpenses, bookings: data.bookings, workers: workerMap, today })
+  // The overhead share is read from the finished months only: a part month has its rent and not its work.
+  const recovery = overheadRecovery(ladder.slice(0, -1))
 
   return (
     <div className="space-y-4">
@@ -346,7 +380,7 @@ export function DashboardPage() {
       {/* ---------- How the jobs are doing ---------- */}
       <SectionLabel>How the jobs are doing</SectionLabel>
       <div className="grid gap-4 lg:grid-cols-3">
-        <Card title="Profit per active project" className="lg:col-span-2">
+        <Card title="Profit per active project" subtitle="Where each job is heading, if the rest costs what was quoted." className="lg:col-span-2">
           {profitData.length === 0 ? (
             <EmptyState title="No active projects">Projects marked active show their gross profit here.</EmptyState>
           ) : (
@@ -361,17 +395,21 @@ export function DashboardPage() {
           ) : (
             <ul className="divide-y divide-slate-100">
               {active.map((p) => {
-                const f = data.fin.get(p.id)
+                const j = jobs.get(p.id)!
+                const revised = Number(p.contract_value) + (data.fin.get(p.id)?.approved_variations ?? 0)
                 return (
                   <li key={p.id}>
                     <Link to={paths.project(p.id)} className="flex items-center justify-between gap-3 px-4 py-2.5 hover:bg-slate-50">
                       <span className="min-w-0">
                         <span className="block truncate text-sm font-medium text-slate-800">{p.name}</span>
                         <span className="block text-xs text-slate-500">{p.end_date ? `Until ${formatDate(p.end_date, 'd MMM')}` : p.code ?? ''}</span>
+                        <span className={`mt-0.5 inline-block rounded px-1.5 py-0.5 text-[11px] font-medium ${JOB_TONE[j.tone]}`} title={j.detail ?? undefined}>
+                          {j.tone === 'good' ? 'On track' : j.tone === 'neutral' ? 'No quote to compare' : j.tone === 'bad' ? 'Over the quoted cost' : 'Spending ahead of the work'}
+                        </span>
                       </span>
                       <span className="tabular shrink-0 text-right text-sm">
-                        <span className={f && f.gross_profit < 0 ? 'text-red-600' : 'text-slate-800'}>{formatZAR(f?.gross_profit ?? 0, { decimals: 0 })}</span>
-                        <span className="block text-xs text-slate-500">{formatPct(f?.margin_pct)} margin</span>
+                        <span className={expected(p.id) < 0 ? 'text-red-600' : 'text-slate-800'}>{formatZAR(expected(p.id), { decimals: 0 })}</span>
+                        <span className="block text-xs text-slate-500">{formatPct(revised ? (expected(p.id) / revised) * 100 : null)} expected</span>
                       </span>
                     </Link>
                   </li>
@@ -381,6 +419,10 @@ export function DashboardPage() {
           )}
         </Card>
       </div>
+
+      {/* ---------- What the company made (Remus · Handoff 1, 28 Oct) ---------- */}
+      <SectionLabel>What the company made</SectionLabel>
+      <CompanyProfit ladder={ladder} recovery={recovery} />
 
       <Card title="Recent spending" padded={false} actions={<Link to={paths.expenses()} className="text-xs text-slate-500 hover:text-slate-800">All →</Link>}>
         {data.recent.length === 0 ? (
@@ -409,6 +451,13 @@ export function DashboardPage() {
 function daysUntil(day: string, now: Date): number {
   return differenceInCalendarDays(new Date(`${day}T00:00:00`), startOfDay(now))
 }
+
+const JOB_TONE = {
+  good: 'bg-emerald-50 text-emerald-700',
+  warn: 'bg-amber-50 text-amber-800',
+  bad: 'bg-red-50 text-red-700',
+  neutral: 'bg-slate-100 text-slate-500',
+} as const
 
 /** A quiet heading between the dashboard's groups, so each block reads as its own part. */
 function SectionLabel({ children }: { children: ReactNode }) {
