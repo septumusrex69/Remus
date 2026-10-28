@@ -1,15 +1,22 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { requireCaller } from '../_lib/auth.js'
 import { credentialsKeyProblem } from '../_lib/crypto.js'
+import { fetchAttachments } from '../_lib/emailSync.js'
 import { adminClient, getConnection, logEmailActivity, sendFromOwnMailbox } from '../_lib/mailbox.js'
 
 /**
  * Emails a client from the caller's own mailbox, with their signature, and files it on the
  * client's Emails card (Raptor's api/email/send). Body arrives as plain text and is escaped here.
  *
- * POST { to, cc?, subject, body, companyId?, contactId?, inReplyTo? }
+ * POST { to, cc?, subject, body, companyId?, contactId?, inReplyTo?, forward? }
  *   `to` may hold several addresses separated by commas; `cc` is a list (Reply all).
+ *   `forward: { mailId, names }`: A FORWARD KEEPS ITS FILES (Raptor H13, R-8: "When you forward an
+ *   email it removes the attachment"). The files named, taken out of the caller's own mailbox here
+ *   rather than uploaded by the browser (a phone would carry them twice, and Vercel refuses a request
+ *   over 4.5 MB). Only names the sync recorded on that message; what does not fit under the ceiling
+ *   or is no longer in the mailbox is left off and named back (`leftOff`), never dropped silently.
  */
+const FORWARD_MAX_BYTES = 20 * 1024 * 1024
 
 const EMAIL_RE = /^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$/
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!)
@@ -48,10 +55,37 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const conn = await getConnection(admin, caller.user.id)
   if (!conn) return res.status(400).json({ error: 'Connect your mailbox in Settings before sending email.' })
 
+  // The files of a forwarded message, read as the caller: RLS shows a mailbox row only to its owner.
+  const attachments: { filename: string; content: Buffer; contentType?: string }[] = []
+  const leftOff: string[] = []
+  const fwd = b.forward as { mailId?: unknown; names?: unknown } | undefined
+  const wanted = Array.isArray(fwd?.names) ? fwd.names.filter((x): x is string => typeof x === 'string') : []
+  if (fwd && typeof fwd.mailId === 'string' && wanted.length) {
+    const { data: mail } = await db.from('user_emails').select('folder, uid, message_id, attachment_names').eq('id', fwd.mailId).maybeSingle()
+    const known = new Set(((mail?.attachment_names as string[] | null) ?? []))
+    const names = wanted.filter((n) => known.has(n))
+    leftOff.push(...wanted.filter((n) => !known.has(n)))
+    if (mail && names.length) {
+      let got: Awaited<ReturnType<typeof fetchAttachments>> = []
+      try {
+        got = await fetchAttachments(conn, { folder: mail.folder as string | null, uid: mail.uid as number | null, messageId: mail.message_id as string | null }, names)
+      } catch {
+        // The mailbox could not be read: every file is named as left off, and the words still go.
+      }
+      let total = 0
+      for (const n of names) {
+        const f = got.find((g) => g.filename === n)
+        if (!f || total + f.content.length > FORWARD_MAX_BYTES) { leftOff.push(n); continue }
+        total += f.content.length
+        attachments.push({ filename: f.filename, content: f.content, contentType: f.contentType })
+      }
+    }
+  }
+
   const html = `<div style="font-family:Arial,Helvetica,sans-serif;color:#0f172a;line-height:1.5">${esc(text).replace(/\n/g, '<br>')}</div>`
   let messageId: string | null
   try {
-    messageId = await sendFromOwnMailbox(conn, me, { to: toList, cc, subject, html, text, attachments: [], inReplyTo: str(b.inReplyTo) })
+    messageId = await sendFromOwnMailbox(conn, me, { to: toList, cc, subject, html, text, attachments, inReplyTo: str(b.inReplyTo) })
   } catch (err) {
     return res.status(502).json({ error: `The email could not be sent: ${err instanceof Error ? err.message : String(err)}` })
   }
@@ -68,5 +102,5 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   }
   const activityId = await logEmailActivity(db, { userId: caller.user.id, companyId, contactId, subject, notes: text, messageId })
-  return res.status(200).json({ ok: true, messageId, activityId })
+  return res.status(200).json({ ok: true, messageId, activityId, leftOff })
 }

@@ -991,14 +991,22 @@ export async function syncMailbox(): Promise<{ logged: number }> {
 }
 
 /** Emails a client from your own mailbox and files it on their Emails card. */
-export async function sendEmail(values: { to: string; cc?: string[]; subject: string; body: string; companyId?: ID | null; contactId?: ID | null; inReplyTo?: string | null }): Promise<void> {
+/**
+ * `forward`: the files of the message being forwarded, taken out of the mailbox by the server. The
+ * names it could not bring are returned (leftOff) so the screen can say so.
+ */
+export async function sendEmail(values: {
+  to: string; cc?: string[]; subject: string; body: string; companyId?: ID | null; contactId?: ID | null; inReplyTo?: string | null
+  forward?: { mailId: ID; names: string[] }
+}): Promise<{ leftOff: string[] }> {
   const res = await callApi('/api/email/send', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...(await authHeader()) },
     body: JSON.stringify(values),
   }, 'send the email')
-  const body = (await res.json().catch(() => null)) as { ok?: boolean; error?: string } | null
+  const body = (await res.json().catch(() => null)) as { ok?: boolean; error?: string; leftOff?: string[] } | null
   if (!res.ok || !body?.ok) throw new Error(body?.error ?? `Sending failed (HTTP ${res.status}).`)
+  return { leftOff: body.leftOff ?? [] }
 }
 
 /** Pulls an attachment out of the mailbox through the server and hands it to the browser to save. */

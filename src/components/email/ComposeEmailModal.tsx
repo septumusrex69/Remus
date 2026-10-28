@@ -1,5 +1,5 @@
 import { useId, useState, type FormEvent } from 'react'
-import { Send } from 'lucide-react'
+import { Paperclip, Send, X } from 'lucide-react'
 import { sendEmail } from '../../lib/api'
 import { Button, ErrorBanner, Field, Modal } from '../ui'
 import type { ID } from '../../types'
@@ -17,6 +17,7 @@ export function ComposeEmailModal({
   initialSubject,
   initialBody,
   inReplyTo,
+  forward,
   companyId,
   contactId,
   onClose,
@@ -41,8 +42,14 @@ export function ComposeEmailModal({
   inReplyTo?: string | null
   companyId?: ID | null
   contactId?: ID | null
+  /**
+   * THE FILES ON A MESSAGE BEING FORWARDED (Raptor H13, R-8): kept by default and removable here,
+   * each with its x. The server takes them out of the mailbox when it sends.
+   */
+  forward?: { mailId: ID; names: string[] }
   onClose: () => void
-  onSent: () => void
+  /** `leftOff`: forwarded files that could not go (too big, or gone from the mailbox). */
+  onSent: (leftOff: string[]) => void
 }) {
   const listId = useId()
   const [address, setAddress] = useState(to ?? recipients?.[0]?.email ?? '')
@@ -52,6 +59,7 @@ export function ComposeEmailModal({
   const [body, setBody] = useState(initialBody ?? '')
   const [sending, setSending] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [keep, setKeep] = useState<string[]>(forward?.names ?? [])
 
   async function submit(e: FormEvent) {
     e.preventDefault()
@@ -60,8 +68,11 @@ export function ComposeEmailModal({
     setError(null)
     try {
       const ccList = cc.split(/[,;]/).map((x) => x.trim()).filter(Boolean)
-      await sendEmail({ to: address.trim(), cc: ccList, subject: subject.trim(), body: body.trim(), companyId, contactId, inReplyTo })
-      onSent()
+      const { leftOff } = await sendEmail({
+        to: address.trim(), cc: ccList, subject: subject.trim(), body: body.trim(), companyId, contactId, inReplyTo,
+        ...(forward && keep.length ? { forward: { mailId: forward.mailId, names: keep } } : {}),
+      })
+      onSent(leftOff)
       onClose()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not send that email.')
@@ -114,6 +125,20 @@ export function ComposeEmailModal({
         <Field label="Message" hint="Your signature from Settings is added automatically.">
           <textarea className="input min-h-44" value={body} onChange={(e) => setBody(e.target.value)} required autoFocus={!!initialSubject} />
         </Field>
+        {keep.length > 0 && (
+          <div className="flex flex-wrap gap-1.5" data-testid="forward-attachments">
+            {keep.map((name) => (
+              <span key={name} className="inline-flex max-w-full items-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-xs text-slate-700">
+                <Paperclip size={12} className="shrink-0 text-slate-400" />
+                <span className="truncate">{name}</span>
+                <button type="button" onClick={() => setKeep((k) => k.filter((x) => x !== name))} aria-label={`Leave off ${name}`}
+                  className="rounded p-0.5 text-slate-400 hover:bg-slate-200 hover:text-slate-700">
+                  <X size={12} />
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
       </form>
     </Modal>
   )

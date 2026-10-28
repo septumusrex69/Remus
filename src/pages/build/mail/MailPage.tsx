@@ -82,6 +82,8 @@ type Draft = {
   inReplyTo?: string | null
   companyId?: string | null
   contactId?: string | null
+  /** A forward keeps the message's files (Raptor H13, R-8). */
+  forward?: { mailId: string; names: string[] }
 }
 
 export function MailPage() {
@@ -244,7 +246,10 @@ export function MailPage() {
     }
   }
   function forward(m: MailItem) {
-    setDraft({ title: 'Forward', to: '', subject: forwardSubject(m.subject), body: quoteBlock(m, bodyText(m), 'forward') })
+    setDraft({
+      title: 'Forward', to: '', subject: forwardSubject(m.subject), body: quoteBlock(m, bodyText(m), 'forward'),
+      forward: m.attachmentNames.length ? { mailId: m.id, names: m.attachmentNames } : undefined,
+    })
   }
 
   async function act(fn: () => Promise<unknown>, done?: string) {
@@ -517,8 +522,14 @@ export function MailPage() {
           inReplyTo={draft.inReplyTo}
           companyId={draft.companyId ?? null}
           contactId={draft.contactId ?? null}
+          forward={draft.forward}
           onClose={() => setDraft(null)}
-          onSent={() => { setStatus('Sent. A copy is in your Sent folder.'); void unreadMail.sync() }}
+          onSent={(leftOff) => {
+            setStatus(leftOff.length
+              ? `Sent, but without ${leftOff.join(', ')} (too big for one message, or no longer in the mailbox). Send those in a second email.`
+              : 'Sent. A copy is in your Sent folder.')
+            void unreadMail.sync()
+          }}
         />
       )}
       {blocking && userId && (

@@ -134,6 +134,23 @@ export async function fetchAttachment(
 }
 
 /**
+ * Several attachments of one message, read in one visit to the mailbox (a forward that keeps its
+ * files, Raptor H13's R-8). Only the names asked for, in the order asked; a name the message no
+ * longer carries is simply missing from the result, and the caller names it as left off.
+ */
+export async function fetchAttachments(
+  conn: { email: string; imap_host: string; imap_port: number; encrypted_password: string },
+  location: { folder?: string | null; uid?: number | null; messageId?: string | null },
+  filenames: string[],
+): Promise<FetchedAttachment[]> {
+  const found = await withParsedMessage(conn, location, (parsed) => filenames.flatMap((filename) => {
+    const match = (parsed.attachments ?? []).find((att) => (att.filename || '') === filename)
+    return match ? [{ filename, contentType: match.contentType || 'application/octet-stream', content: match.content as Buffer }] : []
+  }))
+  return found ?? []
+}
+
+/**
  * A message's markup WITH its pictures, read out of the mailbox for the Mail page.
  *
  * The stored copy leaves the pictures out (see withoutEmbeddedPictures), so the page shows the
