@@ -1,9 +1,28 @@
-# Remus · Handoff 2 (written 26 Oct 2026 by the Remus · Handoff 1 session)
+# Remus · Handoff 3 (written 28 Oct 2026 by the Remus · Handoff 2 session)
 
 For the next Claude Code session on `septumusrex69/Remus`. Read `CLAUDE.md` (the standing rules),
 then this file, then do the Raptor check below **before** waiting for Stephan's instructions.
-**You are the Remus · Handoff 2 session**: say so on every reply and commit (`Remus H2: ...`), and
-write Handoff 3 at the top of this file before you finish (CLAUDE.md, "Say which project").
+**You are the Remus · Handoff 3 session**: say so on every reply and commit (`Remus H3: ...`), and
+write Handoff 4 at the top of this file before you finish (CLAUDE.md, "Say which project").
+
+## Remus · Handoff 2: Raptor · Handoff 14 checked (28 Oct 2026)
+
+Stephan handed over Raptor's Handoff 14 file; Raptor's newest branch `claude/s14-loose-ends` (= the preview
+`claude/sales-raptor-review-p1pzx2`) at ba34728. Put to Stephan as a list to pick from; **nothing built yet**.
+- **Worth copying (change requests / bell, which Remus copied from Raptor):** the bell shows a real date and time
+  ("Today 07:39") and one line per link, and opening the linked page marks it read (Raptor
+  `src/lib/notificationGroups.ts`); request shelves Needs a decision / With Claude / To test / Done (`onShelf`,
+  `SHELVES`); correcting a request's wording until Claude starts building (`mayEdit`, migrations
+  `change_request_edit` + `change_request_edit_until_built`); a count of new requests on the sidebar
+  (`nav_request_count`); the builder must release a request before it writes its note (R-8 sat in "building").
+- **Worth copying, bigger:** search everything from the top bar (Raptor `global_search`, `src/lib/globalSearch.ts`:
+  phone numbers in 0.../27... form, references, full name either way). Remus's search covers clients, people,
+  projects and quotes by name only.
+- **Ideas for later, Remus's own version:** a client portal (Raptor's sign-in by emailed code, clients never
+  Supabase users) for a client to see their project, quote and progress; Administrators with and without finance
+  ("General Manager"); a clock on tickets. Copy Raptor's code when Stephan picks one.
+- **Not for Remus:** fees on written-off accounts, debtor tickets and T-numbers, monthly debtor progress report,
+  debtor pay page, early collections, Ryno's campaigns, CODEOWNERS for money files.
 
 ## Decided and paused (27 Oct 2026, Remus · Handoff 1)
 
@@ -395,7 +414,8 @@ what Raptor gained since the last one:
 4. Tick off the Raptor checklist in `CLAUDE.md` as features land, and update the "Raptor last
    checked" line below.
 
-**Raptor last checked:** 27 Oct 2026 05:30 (Remus · Handoff 1) — `claude/sales-raptor-review-p1pzx2` at 093cf14
+**Raptor last checked:** 28 Oct 2026 (Remus · Handoff 2) — `claude/s14-loose-ends` at ba34728 (Raptor · Handoff 14);
+see "Remus · Handoff 2: Raptor · Handoff 14 checked" at the top. Before that: 27 Oct 2026 05:30 (Remus · Handoff 1) — `claude/sales-raptor-review-p1pzx2` at 093cf14
 (Raptor · Handoff 13). Copied: R-numbers kept on one line on Requests. Not needed: H13's "no silent reload
   over typing" (Remus's UpdateBanner never reloads by itself). Not for Remus: written-off account charges.
 
