@@ -78,8 +78,9 @@ in ("I don't think they need to sign in"); the contractor or a site manager fill
   only the slips they captured). Tested in rolled-back transactions. **A contractor is NOT blocked by the
   database** (their budget % is worked out from the same slips as the Administrator's), only by the screens;
   someone technical with a contractor login could read the money through the API. Said to Stephan.
-- **Both of Stephan's logins are Administrators** (Stephan, 28 Oct: "stephan is admin ... big boss"):
-  stephan@urbanhausgroup.co.za and his old stephan@bredellferreira.co.za (was a team member).
+- **Logins:** stephan@urbanhausgroup.co.za is the Administrator ("big boss"); his old
+  stephan@bredellferreira.co.za is a **Site manager** at his request (28 Oct) -- handy for seeing what a
+  site manager sees.
 - **Budget warning** (`scoreJob`, `NEARING_PCT` 90): a running job at 90%+ of its quoted cost (unless 95%+ of
   the time is gone) is "Nearing the budget"; over is "Over budget"; spending 15 points ahead of the calendar
   stays a warning. They show on the dashboard's Needs attention (for Administrators and contractors), on the
