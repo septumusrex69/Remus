@@ -144,7 +144,7 @@ stupid little things?" -- "Yes, let's do it the free way").** No Google key, no 
   `findNearby` sends them with every look; the server puts them first in their chain, drops a map branch
   of the same chain within 300 m (same shop), and shows ones beyond every area as "further out"
   (`outside`, never counted as in reach by Find prices). Bigger ringed dots on the map, "yours" tags.
-- Not yet verified by Stephan; nothing on this branch is live.
+- **LIVE since 28 Oct** (Stephan: "Let's go."): `claude/price-crawler` fast-forwarded into `main` at caef187 -- requests, workers & plan, Find prices, map, My stores, shopping list, phone fix.
 
 **Find prices on a phone (28 Oct, Stephan: "you can't search for an item on the phone app").** The window
 was laid out for a desktop: three engine cards and six store chips above the search box, so on a phone
