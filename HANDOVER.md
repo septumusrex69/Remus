@@ -146,6 +146,14 @@ stupid little things?" -- "Yes, let's do it the free way").** No Google key, no 
   (`outside`, never counted as in reach by Find prices). Bigger ringed dots on the map, "yours" tags.
 - Not yet verified by Stephan; nothing on this branch is live.
 
+**Find prices on a phone (28 Oct, Stephan: "you can't search for an item on the phone app").** The window
+was laid out for a desktop: three engine cards and six store chips above the search box, so on a phone
+the box was at the bottom of the sheet and the results arrived below the screen, under the keyboard.
+Now the box is first, the engines are one row (explanation under it), the stores one sideways-scrolling
+row, the results are scrolled to and the keyboard put away, and product names wrap to two lines.
+Checked in Playwright at iPhone 13 size with the database answered from fixtures (scratch harness, not
+committed).
+
 ## Workers, project plan and profit per stage (26 Oct 2026, branch `claude/workers-and-plan`)
 
 Planning step 2, Stephan's pick. Migration `0016_workers_and_project_plan.sql` (applied live):

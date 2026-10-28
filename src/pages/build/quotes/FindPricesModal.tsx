@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Bot, ExternalLink, Loader2, Package, Search, Zap } from 'lucide-react'
 import { Button, Modal } from '../../../components/ui'
 import { formatZAR } from '../../../lib/format'
@@ -73,6 +73,20 @@ export function FindPricesModal({ open, onClose, initialQuery, onPick, areas = [
   }, [])
   const reach = (id: string) => (nearest?.get(id) ? `${nearest.get(id)!.distanceKm} km` : nearest ? 'online' : null)
 
+  /*
+   * ON A PHONE (Stephan, 28 Oct: "you can't search for an item on the phone app"). The window was the
+   * desktop's laid out top to bottom -- three engine cards, six store chips, THEN the search box -- so
+   * on a phone the box sat at the bottom of the sheet and the results arrived below the edge of the
+   * screen, under the keyboard: pressing Search looked like nothing happened. Now the box is first,
+   * the choices are one short row each, and the results are scrolled to (and the keyboard put away).
+   */
+  const resultsRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!result && !error) return
+    ;(document.activeElement as HTMLElement | null)?.blur?.()
+    resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }, [result, error])
+
   async function search() {
     if (query.trim().length < 2) return
     setBusy(true); setError(null); setResult(null)
@@ -91,47 +105,48 @@ export function FindPricesModal({ open, onClose, initialQuery, onPick, areas = [
   return (
     <Modal open={open} onClose={onClose} title="Find prices" wide>
       <div className="space-y-4">
-        {ENGINES.length === 1 ? (
-          <p className="text-xs text-slate-500">Remus's own search, free. It reads the stores that let it in: Cashbuild today.</p>
-        ) : (
+        <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); void search() }}>
+          <input className="input min-w-0 flex-1" type="search" enterKeyHint="search" value={query} onChange={(e) => setQuery(e.target.value)}
+            placeholder="e.g. close coupled toilet" aria-label="What to look for" autoFocus />
+          <Button type="submit" variant="primary" disabled={busy || query.trim().length < 2}>
+            {busy ? <Loader2 size={15} className="animate-spin" /> : <Search size={15} />} Search
+          </Button>
+        </form>
+
         <div>
           <p className="mb-1.5 text-xs font-semibold text-slate-600">How to search</p>
-          <div className="grid gap-2 sm:grid-cols-3" role="radiogroup" aria-label="How to search">
+          {/* One row of three on every screen; the explanation only where there is room for it. */}
+          <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label="How to search">
             {ENGINES.map((e) => (
-              <button key={e.id} type="button" role="radio" aria-checked={engine === e.id} onClick={() => setEngine(e.id)} disabled={busy}
-                className={`rounded-xl border p-3 text-left transition ${engine === e.id ? 'border-ink-950 bg-slate-50 ring-1 ring-ink-950' : 'border-slate-200 hover:border-slate-300'}`}>
-                <span className="flex items-center justify-between gap-2">
-                  <span className="flex items-center gap-1.5 text-sm font-semibold text-slate-800"><e.icon size={15} /> {e.label}</span>
-                  <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${e.id === 'crawler' ? 'bg-emerald-100 text-emerald-800' : e.id === 'combined' ? 'bg-amber-100 text-amber-800' : 'bg-red-100 text-red-700'}`}>{e.cost}</span>
+              <button key={e.id} type="button" role="radio" aria-checked={engine === e.id} onClick={() => setEngine(e.id)} disabled={busy} title={e.hint}
+                className={`rounded-xl border p-2 text-left transition sm:p-3 ${engine === e.id ? 'border-ink-950 bg-slate-50 ring-1 ring-ink-950' : 'border-slate-200 hover:border-slate-300'}`}>
+                <span className="flex flex-wrap items-center justify-between gap-1">
+                  <span className="flex items-center gap-1.5 text-sm font-semibold text-slate-800"><e.icon size={15} className="hidden sm:block" /> {e.label}</span>
+                  <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium sm:px-2 sm:text-[11px] ${e.id === 'crawler' ? 'bg-emerald-100 text-emerald-800' : e.id === 'combined' ? 'bg-amber-100 text-amber-800' : 'bg-red-100 text-red-700'}`}>{e.cost}</span>
                 </span>
-                <span className="mt-1 block text-xs text-slate-500">{e.hint}</span>
+                <span className="mt-1 hidden text-xs text-slate-500 sm:block">{e.hint}</span>
               </button>
             ))}
           </div>
+          <p className="mt-1 text-[11px] text-slate-500 sm:hidden">{chosen.hint}</p>
         </div>
-        )}
 
-        <div className="flex flex-wrap items-center gap-1.5" aria-label="Stores">
-          <span className="mr-1 text-xs font-semibold text-slate-600">Stores</span>
+        {/* On a phone the stores are one row that slides sideways, not three rows pushing the results down. */}
+        <div className="-mx-5 flex items-center gap-1.5 overflow-x-auto px-5 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0" aria-label="Stores">
+          <span className="mr-1 shrink-0 text-xs font-semibold text-slate-600">Stores</span>
           {PRICE_STORES.map((st) => {
             const on = picked.includes(st.id)
             return (
               <button key={st.id} type="button" disabled={busy} aria-pressed={on}
                 onClick={() => setPicked((p) => (on ? (p.length > 1 ? p.filter((x) => x !== st.id) : p) : [...p, st.id]))}
-                className={`rounded-full border px-2.5 py-1 text-xs ${on ? 'border-ink-950 bg-ink-950 text-white' : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'}`}>
+                className={`shrink-0 whitespace-nowrap rounded-full border px-2.5 py-1 text-xs ${on ? 'border-ink-950 bg-ink-950 text-white' : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'}`}>
                 {st.name}{reach(st.id) && <span className={`ml-1 ${on ? 'text-white/70' : 'text-slate-400'}`}>· {reach(st.id)}</span>}
               </button>
             )
           })}
         </div>
 
-        <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); void search() }}>
-          <input className="input flex-1" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="e.g. close coupled toilet, galvanised pipe 20 mm" aria-label="What to look for" autoFocus />
-          <Button type="submit" variant="primary" disabled={busy || query.trim().length < 2}>
-            {busy ? <Loader2 size={15} className="animate-spin" /> : <Search size={15} />} Search
-          </Button>
-        </form>
-
+        <div ref={resultsRef} className="scroll-mt-2" />
         {busy && (
           <p className="text-sm text-slate-500">
             {engine === 'crawler' ? 'Searching the stores…' : `Searching with ${chosen.label === 'Claude' ? 'Claude' : 'Quick, then Claude'}. This can take a minute…`}
@@ -171,13 +186,14 @@ export function FindPricesModal({ open, onClose, initialQuery, onPick, areas = [
                   ) : (
                     <ul className="divide-y divide-slate-100">
                       {hits.map((h, i) => (
-                        <li key={i} className="flex items-center gap-3 px-4 py-2">
+                        <li key={i} className="flex items-center gap-3 px-3 py-2 sm:px-4">
                           {h.image
                             ? <img src={h.image} alt="" className="h-10 w-10 shrink-0 rounded object-cover" loading="lazy" />
                             // Claude reads search results, which carry no picture; say "no picture" rather than draw a hole.
                             : <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded bg-slate-50 text-slate-300" title="No picture from this store"><Package size={18} /></span>}
                           <span className="min-w-0 flex-1">
-                            <span className="block truncate text-sm text-slate-800">{h.name}</span>
+                            {/* Two lines on a phone: "Toilet suite clos..." does not say which toilet. */}
+                            <span className="line-clamp-2 block text-sm text-slate-800 sm:truncate">{h.name}</span>
                             <span className="flex flex-wrap items-center gap-1.5 text-[11px] text-slate-500">
                               <span className={`rounded px-1.5 py-0.5 font-medium ${SOURCE_TONE[h.source]}`}>{SOURCE_LABEL[h.source]}</span>
                               {h.code && <span className="font-mono">#{h.code}</span>}
@@ -185,11 +201,13 @@ export function FindPricesModal({ open, onClose, initialQuery, onPick, areas = [
                               {h.url && <a href={h.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-0.5 text-brand-700 hover:underline">View <ExternalLink size={11} /></a>}
                             </span>
                           </span>
-                          <span className="tabular shrink-0 text-sm font-semibold text-slate-800">{h.price != null ? formatZAR(h.price) : 'No price'}</span>
-                          <Button size="sm" variant="secondary" disabled={h.price == null}
-                            onClick={() => { if (h.price != null) { onPick({ ...h, price: h.price }); onClose() } }}>
-                            Use
-                          </Button>
+                          <span className="flex shrink-0 flex-col items-end gap-1 sm:flex-row sm:items-center sm:gap-3">
+                            <span className="tabular text-sm font-semibold text-slate-800">{h.price != null ? formatZAR(h.price) : 'No price'}</span>
+                            <Button size="sm" variant="secondary" disabled={h.price == null}
+                              onClick={() => { if (h.price != null) { onPick({ ...h, price: h.price }); onClose() } }}>
+                              Use
+                            </Button>
+                          </span>
                         </li>
                       ))}
                     </ul>
