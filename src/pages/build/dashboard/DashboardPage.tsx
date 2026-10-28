@@ -3,12 +3,13 @@ import { Link } from 'react-router-dom'
 import { addDays, addMonths, differenceInCalendarDays, endOfMonth, format, startOfDay, startOfMonth } from 'date-fns'
 import {
   AlertCircle, AlertTriangle, Camera, CheckCircle2, ChevronRight, FileText, HardHat, Receipt, Wallet,
-  Bot,
+  Bot, ClipboardCheck,
 } from 'lucide-react'
 import {
   invoices as invoicesApi,
   listEventsBetween,
   listExpensesBetween,
+  listCrewDays,
   listPaymentsBetween,
   listProjectFinancials,
   listQuoteTotals,
@@ -32,7 +33,8 @@ import { useLoad } from '../../../hooks/useLoad'
 import { useAuth } from '../../../store/AuthContext'
 import { Card, EmptyState, ErrorBanner, Spinner } from '../../../components/ui'
 import type { DiaryEvent, Project } from '../../../types'
-import { crewCost, NO_COST, scoreJob, type CostSplit } from '../../../lib/jobScore'
+import { NO_COST, scoreJob, type CostSplit } from '../../../lib/jobScore'
+import { projectCrewCost } from '../../../lib/crewDays'
 import { lastMonths, monthlyProfit, overheadRecovery } from '../../../lib/companyProfit'
 import { CompanyProfit } from './CompanyProfit'
 import { paths } from '../paths'
@@ -72,8 +74,12 @@ async function load() {
     stageBookings.list().catch(() => []),
     workersApi.list().catch(() => []),
   ])
+  // The crew register from the earliest of six months ago and the start of any job still open.
+  const open = projects.filter((p) => p.status === 'active' || p.status === 'on_hold').map((p) => p.start_date).filter((d): d is string => !!d)
+  const registerFrom = [sixFrom, ...open].sort()[0]
+  const register = await listCrewDays(registerFrom, to).catch(() => [])
   const monthExpenses = sixMonthExpenses.filter((e) => e.date >= from)
-  return { projects, fin, quotes, totals, invoices, allPayments, monthPayments, monthExpenses, sixMonthExpenses, events, recent, bank, claude, stages, bookings, workers }
+  return { projects, fin, quotes, totals, invoices, allPayments, monthPayments, monthExpenses, sixMonthExpenses, events, recent, bank, claude, stages, bookings, workers, register }
 }
 
 /** Is the project on site that day: active, and the day inside its dates (or it has none). */
@@ -203,10 +209,10 @@ export function DashboardPage() {
    * (its stages carry the quote's cost by kind), or the budget where there is no plan.
    */
   const workerMap = new Map(data.workers.map((w) => [w.id, w]))
+  const crewSrc = { bookings: data.bookings, register: data.register, stageProject: new Map(data.stages.map((st) => [st.id, st.project_id])), workers: workerMap }
   const jobOf = (p: Project) => {
     const f = data.fin.get(p.id)
-    const mine = new Set(data.stages.filter((st) => st.project_id === p.id).map((st) => st.id))
-    const crew = crewCost(data.bookings.filter((b) => mine.has(b.stage_id)), workerMap, today)
+    const crew = projectCrewCost(crewSrc, p.id, today)
     const actual: CostSplit = {
       material: f?.expenses_materials ?? 0, labour: (f?.expenses_labour ?? 0) + crew, subcontractor: f?.expenses_subcontractor ?? 0,
       other: (f?.expenses_total ?? 0) - (f?.expenses_materials ?? 0) - (f?.expenses_labour ?? 0) - (f?.expenses_subcontractor ?? 0),
@@ -226,7 +232,7 @@ export function DashboardPage() {
 
   // ---------- What the company made ----------
   const months = lastMonths(today, 6)
-  const ladder = monthlyProfit({ months, invoices: data.invoices, expenses: data.sixMonthExpenses, bookings: data.bookings, workers: workerMap, today })
+  const ladder = monthlyProfit({ months, invoices: data.invoices, expenses: data.sixMonthExpenses, crew: crewSrc, today })
   // The overhead share is read from the finished months only: a part month has its rent and not its work.
   const recovery = overheadRecovery(ladder.slice(0, -1))
 
@@ -261,7 +267,7 @@ export function DashboardPage() {
       {/* ---------- Today, tomorrow, next job ---------- */}
       <SectionLabel>What is happening</SectionLabel>
       <div className="grid gap-4 lg:grid-cols-3">
-        <DayCard title="Today" date={now} sites={sitesToday} crew={(p) => crewOn(p.id, today)} items={dayItems(today)} empty="Nothing booked for today." accent="bg-brand-600" />
+        <DayCard register title="Today" date={now} sites={sitesToday} crew={(p) => crewOn(p.id, today)} items={dayItems(today)} empty="Nothing booked for today." accent="bg-brand-600" />
         <DayCard title="Tomorrow" date={addDays(now, 1)} sites={sitesTomorrow} crew={(p) => crewOn(p.id, tomorrow)} items={dayItems(tomorrow)} empty="Nothing booked for tomorrow." accent="bg-ink-900" />
         <section className="card overflow-hidden">
           <header className="flex items-center justify-between bg-emerald-700 px-5 py-3 text-white">
@@ -483,7 +489,7 @@ function MoneyTile({ label, icon, chip, value, valueClass, hint, to }: { label: 
 }
 
 /** One day: the jobs on site, then what is booked or due, each with a coloured tag. */
-function DayCard({ title, date, sites, crew, items, empty, accent }: { title: string; date: Date; sites: Project[]; crew: (p: Project) => string[]; items: DayItem[]; empty: string; accent: string }) {
+function DayCard({ title, date, sites, crew, items, empty, accent, register }: { title: string; date: Date; sites: Project[]; crew: (p: Project) => string[]; items: DayItem[]; empty: string; accent: string; register?: boolean }) {
   const count = sites.length + items.length
   return (
     <section className="card overflow-hidden">
@@ -524,6 +530,12 @@ function DayCard({ title, date, sites, crew, items, empty, accent }: { title: st
             </li>
           ))}
         </ul>
+      )}
+      {/* Today's crew is ticked off on the register (Remus · Handoff 1): who actually came. */}
+      {register && sites.length > 0 && (
+        <Link to={paths.crew()} className="flex items-center gap-2 border-t border-slate-100 px-4 py-2.5 text-sm font-medium text-brand-700 hover:bg-slate-50">
+          <ClipboardCheck size={15} /> Register today's crew
+        </Link>
       )}
     </section>
   )

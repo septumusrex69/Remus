@@ -15,11 +15,11 @@
  *
  * Invoiced, not received: profit is earned when the work is billed; what has been paid is cash, which
  * Finance already shows. The crew's cost is counted by the days booked, like Plan & crew, because
- * that is what Remus knows a worker costs.
+ * that is what Remus knows a worker costs -- from the crew register where it is filled in (crewDays.ts).
  */
 import { round2 } from './format'
-import { workingDaysBetween } from './workdays'
-import type { Expense, Invoice, StageBooking, Worker } from '../types'
+import { workedDays, type CrewSources } from './crewDays'
+import type { Expense, Invoice } from '../types'
 
 export interface MonthProfit {
   /** yyyy-mm */
@@ -53,8 +53,7 @@ export function monthlyProfit(p: {
   months: string[]
   invoices: Invoice[]
   expenses: Expense[]
-  bookings: StageBooking[]
-  workers: Map<string, Worker>
+  crew: CrewSources
   today: string
 }): MonthProfit[] {
   return p.months.map((month) => {
@@ -64,14 +63,7 @@ export function monthlyProfit(p: {
     const income = p.invoices.filter((i) => !['draft', 'cancelled'].includes(i.status) && inMonth(i.issue_date)).reduce((t, i) => t + Number(i.amount_excl), 0)
     const projectCosts = p.expenses.filter((e) => e.project_id && inMonth(e.date)).reduce((t, e) => t + Number(e.amount_excl), 0)
     const overheads = p.expenses.filter((e) => !e.project_id && inMonth(e.date)).reduce((t, e) => t + Number(e.amount_excl), 0)
-    let crew = 0
-    if (from <= to) {
-      for (const b of p.bookings) {
-        const s = b.start_date > from ? b.start_date : from
-        const e = b.end_date < to ? b.end_date : to
-        if (s <= e) crew += workingDaysBetween(s, e) * Number(p.workers.get(b.worker_id)?.day_cost ?? 0)
-      }
-    }
+    const crew = workedDays(p.crew, from, to).reduce((t, w) => t + w.cost, 0)
     const jobProfit = income - projectCosts - crew
     return {
       month, income: round2(income), projectCosts: round2(projectCosts), crew: round2(crew),

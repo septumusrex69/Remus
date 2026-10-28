@@ -17,6 +17,8 @@ export const paths = {
   contact: (id: string) => p(`/clients/contact/${id}`),
   subcontractors: () => p('/subcontractors'),
   workers: () => p('/workers'),
+  /** The crew register (?tab=wages&day=yyyy-mm-dd). */
+  crew: (tab?: 'wages') => p(tab ? `/crew?tab=${tab}` : '/crew'),
   schedule: () => p('/schedule'),
   projects: () => p('/projects'),
   project: (id: string, tab?: string) => p(`/projects/${id}${tab ? `?tab=${tab}` : ''}`),

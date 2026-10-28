@@ -162,6 +162,24 @@ as Combined) instead of five empty boxes; "Stores · tap one to leave it out"; a
 nothing matched; the "Buy at" boxes say what they are on hover; distances on the map list no longer
 break. Preview first, per the rule; live on Stephan's word.
 
+## The crew register and the weekly wage list (28 Oct 2026, branch `claude/price-crawler`)
+
+Stephan: "a certain person is at a certain site ... on a certain day. We need to keep track of that."
+A booking is the PLAN; `crew_days` (0024, applied live) is what HAPPENED: one row per person, site and
+day, days 1 / 0.5 / 0, with the day rate COPIED at registration (a raise must not reprice past wages).
+- `src/lib/crewDays.ts` (+tests in jobScore.test.ts and projectPlan.test.ts): `workedDays` merges the
+  two. A register row wins (also when the person was registered on ANOTHER site that day); a booked day
+  with no row still counts as "not confirmed". Every labour figure goes through it: project scorecard,
+  Plan & crew (`stageActual` now takes CrewSources), the company month, the wage list. The old
+  bookings-only `crewCost` is gone.
+- `listCrewDays` pages through 1 000-row pages (PostgREST cap) so wages cannot silently drop days.
+- Page `/crew` (menu "Crew register", `crew/CrewRegisterPage.tsx`): Day tab (each site, booked people,
+  There / Half day / Not there, "Everyone booked was there", add someone unbooked, clear back to the
+  booking) and Wages for the week (Mon–Sun up to today, confirmed and unconfirmed days, copy / print).
+  Dashboard's Today card links to it.
+- Answer to the double-count question: wages come from the register; do not also slip them on a project.
+- Checked in Playwright (desktop + iPhone) with fixtures. Preview first; not live.
+
 ## Quoted vs actual, and what the company made (28 Oct 2026, branch `claude/price-crawler`)
 
 Stephan: "what was estimated for the project. Did we overquote? ... profit per project, and then we have
@@ -178,7 +196,7 @@ company profit ladder; he said proceed. Point 3 (learning from finished jobs) wa
   what every quote must add on cost to cover overheads. Says so when no overheads are recorded.
 - Dashboard active projects carry a verdict chip and the expected profit (quoted cost from the plan's
   stages, else budget). Same sums as the project page.
-- Open question to Stephan: are wages for booked crew ALSO captured as slips? If so labour double counts.
+- Wages: answered by the crew register (below): labour comes from it, not from slips.
 - Checked in Playwright (desktop) with fixture data. Preview first; not live.
 
 ## Workers, project plan and profit per stage (26 Oct 2026, branch `claude/workers-and-plan`)

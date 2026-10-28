@@ -7,6 +7,7 @@ import {
   projects as projectsApi,
   stageBookings,
   workers as workersApi,
+  listCrewDays,
 } from '../../../lib/api'
 import { formatDate, formatZAR, round2, todayYmd } from '../../../lib/format'
 import { clashesFor, stageActual } from '../../../lib/projectPlan'
@@ -22,23 +23,25 @@ import { WorkerModal } from '../workers/WorkersPage'
  * each stage's quoted cost against what it has cost so far.
  */
 
-async function load(projectId: string) {
-  const [stages, allStages, bookings, workers, expenses, projects] = await Promise.all([
+async function load(projectId: string, since: string) {
+  const [stages, allStages, bookings, workers, expenses, projects, register] = await Promise.all([
     projectStages.list({ project_id: projectId }),
     projectStages.list(),
     stageBookings.list(),
     workersApi.list(),
     expensesApi.list({ project_id: projectId }),
     projectsApi.list(),
+    // Every site's register, not only this one's: a person registered elsewhere on a booked day was not here.
+    listCrewDays(since, todayYmd()),
   ])
-  return { stages, allStages, bookings, workers, expenses, projects }
+  return { stages, allStages, bookings, workers, expenses, projects, register }
 }
 
 const label = (name: string) => name || 'General'
 const short = (d: string | null) => (d ? formatDate(d, 'd MMM') : '—')
 
 export function PlanTab({ project, quote, onProjectChanged }: { project: Project; quote: Quote | null; onProjectChanged: () => void }) {
-  const { data, error, loading, reload } = useLoad(() => load(project.id), [project.id], `plan:${project.id}`)
+  const { data, error, loading, reload } = useLoad(() => load(project.id, project.start_date ?? '2000-01-01'), [project.id], `plan:${project.id}`)
   const [busy, setBusy] = useState<string | null>(null)
   const [err, setErr] = useState<string | null>(null)
   const [start, setStart] = useState(() => nextWorkingDay(project.start_date ?? todayYmd()))
@@ -50,7 +53,8 @@ export function PlanTab({ project, quote, onProjectChanged }: { project: Project
     const workerById = new Map(data.workers.map((w) => [w.id, w]))
     const stageById = new Map(data.allStages.map((s) => [s.id, s]))
     const projectName = new Map(data.projects.map((p) => [p.id, p.code || p.name]))
-    return { workerById, stageById, projectName }
+    const crew = { bookings: data.bookings, register: data.register, stageProject: new Map(data.allStages.map((s) => [s.id, s.project_id])), workers: workerById }
+    return { workerById, stageById, projectName, crew }
   }, [data])
 
   if (loading && !data) return <Spinner />
@@ -117,7 +121,7 @@ export function PlanTab({ project, quote, onProjectChanged }: { project: Project
 
   const totals = stages.reduce(
     (t, s) => {
-      const a = stageActual(s.id, data.expenses, data.bookings, ctx.workerById, today)
+      const a = stageActual(s.id, data.expenses, ctx.crew, today)
       const q = Number(s.quoted_material) + Number(s.quoted_labour) + Number(s.quoted_subcontractor)
       return { quoted: t.quoted + q, actual: t.actual + a.total, sell: t.sell + Number(s.quoted_sell) }
     },
@@ -219,7 +223,7 @@ export function PlanTab({ project, quote, onProjectChanged }: { project: Project
       {/* ---------- Stages: dates, crew, quoted vs actual ---------- */}
       {stages.map((s) => {
         const crew = myBookings.filter((b) => b.stage_id === s.id)
-        const a = stageActual(s.id, data.expenses, data.bookings, ctx.workerById, today)
+        const a = stageActual(s.id, data.expenses, ctx.crew, today)
         const quoted = round2(Number(s.quoted_material) + Number(s.quoted_labour) + Number(s.quoted_subcontractor))
         const over = a.total > quoted && quoted > 0
         const pct = quoted > 0 ? Math.min(100, (a.total / quoted) * 100) : 0

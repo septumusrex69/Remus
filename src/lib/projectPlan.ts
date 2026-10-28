@@ -2,6 +2,7 @@ import { round2 } from './format'
 import { scheduleStages, type StagePlan } from './quoteMath'
 import { addWorkingDays, nextWorkingDay, overlaps, workingDaysBetween } from './workdays'
 import type { Expense, LineKind, ProjectStage, StageBooking, Worker } from '../types'
+import { stageCrew, type CrewSources } from './crewDays'
 
 /**
  * A project's plan: the accepted quote's stages put on the calendar, and each stage's quoted cost
@@ -65,16 +66,11 @@ export interface StageActual {
  * (each worker's day cost × the working days booked up to today). Labour slips filed on the
  * stage count too, so wages should be booked OR slipped against a stage, not both.
  */
-export function stageActual(stageId: string, expenses: Expense[], bookings: StageBooking[], workers: Map<string, Worker>, today: string): StageActual {
+export function stageActual(stageId: string, expenses: Expense[], crew: CrewSources, today: string): StageActual {
   const mine = expenses.filter((e) => e.stage_id === stageId)
   const sum = (pred: (e: Expense) => boolean) => mine.filter(pred).reduce((t, e) => t + Number(e.amount_excl), 0)
-  let labourDays = 0
-  let booked = 0
-  for (const b of bookings.filter((x) => x.stage_id === stageId)) {
-    const days = workingDaysBetween(b.start_date, b.end_date < today ? b.end_date : today)
-    labourDays += days
-    booked += days * Number(workers.get(b.worker_id)?.day_cost ?? 0)
-  }
+  // The crew register where it is filled in, the bookings where it is not (lib/crewDays.ts).
+  const { cost: booked, days: labourDays } = stageCrew(crew, stageId, today)
   const material = round2(sum((e) => e.category === 'materials'))
   const labour = round2(sum((e) => e.category === 'labour') + booked)
   const subcontractor = round2(sum((e) => e.category === 'subcontractor'))

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { actualCost, crewCost, scoreJob, type CostSplit } from './jobScore'
+import { actualCost, scoreJob, type CostSplit } from './jobScore'
+import { projectCrewCost, wageList, type CrewSources } from './crewDays'
 import { lastMonths, monthlyProfit, overheadRecovery } from './companyProfit'
 import type { Expense, Invoice, StageBooking, Worker } from '../types'
 
@@ -12,8 +13,9 @@ const booking = { id: 'b1', stage_id: 's1', worker_id: 'w1', start_date: '2026-1
 
 describe('quoted against actual, for one job', () => {
   it('counts the crew only up to today, and adds it to labour', () => {
-    expect(crewCost([booking], worker, '2026-10-06')).toBe(1000)
-    expect(crewCost([booking], worker, '2026-11-01')).toBe(2500)
+    const crew: CrewSources = { bookings: [booking], register: [], stageProject: new Map([['s1', 'p1']]), workers: worker }
+    expect(projectCrewCost(crew, 'p1', '2026-10-06')).toBe(1000)
+    expect(projectCrewCost(crew, 'p1', '2026-11-01')).toBe(2500)
     const a = actualCost([exp('materials', 1000), exp('labour', 200), exp('transport', 50)], 2500)
     expect(a).toEqual({ material: 1000, labour: 2700, subcontractor: 0, other: 50, total: 3750 })
   })
@@ -56,11 +58,26 @@ describe('what the company made', () => {
       { issue_date: '2026-09-30', amount_excl: 7_000, status: 'paid' },
     ] as Invoice[]
     const expenses = [exp('materials', 20_000), exp('overheads', 5_000, '2026-10-02', null), exp('other', 1_000, '2026-09-15', null)]
-    const [sep, oct] = monthlyProfit({ months: ['2026-09', '2026-10'], invoices, expenses, bookings: [booking], workers: worker, today: '2026-10-31' })
+    const [sep, oct] = monthlyProfit({ months: ['2026-09', '2026-10'], invoices, expenses, crew: { bookings: [booking], register: [], stageProject: new Map([['s1', 'p1']]), workers: worker }, today: '2026-10-31' })
     expect(oct).toEqual({ month: '2026-10', income: 50_000, projectCosts: 20_000, crew: 2500, jobProfit: 27_500, overheads: 5_000, net: 22_500 })
     expect(sep.net).toBe(6_000)
     const r = overheadRecovery([sep, oct])
     expect(r.monthlyOverheads).toBe(3_000)
     expect(r.pctOnCost).toBe(26.7)
+  })
+})
+
+describe('the crew register', () => {
+  const crew = (register: CrewSources['register']): CrewSources => ({ bookings: [booking], register, stageProject: new Map([['s1', 'p1']]), workers: worker })
+  const reg = (day: string, days: number, project_id = 'p1', day_cost = 500) => ({ id: day + project_id, worker_id: 'w1', project_id, stage_id: project_id === 'p1' ? 's1' : null, day, days, day_cost, note: null, created_at: '' })
+  it('the register wins over the booking: absent, half a day, or on another site', () => {
+    const c = crew([reg('2026-10-06', 0), reg('2026-10-07', 0.5), reg('2026-10-08', 1, 'p2', 600)])
+    // Mon booked (500) + Tue absent (0) + Wed half (250) + Thu on p2 (not here) + Fri booked (500)
+    expect(projectCrewCost(c, 'p1', '2026-10-31')).toBe(1250)
+    expect(projectCrewCost(c, 'p2', '2026-10-31')).toBe(600)
+  })
+  it('the wage list: confirmed days, unconfirmed booked days, and the money', () => {
+    const [l] = wageList(crew([reg('2026-10-05', 1), reg('2026-10-06', 1, 'p1', 550)]), '2026-10-05', '2026-10-11')
+    expect(l).toMatchObject({ worker_id: 'w1', confirmed: 2, unconfirmed: 3, amount: 2550, unconfirmedAmount: 1500, sites: ['p1'] })
   })
 })

@@ -12,6 +12,7 @@ import {
   listLinkedExpenseIds,
   listProfiles,
   listQuoteItems,
+  listCrewDays,
   projectStages,
   stageBookings,
   workers as workersApi,
@@ -49,7 +50,7 @@ import { useVatRate } from '../BuildContext'
 import { ProjectFormModal } from './ProjectFormModal'
 import { PlanTab } from './PlanTab'
 import { JobScorecard } from './JobScorecard'
-import { crewCost } from '../../../lib/jobScore'
+import { projectCrewCost } from '../../../lib/crewDays'
 
 type Tab = 'overview' | 'plan' | 'expenses' | 'invoices' | 'variations' | 'diary' | 'schedule'
 
@@ -74,17 +75,19 @@ async function load(id: string) {
     projectsApi.list(),
   ])
   // For the scorecard: the quote's lines (quoted cost by kind) and the crew's booked days (actual labour).
-  const [quote, items, stages, allBookings, workerRows] = await Promise.all([
+  const [quote, items, stages, allBookings, workerRows, register] = await Promise.all([
     project?.quote_id ? quotesApi.get(project.quote_id) : Promise.resolve(null),
     project?.quote_id ? listQuoteItems(project.quote_id) : Promise.resolve([]),
     projectStages.list({ project_id: id }),
     stageBookings.list(),
     workersApi.list(),
+    listCrewDays(project?.start_date ?? '2000-01-01', todayYmd()),
   ])
   const stageIds = new Set(stages.map((st) => st.id))
   const bookings = allBookings.filter((b) => stageIds.has(b.stage_id))
   const workerMap = new Map(workerRows.map((w) => [w.id, w]))
-  return { project, fin, dir, exp, inv, pay, vars, entries, events, linked, team, allProjects, quote, items, bookings, workerMap }
+  const crew = projectCrewCost({ bookings, register, stageProject: new Map(stages.map((st) => [st.id, st.project_id])), workers: workerMap }, id, todayYmd())
+  return { project, fin, dir, exp, inv, pay, vars, entries, events, linked, team, allProjects, quote, items, crew }
 }
 
 export function ProjectDetail() {
@@ -174,7 +177,7 @@ function Overview({ data }: { data: Data }) {
   const f = data.fin
   const byCat = EXPENSE_CATEGORIES.map((c) => ({ name: labelize(c), value: Number(f?.[`expenses_${c}` as const] ?? 0) })).filter((x) => x.value > 0)
   // Spent and profit include the crew's booked days, as the scorecard below and Plan & crew count them.
-  const crew = crewCost(data.bookings, data.workerMap, todayYmd())
+  const crew = data.crew
   const spent = round2((f?.expenses_total ?? 0) + crew)
   const revised = f?.revised_contract ?? p.contract_value
   const profit = round2(revised - spent)
@@ -187,7 +190,7 @@ function Overview({ data }: { data: Data }) {
         <StatTile label="Gross profit" value={formatZAR(profit, { decimals: 0 })} tone={profit < 0 ? 'bad' : 'good'} hint={`Margin ${formatPct(margin)}`} />
         <StatTile label="Received" value={formatZAR(f?.received ?? 0, { decimals: 0 })} hint={`Invoiced ${formatZAR(f?.invoiced_incl ?? 0, { decimals: 0 })} incl. VAT`} />
       </div>
-      <JobScorecard project={p} quote={data.quote} items={data.items} expenses={data.exp} bookings={data.bookings} workers={data.workerMap} variations={Number(f?.approved_variations ?? 0)} />
+      <JobScorecard project={p} quote={data.quote} items={data.items} expenses={data.exp} crew={data.crew} variations={Number(f?.approved_variations ?? 0)} />
       <div className="grid gap-4 lg:grid-cols-2">
         <Card title="Budget">
           <div className="mb-2 flex justify-between text-sm">

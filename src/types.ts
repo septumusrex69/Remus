@@ -367,6 +367,21 @@ export interface ProjectStage {
 }
 
 /** A worker on a stage, for a run of days. */
+/** One person on one site on one day, as it happened (0024). The plan is StageBooking. */
+export interface CrewDay {
+  id: ID
+  worker_id: ID
+  project_id: ID
+  stage_id: ID | null
+  day: string
+  /** 1, 0.5 or 0 (not there). */
+  days: number
+  /** The worker's day cost on that day, copied when it was registered. */
+  day_cost: number
+  note: string | null
+  created_at: string
+}
+
 export interface StageBooking {
   id: ID
   stage_id: ID

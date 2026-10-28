@@ -30,6 +30,7 @@ import type {
   QuoteItem,
   ShopArea,
   MyStore,
+  CrewDay,
   QuoteStage,
   Subcontractor,
   Worker,
@@ -454,6 +455,26 @@ export const expenses = crud<Expense>('expenses', ['amount_excl', 'vat'], 'date'
 export const workers = crud<Worker>('workers', ['day_cost'], 'name', true)
 export const projectStages = crud<ProjectStage>('project_stages', ['sort_order', 'quoted_sell', 'quoted_material', 'quoted_labour', 'quoted_subcontractor'], 'sort_order', true)
 export const stageBookings = crud<StageBooking>('stage_bookings', [], 'start_date', true)
+/** The crew register (0024): who was actually on which site each day. */
+export const crewDays = crud<CrewDay>('crew_days', ['days', 'day_cost'], 'day', true)
+
+/** The register between two days (inclusive). */
+export async function listCrewDays(from: string, to: string): Promise<CrewDay[]> {
+  // Paged: ten people for a year is 2 500 rows, and the server hands back at most 1 000 at a time.
+  // A short page would silently drop worked days from wages and job costs.
+  const out: CrewDay[] = []
+  for (let at = 0; ; at += 1000) {
+    const rows = unwrap<CrewDay[]>(await supabase.from('crew_days').select('*').gte('day', from).lte('day', to).order('day').order('id').range(at, at + 999))
+    out.push(...rows.map((r) => nums(r, ['days', 'day_cost'])))
+    if (rows.length < 1000) return out
+  }
+}
+
+/** Records (or re-records) a person on a site for a day: one row per person, site and day. */
+export async function setCrewDay(row: Pick<CrewDay, 'worker_id' | 'project_id' | 'stage_id' | 'day' | 'days' | 'day_cost'> & { note?: string | null }): Promise<CrewDay> {
+  const saved = unwrap<CrewDay>(await supabase.from('crew_days').upsert(row, { onConflict: 'worker_id,project_id,day' }).select('*').single())
+  return nums(saved, ['days', 'day_cost'])
+}
 
 /** Every stage of every project, for the company schedule and double-booking checks. */
 export async function listAllStages(): Promise<ProjectStage[]> {

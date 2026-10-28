@@ -32,8 +32,15 @@ describe('stageActual', () => {
   const exp = (category: Expense['category'], amount: number, stage_id = 's1') => ({ stage_id, category, amount_excl: amount }) as Expense
   it('adds slips by category and labour from bookings up to today', () => {
     const bookings = [{ id: 'b1', stage_id: 's1', worker_id: 'w1', start_date: '2026-11-02', end_date: '2026-11-06', created_at: '' }] as StageBooking[]
-    const a = stageActual('s1', [exp('materials', 2000), exp('transport', 300), exp('materials', 999, 's2')], bookings, workers, '2026-11-04')
+    const crew = { bookings, register: [], stageProject: new Map([['s1', 'p1']]), workers }
+    const a = stageActual('s1', [exp('materials', 2000), exp('transport', 300), exp('materials', 999, 's2')], crew, '2026-11-04')
     expect(a).toMatchObject({ material: 2000, other: 300, labour: 2700, labourDays: 3, total: 5000 })
+    // The register wins: Tuesday half a day, Wednesday not there.
+    const register = [
+      { id: 'r1', worker_id: 'w1', project_id: 'p1', stage_id: 's1', day: '2026-11-03', days: 0.5, day_cost: 800, note: null, created_at: '' },
+      { id: 'r2', worker_id: 'w1', project_id: 'p1', stage_id: 's1', day: '2026-11-04', days: 0, day_cost: 900, note: null, created_at: '' },
+    ]
+    expect(stageActual('s1', [], { ...crew, register }, '2026-11-04')).toMatchObject({ labour: 1300, labourDays: 1.5 })
   })
 })
 

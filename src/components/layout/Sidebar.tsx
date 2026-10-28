@@ -3,7 +3,7 @@ import { Link, NavLink } from 'react-router-dom'
 import { clsx } from 'clsx'
 import {
   Banknote, CalendarDays, CalendarRange, Camera, ChevronDown, FileText, FolderKanban, HardHat, Inbox, LayoutDashboard, LineChart, LogOut,
-  Lightbulb, PanelLeftClose, PanelLeftOpen, Receipt, Settings, Users, UsersRound, type LucideIcon,
+  Lightbulb, PanelLeftClose, PanelLeftOpen, Receipt, Settings, Users, UsersRound, type LucideIcon, ClipboardCheck,
 } from 'lucide-react'
 import { useAuth } from '../../store/AuthContext'
 import { useBuild } from '../../pages/build/BuildContext'
@@ -29,6 +29,7 @@ const NAV: { to: string; label: string; icon: LucideIcon; end?: boolean; badge?:
   { to: paths.clients(), label: 'Clients', icon: Users },
   { to: paths.schedule(), label: 'Schedule', icon: CalendarRange },
   { to: paths.workers(), label: 'Workers', icon: UsersRound },
+  { to: paths.crew(), label: 'Crew register', icon: ClipboardCheck },
   { to: paths.subcontractors(), label: 'Subcontractors', icon: HardHat },
   { to: paths.expenses(), label: 'Expenses', icon: Receipt },
   { to: paths.bank(), label: 'Bank', icon: Banknote, badge: 'bank' },

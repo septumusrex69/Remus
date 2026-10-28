@@ -1,8 +1,8 @@
 import { AlertTriangle, CheckCircle2, Info, TrendingDown } from 'lucide-react'
 import { Card } from '../../../components/ui'
 import { formatZAR, round2, todayYmd } from '../../../lib/format'
-import { actualCost, crewCost, quotedCost, scoreJob, type Tone } from '../../../lib/jobScore'
-import type { Expense, Project, Quote, QuoteItem, StageBooking, Worker } from '../../../types'
+import { actualCost, quotedCost, scoreJob, type Tone } from '../../../lib/jobScore'
+import type { Expense, Project, Quote, QuoteItem } from '../../../types'
 
 /**
  * THE JOB'S SCORECARD (Remus · Handoff 1, 28 Oct 2026). Stephan: "what was estimated for the project.
@@ -16,18 +16,18 @@ const TONE: Record<Tone, { box: string; icon: typeof Info }> = {
   neutral: { box: 'border-slate-200 bg-slate-50 text-slate-700', icon: Info },
 }
 
-export function JobScorecard({ project, quote, items, expenses, bookings, workers, variations }: {
+export function JobScorecard({ project, quote, items, expenses, crew, variations }: {
   project: Project
   quote: Quote | null
   items: QuoteItem[]
   expenses: Expense[]
-  bookings: StageBooking[]
-  workers: Map<string, Worker>
+  /** The crew's cost to date (lib/crewDays.ts: the register, or the bookings where it is not filled in). */
+  crew: number
   variations: number
 }) {
   const today = todayYmd()
   const quoted = quotedCost(quote, items, Number(project.budget))
-  const actual = actualCost(expenses, crewCost(bookings, workers, today))
+  const actual = actualCost(expenses, crew)
   const s = scoreJob({ quoted, actual, contract: Number(project.contract_value), variations, status: project.status, start: project.start_date, end: project.end_date, today })
   const fromBudget = !!quoted && !(quote && items.length)
   const Icon = TONE[s.tone].icon
@@ -43,7 +43,7 @@ export function JobScorecard({ project, quote, items, expenses, bookings, worker
   const z = (n: number) => formatZAR(n, { decimals: 0 })
 
   return (
-    <Card title="Quoted vs actual" subtitle={quote ? `Against quote ${quote.number ?? ''}, excl. VAT. Labour includes the crew's booked days.` : fromBudget ? 'Against the project budget (no quote linked), excl. VAT.' : undefined}>
+    <Card title="Quoted vs actual" subtitle={quote ? `Against quote ${quote.number ?? ''}, excl. VAT. Labour includes the crew's days on site.` : fromBudget ? 'Against the project budget (no quote linked), excl. VAT.' : undefined}>
       <div className={`mb-4 flex items-start gap-3 rounded-xl border px-4 py-3 ${TONE[s.tone].box}`}>
         <Icon size={20} className="mt-0.5 shrink-0" />
         <div>

@@ -7,15 +7,15 @@
  *
  *  - QUOTED comes from the accepted quote's lines (quoteTotals: cost by kind, and the price). A project
  *    made without a quote has only its budget, so it has a quoted total and no breakdown.
- *  - ACTUAL is the project's slips by category, plus the crew's booked days at their day cost up to
- *    today -- the same sum Plan & crew uses (projectPlan.stageActual), so the two tabs agree.
+ *  - ACTUAL is the project's slips by category, plus the crew's days up to today from the register,
+ *    or the bookings where nobody has registered the day (lib/crewDays.ts) -- the sum Plan & crew uses.
  *  - The money in is the contract plus approved variations. Variations add income the quote never
  *    priced the cost of, so they are shown, not hidden in "we did better than quoted".
  */
 import { round2 } from './format'
 import { workingDaysBetween } from './workdays'
 import { quoteTotals } from './quoteMath'
-import type { Expense, ProjectStatus, Quote, QuoteItem, StageBooking, Worker } from '../types'
+import type { Expense, ProjectStatus, Quote, QuoteItem } from '../types'
 
 export interface CostSplit { material: number; labour: number; subcontractor: number; other: number; total: number }
 
@@ -28,16 +28,6 @@ export function quotedCost(quote: Quote | null, items: QuoteItem[], budget: numb
     return { material: t.costByKind.material, labour: t.costByKind.labour, subcontractor: t.costByKind.subcontractor, other: 0, total: t.estimatedCost }
   }
   return budget > 0 ? { material: 0, labour: 0, subcontractor: 0, other: 0, total: round2(budget) } : null
-}
-
-/** The crew's booked days up to `today` (inclusive), at each worker's day cost. */
-export function crewCost(bookings: StageBooking[], workers: Map<string, Worker>, today: string): number {
-  let t = 0
-  for (const b of bookings) {
-    if (b.start_date > today) continue
-    t += workingDaysBetween(b.start_date, b.end_date < today ? b.end_date : today) * Number(workers.get(b.worker_id)?.day_cost ?? 0)
-  }
-  return round2(t)
 }
 
 /** A project's slips by category, with the crew's cost added to labour. */
