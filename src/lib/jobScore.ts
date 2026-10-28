@@ -14,11 +14,21 @@
  */
 import { round2 } from './format'
 import { workingDaysBetween } from './workdays'
-import type { Expense, ProjectStatus, StageBooking, Worker } from '../types'
+import { quoteTotals } from './quoteMath'
+import type { Expense, ProjectStatus, Quote, QuoteItem, StageBooking, Worker } from '../types'
 
 export interface CostSplit { material: number; labour: number; subcontractor: number; other: number; total: number }
 
 export const NO_COST: CostSplit = { material: 0, labour: 0, subcontractor: 0, other: 0, total: 0 }
+
+/** The quote's cost by kind, or, with no quote, the project's budget as a total with no breakdown. */
+export function quotedCost(quote: Quote | null, items: QuoteItem[], budget: number): CostSplit | null {
+  if (quote && items.length) {
+    const t = quoteTotals(items, quote.discount, quote.vat_rate, quote.management_fee_pct)
+    return { material: t.costByKind.material, labour: t.costByKind.labour, subcontractor: t.costByKind.subcontractor, other: 0, total: t.estimatedCost }
+  }
+  return budget > 0 ? { material: 0, labour: 0, subcontractor: 0, other: 0, total: round2(budget) } : null
+}
 
 /** The crew's booked days up to `today` (inclusive), at each worker's day cost. */
 export function crewCost(bookings: StageBooking[], workers: Map<string, Worker>, today: string): number {

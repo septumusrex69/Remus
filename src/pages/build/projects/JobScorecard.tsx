@@ -1,8 +1,7 @@
 import { AlertTriangle, CheckCircle2, Info, TrendingDown } from 'lucide-react'
 import { Card } from '../../../components/ui'
 import { formatZAR, round2, todayYmd } from '../../../lib/format'
-import { quoteTotals } from '../../../lib/quoteMath'
-import { actualCost, crewCost, scoreJob, type CostSplit, type Tone } from '../../../lib/jobScore'
+import { actualCost, crewCost, quotedCost, scoreJob, type Tone } from '../../../lib/jobScore'
 import type { Expense, Project, Quote, QuoteItem, StageBooking, Worker } from '../../../types'
 
 /**
@@ -15,14 +14,6 @@ const TONE: Record<Tone, { box: string; icon: typeof Info }> = {
   warn: { box: 'border-amber-200 bg-amber-50 text-amber-900', icon: AlertTriangle },
   bad: { box: 'border-red-200 bg-red-50 text-red-900', icon: TrendingDown },
   neutral: { box: 'border-slate-200 bg-slate-50 text-slate-700', icon: Info },
-}
-
-export function quotedCost(quote: Quote | null, items: QuoteItem[], budget: number): CostSplit | null {
-  if (quote && items.length) {
-    const t = quoteTotals(items, quote.discount, quote.vat_rate, quote.management_fee_pct)
-    return { material: t.costByKind.material, labour: t.costByKind.labour, subcontractor: t.costByKind.subcontractor, other: 0, total: t.estimatedCost }
-  }
-  return budget > 0 ? { material: 0, labour: 0, subcontractor: 0, other: 0, total: round2(budget) } : null
 }
 
 export function JobScorecard({ project, quote, items, expenses, bookings, workers, variations }: {
