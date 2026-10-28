@@ -1,9 +1,20 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Search, X } from 'lucide-react'
-import { contactName, loadClientDirectory, projects as projectsApi, quotes as quotesApi, type ClientDirectory } from '../../lib/api'
+import {
+  contactName, invoices as invoicesApi, loadClientDirectory, projects as projectsApi, quotes as quotesApi, subcontractors as subsApi,
+  workers as workersApi, type ClientDirectory,
+} from '../../lib/api'
+import { listRequests } from '../../lib/changeRequestsApi'
+import { requestLabel, titleOf, type ChangeRequest } from '../../lib/changeRequests'
+import { matchesAny, requestNumberOf } from '../../lib/globalSearch'
 import { paths } from '../../pages/build/paths'
-import type { Project, Quote } from '../../types'
+import type { Invoice, Project, Quote, Subcontractor, Worker } from '../../types'
+
+interface Book {
+  dir: ClientDirectory; projects: Project[]; quotes: Quote[]; invoices: Invoice[]
+  workers: Worker[]; subs: Subcontractor[]; requests: ChangeRequest[]
+}
 
 interface Result {
   id: string
@@ -14,15 +25,17 @@ interface Result {
 }
 
 /**
- * Raptor's global search: one box in the top bar that finds clients, people, projects and quotes.
- * The data is fetched the first time someone focuses the box, not on every page load.
+ * Raptor's global search: one box in the top bar that finds everything (Raptor H13) -- clients and
+ * people by name, email or phone, projects, quotes, invoices, requests (R-6), workers and
+ * subcontractors. See lib/globalSearch.ts. The data is fetched the first time someone focuses the
+ * box, not on every page load.
  * `compact` is the phone version: an icon that opens the box over the bar.
  */
 export function GlobalSearch({ compact }: { compact?: boolean }) {
   const [open, setOpen] = useState(false)
   const [expanded, setExpanded] = useState(false)
   const [query, setQuery] = useState('')
-  const [data, setData] = useState<{ dir: ClientDirectory; projects: Project[]; quotes: Quote[] } | null>(null)
+  const [data, setData] = useState<Book | null>(null)
   const loading = useRef(false)
   const ref = useRef<HTMLDivElement>(null)
   const navigate = useNavigate()
@@ -41,8 +54,10 @@ export function GlobalSearch({ compact }: { compact?: boolean }) {
   function load() {
     if (data || loading.current) return
     loading.current = true
-    Promise.all([loadClientDirectory(), projectsApi.list(), quotesApi.list()])
-      .then(([dir, projects, quotes]) => setData({ dir, projects, quotes }))
+    /* A list that cannot be read (a role that may not see invoices) is empty, not the end of the search. */
+    const or = <T,>(p: Promise<T[]>) => p.catch(() => [] as T[])
+    Promise.all([loadClientDirectory(), or(projectsApi.list()), or(quotesApi.list()), or(invoicesApi.list()), or(workersApi.list()), or(subsApi.list()), or(listRequests())])
+      .then(([dir, projects, quotes, invoices, workers, subs, requests]) => setData({ dir, projects, quotes, invoices, workers, subs, requests }))
       .catch(() => {})
       .finally(() => { loading.current = false })
   }
@@ -50,8 +65,14 @@ export function GlobalSearch({ compact }: { compact?: boolean }) {
   const results = useMemo<Result[]>(() => {
     const q = query.trim().toLowerCase()
     if (!q || !data) return []
-    const has = (...xs: (string | null | undefined)[]) => xs.some((x) => x?.toLowerCase().includes(q))
+    const has = (...xs: (string | null | undefined)[]) => matchesAny(xs, q)
     const out: Result[] = []
+    const asked = requestNumberOf(q)
+    for (const r of data.requests) {
+      if (asked === r.number || (asked === null && has(r.description, r.review_title))) {
+        out.push({ id: r.id, label: titleOf(r), sub: `Request · ${requestLabel(r)}`, path: paths.requests(r.number), kind: 'request' })
+      }
+    }
     for (const c of data.dir.companies) {
       if (has(c.name, c.email, c.phone)) out.push({ id: c.id, label: c.name, sub: 'Company client', path: paths.company(c.id), kind: 'company' })
     }
@@ -68,7 +89,21 @@ export function GlobalSearch({ compact }: { compact?: boolean }) {
     for (const qu of data.quotes) {
       if (has(qu.title, qu.number, qu.site_address)) out.push({ id: qu.id, label: qu.title, sub: `Quote${qu.number ? ` · ${qu.number}` : ''}`, path: paths.quote(qu.id), kind: 'quote' })
     }
-    return out.slice(0, 10)
+    for (const inv of data.invoices) {
+      if (inv.project_id && has(inv.number, inv.description)) {
+        const project = data.projects.find((p) => p.id === inv.project_id)
+        out.push({ id: inv.id, label: inv.number ?? 'Invoice', sub: `Invoice${project ? ` · ${project.name}` : ''}`, path: paths.project(inv.project_id, 'invoices'), kind: 'invoice' })
+      }
+    }
+    for (const w of data.workers) {
+      if (has(w.name, w.trade, w.phone)) out.push({ id: w.id, label: w.name, sub: `Worker${w.trade ? ` · ${w.trade}` : ''}`, path: paths.workers(), kind: 'worker' })
+    }
+    for (const sc of data.subs) {
+      if (has(sc.name, sc.trade, sc.contact_person, sc.phone, sc.email)) {
+        out.push({ id: sc.id, label: sc.name, sub: `Subcontractor${sc.trade ? ` · ${sc.trade}` : ''}`, path: paths.subcontractors(), kind: 'subcontractor' })
+      }
+    }
+    return out.slice(0, 12)
   }, [query, data])
 
   if (compact && !expanded) {
@@ -88,7 +123,7 @@ export function GlobalSearch({ compact }: { compact?: boolean }) {
           autoFocus={compact}
           onChange={(e) => { setQuery(e.target.value); setOpen(true) }}
           onFocus={() => { setOpen(true); load() }}
-          placeholder="Search clients, projects, quotes…"
+          placeholder="Search clients, phone numbers, quotes, invoices, R-numbers…"
           className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-slate-400"
         />
         {(query || compact) && (
