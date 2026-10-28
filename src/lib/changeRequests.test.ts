@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  OTHER_CHOICE, REQUEST_DEPARTMENTS, answerBody, answerTo, base64Bytes, choicesOk, mayAnswer, parseChoices, tickedOf, waitingOnAsker, fileProblem, fitWithin, mayDecide, mayTest, mayWithdraw, onShelf, paneOf,
+  OTHER_CHOICE, REQUEST_DEPARTMENTS, answerBody, answerTo, base64Bytes, choicesOk, mayAnswer, parseChoices, tickedOf, waitingOnAsker, fileProblem, fitWithin, mayDecide, mayTest, mayWithdraw, onShelf, SHELVES, paneOf,
   parseReviewGroups, requestLabel, sortRequests, stageOf, testState, titleOf,
 } from './changeRequests'
 import { timeAgo } from './notifications'
@@ -62,11 +62,21 @@ describe('where a request stands', () => {
     expect(testState({ status: 'accepted', decided_at: null, tested_ok: false, tested_at: '2026-10-27T11:00:00Z' })).toBe('sent back')
     expect(testState({ status: 'new', decided_at: null, tested_ok: null, tested_at: null })).toBe('not done')
   })
-  it('Submitted, Approved and In development are all Open', () => {
-    const shelves = (['new', 'accepted', 'building', 'done', 'declined'] as const)
-      .map((st) => (['open', 'done', 'declined'] as const).filter((sh) => onShelf({ status: st }, sh)).join(''))
-    expect(shelves).toEqual(['open', 'open', 'open', 'done', 'declined'])
-    expect(onShelf({ status: 'declined' }, 'all')).toBe(true)
+  it('every request sits on exactly one shelf, the one whose move it is', () => {
+    const cases = [
+      [{ status: 'new', build_requested_at: null, tested_ok: null }, 'decide'],
+      [{ status: 'accepted', build_requested_at: null, tested_ok: null }, 'decide'],
+      [{ status: 'accepted', build_requested_at: '2026-10-28T00:00:00Z', tested_ok: null }, 'claude'],
+      [{ status: 'building', build_requested_at: null, tested_ok: null }, 'claude'],
+      [{ status: 'done', build_requested_at: null, tested_ok: null }, 'test'],
+      [{ status: 'done', build_requested_at: null, tested_ok: false }, 'test'],
+      [{ status: 'done', build_requested_at: null, tested_ok: true }, 'finished'],
+      [{ status: 'declined', build_requested_at: null, tested_ok: null }, 'declined'],
+    ] as const
+    for (const [r, want] of cases) {
+      expect(SHELVES.map(([s]) => s).filter((s) => s !== 'all' && onShelf(r, s))).toEqual([want])
+      expect(onShelf(r, 'all')).toBe(true)
+    }
   })
   it('a title: the night’s, else the first line written', () => {
     expect(titleOf({ review_title: 'Quotes · Show the deposit', description: 'x' })).toBe('Quotes · Show the deposit')
