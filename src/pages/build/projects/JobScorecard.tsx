@@ -1,5 +1,6 @@
 import { AlertTriangle, CheckCircle2, Info, TrendingDown } from 'lucide-react'
 import { Card } from '../../../components/ui'
+import { BudgetBar } from '../components/BudgetBar'
 import { formatZAR, round2, todayYmd } from '../../../lib/format'
 import { actualCost, quotedCost, scoreJob, type Tone } from '../../../lib/jobScore'
 import type { Expense, Project, ProjectStage, Quote, QuoteItem } from '../../../types'
@@ -53,12 +54,7 @@ export function JobScorecard({ project, quote, items, stages, expenses, crew, va
           <Icon size={20} className="mt-0.5 shrink-0" />
           <p className="font-semibold">{s.plain}</p>
         </div>
-        {s.costPct != null && (
-          <div className="mt-4 space-y-2 text-sm">
-            <Meter label="Budget used" pct={s.costPct} tone={s.tone} />
-            {s.timePct != null && <Meter label="Time gone" pct={s.timePct} tone="neutral" />}
-          </div>
-        )}
+        <div className="mt-4"><BudgetBar score={s} /></div>
       </Card>
     )
   }
@@ -72,6 +68,7 @@ export function JobScorecard({ project, quote, items, stages, expenses, crew, va
           {s.detail && <p className="text-sm opacity-90">{s.detail}</p>}
         </div>
       </div>
+      {s.costPct != null && <div className="mb-4"><BudgetBar score={s} /></div>}
       {quoted && (
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -121,12 +118,3 @@ export function JobScorecard({ project, quote, items, stages, expenses, crew, va
   )
 }
 
-function Meter({ label, pct, tone }: { label: string; pct: number; tone: Tone }) {
-  const bar = tone === 'bad' ? 'bg-red-500' : tone === 'warn' ? 'bg-amber-500' : tone === 'good' ? 'bg-emerald-500' : 'bg-slate-400'
-  return (
-    <div>
-      <div className="mb-1 flex justify-between text-xs"><span className="text-slate-500">{label}</span><span className="tabular font-medium text-slate-800">{pct}%</span></div>
-      <div className="h-2 overflow-hidden rounded-full bg-slate-100"><div className={`h-full rounded-full ${bar}`} style={{ width: `${Math.min(100, pct)}%` }} /></div>
-    </div>
-  )
-}

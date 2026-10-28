@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
+import { loadScoreSources, scoreProject } from '../../../lib/projectScores'
+import { BudgetBar } from '../components/BudgetBar'
 import { editsQuotes, seesBudget, seesMoney, useAccess } from '../../../lib/access'
 import { Link, useSearchParams } from 'react-router-dom'
 import { FolderKanban, Plus } from 'lucide-react'
-import { clientLabel, listProjectFinancials, loadClientDirectory, projects as projectsApi } from '../../../lib/api'
-import { formatDate, formatPct, formatZAR, labelize } from '../../../lib/format'
+import { clientLabel, loadClientDirectory, projects as projectsApi } from '../../../lib/api'
+import { formatDate, formatZAR, labelize, todayYmd } from '../../../lib/format'
 import { useLoad } from '../../../hooks/useLoad'
-import { Button, Card, EmptyState, ErrorBanner, PageHeader, ProgressBar, Spinner, StatusBadge } from '../../../components/ui'
+import { Button, Card, EmptyState, ErrorBanner, PageHeader, Spinner, StatusBadge } from '../../../components/ui'
 import { PROJECT_STATUSES, type ProjectStatus } from '../../../types'
 import { paths } from '../paths'
 import { ProjectFormModal } from './ProjectFormModal'
@@ -24,8 +26,10 @@ export function ProjectsList() {
     setParams((p) => { p.delete('new'); return p }, { replace: true })
   }, [params, setParams])
   const { data, error, loading, reload } = useLoad(async () => {
-    const [list, fin, dir] = await Promise.all([projectsApi.list(), listProjectFinancials(), loadClientDirectory()])
-    return { list, fin, dir }
+    const [list, dir] = await Promise.all([projectsApi.list(), loadClientDirectory()])
+    // The same sums as the dashboard and each project's page (lib/projectScores.ts).
+    const src = await loadScoreSources(list, '2000-01-01', todayYmd())
+    return { list, fin: src.fin, dir, src }
   }, [], 'projects')
 
   const rows = useMemo(() => {
@@ -69,21 +73,12 @@ export function ProjectsList() {
                     {p.start_date ? `${formatDate(p.start_date, 'd MMM')} – ${formatDate(p.end_date, 'd MMM yyyy')}` : 'No dates yet'}{p.site_address ? ` · ${p.site_address}` : ''}
                   </p>
                 )}
-                {!money && seesBudget(access) && p.budget > 0 && (
-                  <div className="mt-3">
-                    <div className="mb-1 flex justify-between text-[11px] text-slate-500"><span>Budget used</span><span>{formatPct(((f?.expenses_total ?? 0) / p.budget) * 100, 0)}</span></div>
-                    <ProgressBar value={f?.expenses_total ?? 0} max={p.budget} />
-                  </div>
-                )}
+                {seesBudget(access) && <div className="mt-3"><BudgetBar score={scoreProject(p, data!.src, todayYmd())} /></div>}
                 {money && <>
                 <div className="tabular mt-3 grid grid-cols-3 gap-2 text-xs">
                   <div><p className="text-slate-500">Contract</p><p className="font-medium text-slate-800">{formatZAR(f?.revised_contract ?? p.contract_value, { decimals: 0 })}</p></div>
                   <div><p className="text-slate-500">Spent</p><p className="font-medium text-slate-800">{formatZAR(f?.expenses_total ?? 0, { decimals: 0 })}</p></div>
                   <div><p className="text-slate-500">Profit</p><p className={`font-medium ${(f?.gross_profit ?? 0) < 0 ? 'text-red-600' : 'text-emerald-700'}`}>{formatZAR(f?.gross_profit ?? 0, { decimals: 0 })}</p></div>
-                </div>
-                <div className="mt-3">
-                  <div className="mb-1 flex justify-between text-[11px] text-slate-500"><span>Budget used</span><span>{p.budget ? formatPct(((f?.expenses_total ?? 0) / p.budget) * 100, 0) : '—'} · margin {formatPct(f?.margin_pct)}</span></div>
-                  <ProgressBar value={f?.expenses_total ?? 0} max={p.budget} />
                 </div>
                 </>}
               </Link>

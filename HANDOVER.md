@@ -85,6 +85,12 @@ in ("I don't think they need to sign in"); the contractor or a site manager fill
   stays a warning. They show on the dashboard's Needs attention (for Administrators and contractors), on the
   Active projects list and the project's Overview. The quoted cost is now worked out ONE way for both screens
   (`quotedCost`: quote lines, else the plan's stages, else the budget) -- they used to differ (86% vs 92%).
+- **The budget bar** (Stephan: "a little bar that shows us over or under budget ... how far we are in that
+  progress"): `build/components/BudgetBar.tsx` -- fill = share of the quoted cost spent, a dark line = the
+  budget (the track runs to 125%, so a fill past the line is over), a ring = time gone; green / amber / red by
+  the verdict; percentages only, so the same bar for contractors. On the project Overview (both kinds),
+  every card on Projects, and each row of the dashboard's Active projects. The many-jobs sums now live in
+  `lib/projectScores.ts` (dashboard and Projects list), the single job in JobScorecard; both use quotedCost.
 - Pages are guarded by `components/Allow.tsx` (waits for the profile, so a fresh load doesn't bounce an
   Administrator). Checked in Playwright as contractor, site manager and Administrator with fixtures.
 - Not done: a bell notification when a job nears its budget (the warning is on screen only); hiding money

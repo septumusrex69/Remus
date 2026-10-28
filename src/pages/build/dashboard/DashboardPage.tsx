@@ -34,8 +34,8 @@ import { useAuth } from '../../../store/AuthContext'
 import { editsQuotes, seesBudget, seesMoney, seesQuotes, useAccess } from '../../../lib/access'
 import { Card, EmptyState, ErrorBanner, Spinner } from '../../../components/ui'
 import type { DiaryEvent, Project } from '../../../types'
-import { quotedCost, scoreJob, type CostSplit } from '../../../lib/jobScore'
-import { projectCrewCost } from '../../../lib/crewDays'
+import { crewSources, scoreProject } from '../../../lib/projectScores'
+import { BudgetBar } from '../components/BudgetBar'
 import { lastMonths, monthlyProfit, overheadRecovery } from '../../../lib/companyProfit'
 import { CompanyProfit } from './CompanyProfit'
 import { paths } from '../paths'
@@ -203,19 +203,8 @@ export function DashboardPage() {
    * slips by category plus the crew's booked days, against the quoted cost the plan was made from
    * (its stages carry the quote's cost by kind), or the budget where there is no plan.
    */
-  const workerMap = new Map(data.workers.map((w) => [w.id, w]))
-  const crewSrc = { bookings: data.bookings, register: data.register, stageProject: new Map(data.stages.map((st) => [st.id, st.project_id])), workers: workerMap }
-  const jobOf = (p: Project) => {
-    const f = data.fin.get(p.id)
-    const crew = projectCrewCost(crewSrc, p.id, today)
-    const actual: CostSplit = {
-      material: f?.expenses_materials ?? 0, labour: (f?.expenses_labour ?? 0) + crew, subcontractor: f?.expenses_subcontractor ?? 0,
-      other: (f?.expenses_total ?? 0) - (f?.expenses_materials ?? 0) - (f?.expenses_labour ?? 0) - (f?.expenses_subcontractor ?? 0),
-      total: (f?.expenses_total ?? 0) + crew,
-    }
-    const quoted = quotedCost(null, [], Number(p.budget), data.stages.filter((x) => x.project_id === p.id))
-    return scoreJob({ quoted, actual, contract: Number(p.contract_value), variations: f?.approved_variations ?? 0, status: p.status, start: p.start_date, end: p.end_date, today })
-  }
+  const crewSrc = crewSources(data.stages, data.bookings, data.workers, data.register)
+  const jobOf = (p: Project) => scoreProject(p, { fin: data.fin, stages: data.stages, crew: crewSrc }, today)
   const jobs = new Map(active.map((p) => [p.id, jobOf(p)]))
   // Where each running job is heading, not contract-less-costs-so-far (that flatters a job half done).
   const expected = (id: string) => { const j = jobs.get(id)!; return j.profitForecast ?? j.profitNow }
@@ -425,9 +414,10 @@ export function DashboardPage() {
                 return (
                   <li key={p.id}>
                     <Link to={paths.project(p.id)} className="flex items-center justify-between gap-3 px-4 py-2.5 hover:bg-slate-50">
-                      <span className="min-w-0">
+                      <span className="min-w-0 flex-1">
                         <span className="block truncate text-sm font-medium text-slate-800">{p.name}</span>
                         <span className="block text-xs text-slate-500">{p.end_date ? `Until ${formatDate(p.end_date, 'd MMM')}` : p.code ?? ''}</span>
+                        <BudgetBar score={j} compact />
                         <span className={`mt-0.5 inline-block rounded px-1.5 py-0.5 text-[11px] font-medium ${JOB_TONE[j.tone]}`} title={j.detail ?? undefined}>
                           {money ? (j.tone === 'good' ? 'On track' : j.tone === 'neutral' ? 'No quote to compare' : j.tone === 'bad' ? 'Over the quoted cost' : 'Watch the spending') : j.plain}
                         </span>
