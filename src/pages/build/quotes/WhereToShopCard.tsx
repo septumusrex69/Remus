@@ -104,7 +104,7 @@ export function WhereToShopCard({ areas, online, siteAddress, onChange }: {
                 {[...byStore.entries()].map(([store, bs]) => (
                   <li key={store} className="flex items-start gap-2 text-sm">
                     <Store size={15} className="mt-0.5 shrink-0 text-slate-400" />
-                    <span><strong className="font-medium text-slate-800">{store}</strong> <span className="text-slate-500">· {bs[0].name}{bs[0].mine && <Mine favourite={bs[0].favourite} />}, {bs[0].distanceKm} km{bs.length > 1 ? ` (+${bs.length - 1} more)` : ''}</span></span>
+                    <span><strong className="font-medium text-slate-800">{store}</strong> <span className="text-slate-500">· {bs[0].name}{bs[0].mine && <Mine favourite={bs[0].favourite} />}, <span className="whitespace-nowrap">{bs[0].distanceKm} km</span>{bs.length > 1 ? ` (+${bs.length - 1} more)` : ''}</span></span>
                   </li>
                 ))}
               </ul>

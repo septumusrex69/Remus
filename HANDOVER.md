@@ -154,6 +154,14 @@ row, the results are scrolled to and the keyboard put away, and product names wr
 Checked in Playwright at iPhone 13 size with the database answered from fixtures (scratch harness, not
 committed).
 
+**Find prices on a desktop (28 Oct, Stephan: "it's not completely user-friendly").** Checked at 1440 px
+the same way. Changed: the line's button now says "Find prices" in words where the card is wide (a grey
+magnifier alone was easy to miss); the search box stays pinned at the top while results scroll; stores
+with no prices are one short list with each store's reason, plus "Ask Claude about these too" (re-runs
+as Combined) instead of five empty boxes; "Stores · tap one to leave it out"; a plain message when
+nothing matched; the "Buy at" boxes say what they are on hover; distances on the map list no longer
+break. Preview first, per the rule; live on Stephan's word.
+
 ## Workers, project plan and profit per stage (26 Oct 2026, branch `claude/workers-and-plan`)
 
 Planning step 2, Stephan's pick. Migration `0016_workers_and_project_plan.sql` (applied live):

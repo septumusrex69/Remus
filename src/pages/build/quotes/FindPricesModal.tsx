@@ -87,11 +87,12 @@ export function FindPricesModal({ open, onClose, initialQuery, onPick, areas = [
     resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }, [result, error])
 
-  async function search() {
+  async function search(how: PriceEngine = engine) {
     if (query.trim().length < 2) return
+    setEngine(how)
     setBusy(true); setError(null); setResult(null)
     try {
-      setResult(await findPrices(query.trim(), engine, picked.length === PRICE_STORES.length ? null : picked))
+      setResult(await findPrices(query.trim(), how, picked.length === PRICE_STORES.length ? null : picked))
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
     } finally {
@@ -101,11 +102,23 @@ export function FindPricesModal({ open, onClose, initialQuery, onPick, areas = [
 
   const chosen = ENGINES.find((e) => e.id === engine)!
   const stores = result ? [...new Set([...result.hits.map((h) => h.store), ...result.stores.map((s) => s.store)])] : []
+  /*
+   * ON A DESKTOP (Stephan, 28 Oct: "it's not completely user-friendly"). A store with nothing to show
+   * was a whole empty box saying so -- five of them under Cashbuild's four prices. They are one short
+   * list at the end now, with the reason each gave, and one press to ask Claude about just those.
+   */
+  const withPrices = stores.filter((st) => result?.hits.some((h) => h.store === st))
+  const without = stores.filter((st) => !withPrices.includes(st))
+  const nearestOf = (store: string) => {
+    const id = PRICE_STORES.find((s) => s.name === store)?.id
+    return id ? nearest?.get(id) : undefined
+  }
 
   return (
     <Modal open={open} onClose={onClose} title="Find prices" wide>
       <div className="space-y-4">
-        <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); void search() }}>
+        {/* The box stays at the top while the results scroll under it, so the words can be changed. */}
+        <form className="sticky -top-4 z-10 -mx-5 -mt-4 flex gap-2 border-b border-slate-100 bg-white px-5 pt-4 pb-3" onSubmit={(e) => { e.preventDefault(); void search() }}>
           <input className="input min-w-0 flex-1" type="search" enterKeyHint="search" value={query} onChange={(e) => setQuery(e.target.value)}
             placeholder="e.g. close coupled toilet" aria-label="What to look for" autoFocus />
           <Button type="submit" variant="primary" disabled={busy || query.trim().length < 2}>
@@ -132,8 +145,9 @@ export function FindPricesModal({ open, onClose, initialQuery, onPick, areas = [
         </div>
 
         {/* On a phone the stores are one row that slides sideways, not three rows pushing the results down. */}
+        <div>
+        <p className="mb-1.5 text-xs font-semibold text-slate-600">Stores <span className="font-normal text-slate-400">· tap one to leave it out</span></p>
         <div className="-mx-5 flex items-center gap-1.5 overflow-x-auto px-5 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0" aria-label="Stores">
-          <span className="mr-1 shrink-0 text-xs font-semibold text-slate-600">Stores</span>
           {PRICE_STORES.map((st) => {
             const on = picked.includes(st.id)
             return (
@@ -146,7 +160,9 @@ export function FindPricesModal({ open, onClose, initialQuery, onPick, areas = [
           })}
         </div>
 
-        <div ref={resultsRef} className="scroll-mt-2" />
+        </div>
+
+        <div ref={resultsRef} className="scroll-mt-16" />
         {busy && (
           <p className="text-sm text-slate-500">
             {engine === 'crawler' ? 'Searching the stores…' : `Searching with ${chosen.label === 'Claude' ? 'Claude' : 'Quick, then Claude'}. This can take a minute…`}
@@ -163,7 +179,12 @@ export function FindPricesModal({ open, onClose, initialQuery, onPick, areas = [
                 : result.zar > 0 ? `this search cost about ${formatZAR(result.zar)}` : 'free'}
               {result.error ? ` · ${result.error}` : ''}
             </p>
-            {stores.map((store) => {
+            {withPrices.length === 0 && (
+              <p className="rounded-xl bg-slate-50 px-4 py-3 text-sm text-slate-600">
+                No prices found for "{query.trim()}". Try fewer or plainer words (e.g. "toilet" rather than a model name){engine === 'crawler' ? ', or search with Combined below' : ''}.
+              </p>
+            )}
+            {withPrices.map((store) => {
               const hits = result.hits.filter((h) => h.store === store)
               const notes = result.stores.filter((s) => s.store === store)
               return (
@@ -172,19 +193,15 @@ export function FindPricesModal({ open, onClose, initialQuery, onPick, areas = [
                     <span className="text-sm font-semibold text-slate-800">
                       {store}
                       {(() => {
-                        const id = PRICE_STORES.find((s) => s.name === store)?.id
-                        const b = id ? nearest?.get(id) : undefined
+                        const b = nearestOf(store)
                         return b
-                          ? <span className="ml-2 text-xs font-normal text-slate-500">nearest: {b.name}, {b.distanceKm} km</span>
+                          ? <span className="ml-2 text-xs font-normal text-slate-500">nearest: {b.name}{b.mine ? ' (yours)' : ''}, {b.distanceKm} km</span>
                           : nearest ? <span className="ml-2 text-xs font-normal text-slate-400">no branch in your areas · online / delivery</span> : null
                       })()}
                     </span>
                     <span className="text-xs text-slate-500">{notes.map((n) => n.note).join(' ')}</span>
                   </header>
-                  {hits.length === 0 ? (
-                    <p className="px-4 py-3 text-sm text-slate-400">No prices from this store.</p>
-                  ) : (
-                    <ul className="divide-y divide-slate-100">
+                  <ul className="divide-y divide-slate-100">
                       {hits.map((h, i) => (
                         <li key={i} className="flex items-center gap-3 px-3 py-2 sm:px-4">
                           {h.image
@@ -211,10 +228,31 @@ export function FindPricesModal({ open, onClose, initialQuery, onPick, areas = [
                         </li>
                       ))}
                     </ul>
-                  )}
                 </section>
               )
             })}
+            {without.length > 0 && (
+              <div className="rounded-xl border border-dashed border-slate-200 px-4 py-3 text-sm">
+                <p className="font-medium text-slate-600">No prices from {without.length === 1 ? 'this store' : `these ${without.length} stores`}</p>
+                <ul className="mt-1 space-y-0.5 text-xs text-slate-500">
+                  {without.map((st) => {
+                    const b = nearestOf(st)
+                    return (
+                      <li key={st}>
+                        <strong className="font-medium text-slate-700">{st}</strong>
+                        {b && <span> (nearest {b.distanceKm} km)</span>}
+                        {': '}{result.stores.filter((n) => n.store === st).map((n) => n.note).join(' ') || 'nothing matched.'}
+                      </li>
+                    )
+                  })}
+                </ul>
+                {engine === 'crawler' && (
+                  <Button size="sm" className="mt-2" disabled={busy} onClick={() => void search('combined')}>
+                    <Search size={14} /> Ask Claude about these too (Combined, a few cents)
+                  </Button>
+                )}
+              </div>
+            )}
             <p className="text-[11px] text-slate-400">Prices are the stores' online prices including VAT, and can differ in store. "Use" puts the price in the line's cost (your markup is added on top) and notes the store, product and code for the shopping list.</p>
           </div>
         )}

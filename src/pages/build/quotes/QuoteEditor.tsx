@@ -693,17 +693,18 @@ export function QuoteEditor() {
                     return (
                     <div key={l.key} className="grid grid-cols-2 gap-2 border-t border-slate-100 px-4 py-2.5 first:border-t-0 @lg:grid-cols-[88px_64px_96px_64px_1fr_36px] @lg:items-center @3xl:grid-cols-[1fr_88px_64px_96px_64px_120px_36px]">
                       <div className="relative col-span-2 @lg:col-span-full @3xl:col-span-1">
-                        <input className={`input pl-14 ${(l.kind ?? 'material') === 'material' && !showDetails(l) ? 'pr-16' : 'pr-9'}`} placeholder="Description, e.g. Toilet" value={l.description} onChange={(e) => updateLine(l.key, { description: e.target.value })} />
+                        <input className={`input pl-14 ${(l.kind ?? 'material') === 'material' ? (!showDetails(l) ? 'pr-16 @lg:pr-36' : 'pr-9 @lg:pr-28') : 'pr-9'}`} placeholder="Description, e.g. Toilet" value={l.description} onChange={(e) => updateLine(l.key, { description: e.target.value })} />
                         {/* FIND PRICES (Remus · Handoff 1): look the material up in the stores and take its cost. */}
                         {(l.kind ?? 'material') === 'material' && (
                           <button
                             type="button"
-                            className={`absolute inset-y-0 my-auto h-7 rounded px-1.5 text-slate-400 hover:bg-slate-100 hover:text-brand-700 ${showDetails(l) ? 'right-1' : 'right-8'}`}
+                            className={`absolute inset-y-0 my-auto flex h-7 items-center gap-1 rounded-md px-1.5 text-xs font-medium text-brand-700 hover:bg-brand-50 @lg:border @lg:border-brand-200 @lg:bg-brand-50/60 @lg:px-2 ${showDetails(l) ? 'right-1' : 'right-8'}`}
                             onClick={() => setFindFor(l.key)}
                             title="Find prices: look this up in the stores"
                             aria-label="Find prices"
                           >
-                            <Search size={15} />
+                            {/* Said in words where there is room: a grey magnifier alone was easy to miss (28 Oct). */}
+                            <Search size={14} /><span className="hidden @lg:inline">Find prices</span>
                           </button>
                         )}
                         {/* The kind of cost, as a small tag inside the box; tap it to change. */}
@@ -826,13 +827,13 @@ export function QuoteEditor() {
                       {(l.kind ?? 'material') === 'material' && (l.buy_store || buyOpen.has(l.key)) && (
                         <div className="col-span-2 flex flex-wrap items-center gap-2 text-xs text-slate-500 @lg:col-span-full">
                           <span className="inline-flex items-center gap-1 font-medium text-slate-600"><ShoppingCart size={13} /> Buy at</span>
-                          <input className="input w-36 px-1.5 py-1 text-xs" placeholder="Store, e.g. Leroy Merlin" aria-label="Store"
+                          <input className="input w-36 px-1.5 py-1 text-xs" placeholder="Store, e.g. Leroy Merlin" aria-label="Store" title="Store"
                             value={l.buy_store ?? ''} onChange={(e) => updateLine(l.key, { buy_store: e.target.value })} />
-                          <input className="input w-24 px-1.5 py-1 font-mono text-xs" placeholder="Code" aria-label="Store's product code"
+                          <input className="input w-24 px-1.5 py-1 font-mono text-xs" placeholder="Code" aria-label="Store's product code" title="Store's product code"
                             value={l.buy_code ?? ''} onChange={(e) => updateLine(l.key, { buy_code: e.target.value })} />
-                          <input className="input min-w-[10rem] flex-1 px-1.5 py-1 text-xs" placeholder="Product, as the store names it" aria-label="Product"
+                          <input className="input min-w-[10rem] flex-1 px-1.5 py-1 text-xs" placeholder="Product, as the store names it" aria-label="Product" title="Product, as the store names it"
                             value={l.buy_product ?? ''} onChange={(e) => updateLine(l.key, { buy_product: e.target.value })} />
-                          <span className="w-28"><NumInput allowEmpty prefix="R" className="px-1.5 py-1 text-right text-xs" aria-label="Store price"
+                          <span className="w-28"><NumInput allowEmpty prefix="R" className="px-1.5 py-1 text-right text-xs" aria-label="Store price" title="Store price (incl. VAT)"
                             value={l.buy_price} onValue={(n) => updateLine(l.key, { buy_price: n, buy_checked_on: n == null ? null : todayYmd() })} /></span>
                           {l.buy_url && <a href={l.buy_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-0.5 text-brand-700 hover:underline">View <ExternalLink size={11} /></a>}
                           {l.buy_checked_on && <span className="text-slate-400">price seen {formatDate(l.buy_checked_on, 'd MMM')}</span>}
