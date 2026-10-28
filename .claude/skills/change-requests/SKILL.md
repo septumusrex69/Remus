@@ -118,6 +118,16 @@ PDFs: Read with `pages`. Open the page the request came from (`page_path`) in th
 Stephan approves a request and presses **Ask Claude to build it**; this job is the only thing that moves a
 request to In development and Released.
 
+0. **FIRST, FINISH WHAT AN EARLIER RUN LEFT** (Raptor H13: a run pushed a build and never released it, and
+   every later run looked only at `accepted`, so it sat In development for hours):
+   ```sql
+   select number, updated_at from public.change_requests where status = 'building' order by updated_at;
+   ```
+   For each: if `git log --all --oneline | grep "R-<n> "` shows its commit on a pushed branch, the build was
+   pushed -- check it out, run `npm test` and `npx tsc -b`, and if green release it exactly as step 5 does,
+   then stop: that was this run's request. If no commit is there and it has been building for over an hour,
+   put it back (`status = 'accepted'`, queue kept) with a comment saying the earlier run did not finish, and
+   carry on to step 1.
 1. **ONE request a run**, the oldest on the queue (a sent-back one counts -- it is `accepted` again):
    ```sql
    select r.number, r.department, r.pane, r.description, r.review_summary, r.review_questions,

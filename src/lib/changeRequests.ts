@@ -79,7 +79,8 @@ export const VERDICT_LABEL: Record<ReviewVerdict, string> = {
 export interface RequestEvent {
   id: string
   request_id: string
-  kind: 'sent' | 'reviewed' | 'status' | 'tested' | 'assigned' | 'comment' | 'question'
+  /** 'edited' comes from change_request_edits (the words it replaced), merged in by listEvents. */
+  kind: 'sent' | 'reviewed' | 'status' | 'tested' | 'assigned' | 'comment' | 'question' | 'edited'
   body: string | null
   from_status: RequestStatus | null
   to_status: RequestStatus | null
@@ -294,6 +295,15 @@ export function isOpen(s: RequestStatus): boolean {
 /** The firm decides what gets built: the role, as the database's policy writes it. */
 export function mayDecide(user: Pick<User, 'role'> | null | undefined): boolean {
   return user?.role === 'Administrator'
+}
+
+/*
+ * WHO MAY CORRECT THE WORDS, AND UNTIL WHEN (Raptor H13). The sender or an Administrator, until Claude
+ * starts building -- New, or Approved (queued for Claude or not). The database holds the same rule
+ * (change_request_edit, 0025) and keeps the words it replaced.
+ */
+export function mayEdit(user: Pick<User, 'id' | 'role'> | null | undefined, r: Pick<ChangeRequest, 'created_by' | 'status'>): boolean {
+  return !!user && (user.id === r.created_by || user.role === 'Administrator') && (r.status === 'new' || r.status === 'accepted')
 }
 
 /** The person who sent it may take it back while nobody has looked at it. */

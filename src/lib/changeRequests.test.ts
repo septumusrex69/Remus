@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  OTHER_CHOICE, REQUEST_DEPARTMENTS, answerBody, answerTo, base64Bytes, choicesOk, mayAnswer, parseChoices, tickedOf, waitingOnAsker, fileProblem, fitWithin, mayDecide, mayTest, mayWithdraw, onShelf, SHELVES, paneOf,
+  OTHER_CHOICE, REQUEST_DEPARTMENTS, answerBody, answerTo, base64Bytes, choicesOk, mayAnswer, parseChoices, tickedOf, waitingOnAsker, fileProblem, fitWithin, mayDecide, mayTest, mayWithdraw, onShelf, SHELVES, mayEdit, paneOf,
   parseReviewGroups, requestLabel, sortRequests, stageOf, testState, titleOf,
 } from './changeRequests'
 import { timeAgo } from './notifications'
@@ -191,3 +191,19 @@ describe('a question with options to tick', () => {
     expect(choicesMigration).toMatch(/function public\.change_request_answers_ok[\s\S]*security definer/)
   })
 })
+
+describe('correcting the wording', () => {
+  const asker = { id: 'a', role: 'Read Only' as const }
+  const admin = { id: 'b', role: 'Administrator' as const }
+  const other = { id: 'c', role: 'Read Only' as const }
+  it('the sender or an Administrator, until Claude starts building', () => {
+    for (const status of ['new', 'accepted'] as const) {
+      expect(mayEdit(asker, { created_by: 'a', status })).toBe(true)
+      expect(mayEdit(admin, { created_by: 'a', status })).toBe(true)
+      expect(mayEdit(other, { created_by: 'a', status })).toBe(false)
+    }
+    for (const status of ['building', 'done', 'declined'] as const) expect(mayEdit(admin, { created_by: 'a', status })).toBe(false)
+    expect(mayEdit(null, { created_by: 'a', status: 'new' })).toBe(false)
+  })
+})
+
