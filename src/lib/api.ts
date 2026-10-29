@@ -8,6 +8,7 @@ import { supabase, BRANDING_BUCKET, QUOTE_FILES_BUCKET, RECEIPTS_BUCKET } from '
 import { quoteTotals } from './quoteMath'
 import { formatZAR } from './format'
 import { stagesFromQuote } from './projectPlan'
+import { compressImage } from './image'
 import type {
   Activity,
   BankAccount,
@@ -38,6 +39,7 @@ import type {
   StageBooking,
   QuoteTotalsRow,
   SiteDiaryEntry,
+  SiteDiaryPhoto,
   Variation,
 } from '../types'
 
@@ -768,6 +770,37 @@ export function canShareFiles(): boolean {
 
 export const diaryEvents = crud<DiaryEvent>('diary_events', [], 'start_at', true)
 export const siteDiary = crud<SiteDiaryEntry>('site_diary_entries', ['workers_on_site'], 'date')
+
+// ---------- Site diary photos (0030) ----------
+
+export const SITE_PHOTOS_BUCKET = 'site-photos'
+
+/** The photos on these diary entries, oldest first, with a signed link each (an hour). */
+export async function listDiaryPhotos(entryIds: ID[]): Promise<(SiteDiaryPhoto & { url: string | null })[]> {
+  if (entryIds.length === 0) return []
+  const rows = unwrap<SiteDiaryPhoto[]>(await supabase.from('site_diary_photos').select('*').in('entry_id', entryIds).order('created_at'))
+  const urls = await signedUrls(SITE_PHOTOS_BUCKET, rows.map((r) => r.path))
+  return rows.map((r) => ({ ...r, url: urls.get(r.path) ?? null }))
+}
+
+/** A photo from the phone, shrunk on the phone first (a site photo does not need 12 megapixels). */
+export async function addDiaryPhoto(entry: Pick<SiteDiaryEntry, 'id' | 'project_id'>, file: File): Promise<void> {
+  const small = await compressImage(file, { maxEdge: 1800, quality: 0.8 })
+  const ext = small.type === 'image/png' ? 'png' : small.type === 'image/webp' ? 'webp' : 'jpg'
+  const path = `${entry.project_id}/${entry.id}/${crypto.randomUUID()}.${ext}`
+  const up = await supabase.storage.from(SITE_PHOTOS_BUCKET).upload(path, small, { contentType: small.type || 'image/jpeg' })
+  if (up.error) throw new Error(up.error.message)
+  const { error } = await supabase.from('site_diary_photos').insert({ entry_id: entry.id, project_id: entry.project_id, path })
+  if (error) {
+    await supabase.storage.from(SITE_PHOTOS_BUCKET).remove([path])
+    throw new Error(error.message)
+  }
+}
+
+export async function removeDiaryPhoto(photo: Pick<SiteDiaryPhoto, 'id' | 'path'>): Promise<void> {
+  unwrap(await supabase.from('site_diary_photos').delete().eq('id', photo.id))
+  await supabase.storage.from(SITE_PHOTOS_BUCKET).remove([photo.path])
+}
 
 export async function listEventsBetween(fromIso: string, toIso: string): Promise<DiaryEvent[]> {
   return unwrap<DiaryEvent[]>(

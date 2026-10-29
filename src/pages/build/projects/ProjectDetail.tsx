@@ -45,6 +45,7 @@ import { ExpenseFormModal } from '../components/ExpenseFormModal'
 import { ExpenseTable } from '../components/ExpenseTable'
 import { EventFormModal } from '../components/EventFormModal'
 import { SiteDiaryForm } from '../components/SiteDiaryForm'
+import { PhotoStrip, useDiaryPhotos } from '../components/DiaryPhotos'
 import { paths } from '../paths'
 import { LazyCategoryBarChart } from '../components/LazyCharts'
 import { useVatRate } from '../BuildContext'
@@ -513,6 +514,7 @@ function VariationsTab({ projectId, rows, reload, act }: { projectId: string; ro
 }
 
 export function SiteDiaryList({ rows, projectName, onEdit }: { rows: SiteDiaryEntry[]; projectName?: (id: string) => string; onEdit: (e: SiteDiaryEntry) => void }) {
+  const photos = useDiaryPhotos(rows.map((r) => r.id))
   if (rows.length === 0) return <EmptyState title="No site diary entries">Log weather, crew, work done and delays each day you're on site.</EmptyState>
   return (
     <ul className="divide-y divide-slate-100">
@@ -528,6 +530,7 @@ export function SiteDiaryList({ rows, projectName, onEdit }: { rows: SiteDiaryEn
             {e.delays && <p className="mt-1 text-xs text-orange-700"><strong>Delays:</strong> {e.delays}</p>}
             {e.safety_notes && <p className="mt-1 text-xs text-red-700"><strong>Safety:</strong> {e.safety_notes}</p>}
           </button>
+          <div className="mt-2"><PhotoStrip photos={(photos.byEntry.get(e.id) ?? []).map((p) => ({ key: p.id, url: p.url }))} /></div>
         </li>
       ))}
     </ul>

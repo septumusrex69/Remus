@@ -465,6 +465,19 @@ export interface SiteDiaryEntry {
   created_at: string
 }
 
+/** A photo on a day's site diary entry (0030), in the private site-photos bucket. */
+export interface SiteDiaryPhoto {
+  id: ID
+  entry_id: ID
+  project_id: ID
+  path: string
+  caption: string | null
+  /** For the client portal's phase 2: nothing reads it yet. */
+  show_client: boolean
+  created_by: ID | null
+  created_at: string
+}
+
 export interface ProjectFinancials {
   project_id: ID
   contract_value: number

@@ -91,7 +91,56 @@ export function SchedulePage() {
             Add your team under <Link to={paths.workers()} className="text-brand-700 underline">Workers</Link>, then book them on a project's Plan & crew tab.
           </EmptyState>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          {/*
+            ON A PHONE, DAY BY DAY (Remus · Handover 5): a worker-by-day grid is a table to scroll sideways on a
+            phone, and a site manager asks the other question anyway -- who is where today, and tomorrow. Each
+            day lists its sites and the people on them; somebody on two jobs that day is red.
+          */}
+          <ol className="divide-y divide-slate-100 sm:hidden" data-testid="schedule-days">
+            {days.map((d) => {
+              const bySite = new Map<string, { p: (typeof data.projects)[number] | undefined; people: { name: string; clash: boolean; stage: string }[] }>()
+              for (const w of view.rows) {
+                const c = view.cell(w.id, d)
+                for (const { s, p } of c) {
+                  const key = p?.id ?? 'none'
+                  const site = bySite.get(key) ?? { p, people: [] }
+                  site.people.push({ name: w.name, clash: c.length > 1, stage: s?.name ?? '' })
+                  bySite.set(key, site)
+                }
+              }
+              const past = d < today
+              return (
+                <li key={d} className={`px-4 py-3 ${d === today ? 'bg-brand-50/60' : ''} ${past ? 'opacity-60' : ''}`}>
+                  <p className={`text-xs font-bold tracking-wide uppercase ${d === today ? 'text-brand-700' : 'text-slate-500'}`}>
+                    {d === today ? 'Today · ' : ''}{format(new Date(`${d}T00:00:00`), 'EEEE d MMM')}
+                  </p>
+                  {bySite.size === 0 ? (
+                    <p className="mt-1 text-sm text-slate-400">Nobody booked.</p>
+                  ) : (
+                    <ul className="mt-1.5 space-y-2">
+                      {[...bySite.values()].map(({ p, people }) => (
+                        <li key={p?.id ?? 'none'}>
+                          <Link to={p ? paths.project(p.id, 'plan') : paths.projects()} className="block rounded-lg bg-white px-3 py-2 ring-1 ring-slate-200">
+                            <span className="block text-sm font-semibold text-slate-800">{p?.name ?? 'Job'}</span>
+                            {p?.site_address && <span className="block truncate text-xs text-slate-500">{p.site_address}</span>}
+                            <span className="mt-1 flex flex-wrap gap-1">
+                              {people.map((x) => (
+                                <span key={x.name} className={`rounded px-1.5 py-0.5 text-xs font-medium ${x.clash ? 'bg-red-100 text-red-800 ring-1 ring-red-300' : 'bg-slate-100 text-slate-700'}`}>
+                                  {x.name}{x.clash ? ' · also elsewhere' : ''}
+                                </span>
+                              ))}
+                            </span>
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </li>
+              )
+            })}
+          </ol>
+          <div className="hidden overflow-x-auto sm:block">
             <table className="w-full min-w-[46rem] table-fixed border-collapse text-xs">
               <thead>
                 <tr className="bg-slate-50 text-slate-500">
@@ -134,6 +183,7 @@ export function SchedulePage() {
               </tbody>
             </table>
           </div>
+          </>
         )}
       </Card>
 

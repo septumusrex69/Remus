@@ -91,6 +91,13 @@ in ("I don't think they need to sign in"); the contractor or a site manager fill
   only when ticked in Settings → Users ("May snap slips", `profiles.can_snap`). 0028 (applied live):
   `may_snap_slips()` + restrictive insert policy `remus_snap_insert` on expenses; only an Administrator changes
   can_snap. Tested in a rolled-back transaction.
+- **Remus on the phone for site managers** (29 Oct): checked every site-manager screen at iPhone size.
+  **Site diary photos** (0030, applied live): `site_diary_photos` + private bucket `site-photos`; "Take a photo"
+  (opens the camera) and "From the gallery" in the diary entry, shrunk on the phone to 1800 px, thumbnails on
+  each entry (`build/components/DiaryPhotos.tsx`); the "Work done" box has the microphone. `show_client` is
+  there for portal phase 2 (nothing reads it yet). **Schedule on a phone** is a day-by-day list of sites and
+  who is on them (the worker grid stays from tablet width up). Crew register words fit a site manager; its
+  title shows in the top bar. Photo upload not yet tried for real (the fixture harness has no storage).
 - **The budget bar** (Stephan: "a little bar that shows us over or under budget ... how far we are in that
   progress"): `build/components/BudgetBar.tsx` -- fill = share of the quoted cost spent, a dark line = the
   budget (the track runs to 125%, so a fill past the line is over), a ring = time gone; green / amber / red by

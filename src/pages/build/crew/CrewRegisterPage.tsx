@@ -94,7 +94,7 @@ export function CrewRegisterPage() {
     <div>
       <PageHeader
         title="Crew register"
-        subtitle="Who was on which site each day, and the week's wages. Booked days count until someone confirms them."
+        subtitle={money ? "Who was on which site each day, and the week's wages. Booked days count until someone confirms them." : 'Who was on which site each day. Tick off the crew on each site; people who are booked count until someone confirms them.'}
         actions={<Link to={paths.workers()} className="text-sm text-slate-500 hover:text-slate-800">Workers →</Link>}
       />
       <ErrorBanner error={err ?? error} />
