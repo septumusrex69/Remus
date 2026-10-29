@@ -86,6 +86,11 @@ in ("I don't think they need to sign in"); the contractor or a site manager fill
   stays a warning. They show on the dashboard's Needs attention (for Administrators and contractors), on the
   Active projects list and the project's Overview. The quoted cost is now worked out ONE way for both screens
   (`quotedCost`: quote lines, else the plan's stages, else the budget) -- they used to differ (86% vs 92%).
+- **Snap slip** (29 Oct, Stephan: "It's not a site manager who does purchases, it's a contractor ... possible to
+  give him the authority to snap a slip as well"): Administrators and contractors snap slips; a site manager
+  only when ticked in Settings → Users ("May snap slips", `profiles.can_snap`). 0028 (applied live):
+  `may_snap_slips()` + restrictive insert policy `remus_snap_insert` on expenses; only an Administrator changes
+  can_snap. Tested in a rolled-back transaction.
 - **The budget bar** (Stephan: "a little bar that shows us over or under budget ... how far we are in that
   progress"): `build/components/BudgetBar.tsx` -- fill = share of the quoted cost spent, a dark line = the
   budget (the track runs to 125%, so a fill past the line is over), a ring = time gone; green / amber / red by

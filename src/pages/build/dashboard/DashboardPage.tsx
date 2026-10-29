@@ -31,7 +31,7 @@ import { outstandingInvoices } from '../../../lib/finance'
 import { approvalCurrent } from '../../../lib/quoteMath'
 import { useLoad } from '../../../hooks/useLoad'
 import { useAuth } from '../../../store/AuthContext'
-import { editsQuotes, seesBudget, seesMoney, seesQuotes, useAccess } from '../../../lib/access'
+import { editsQuotes, seesBudget, seesMoney, seesQuotes, useAccess, useSnapsSlips } from '../../../lib/access'
 import { Card, EmptyState, ErrorBanner, Spinner } from '../../../components/ui'
 import type { DiaryEvent, Project } from '../../../types'
 import { crewSources, scoreProject } from '../../../lib/projectScores'
@@ -122,6 +122,7 @@ export function DashboardPage() {
   const money = seesMoney(access)
   const budget = seesBudget(access)
   const quotesToo = seesQuotes(access)
+  const snaps = useSnapsSlips()
 
   if (loading && !data) return <Spinner page />
   if (!data) return <ErrorBanner error={error} />
@@ -254,9 +255,11 @@ export function DashboardPage() {
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <Link to={paths.capture()} className="inline-flex items-center gap-1.5 rounded-lg bg-brand-500 px-3.5 py-2 text-sm font-semibold text-white hover:bg-brand-600">
-              <Camera size={16} /> Snap slip
-            </Link>
+            {snaps && (
+              <Link to={paths.capture()} className="inline-flex items-center gap-1.5 rounded-lg bg-brand-500 px-3.5 py-2 text-sm font-semibold text-white hover:bg-brand-600">
+                <Camera size={16} /> Snap slip
+              </Link>
+            )}
             {editsQuotes(access) && (
               <Link to={`${paths.quotes()}?new=1`} className="inline-flex items-center gap-1.5 rounded-lg bg-white/10 px-3.5 py-2 text-sm font-medium text-white hover:bg-white/20">
                 <FileText size={16} /> New quote

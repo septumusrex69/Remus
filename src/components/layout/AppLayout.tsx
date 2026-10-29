@@ -1,4 +1,5 @@
 import { Suspense, useEffect, useState } from 'react'
+import { useSnapsSlips } from '../../lib/access'
 import { UpdateBanner } from './UpdateBanner'
 import { Link, Outlet, useLocation } from 'react-router-dom'
 import { clsx } from 'clsx'
@@ -62,6 +63,7 @@ export function AppLayout() {
   const location = useLocation()
   const isPrint = location.pathname.endsWith('/print')
   const isCapture = location.pathname === paths.capture()
+  const snaps = useSnapsSlips()
   const title = TITLES.find((t) => t.test.test(location.pathname))?.title ?? ''
 
   useEffect(() => setDrawer(false), [location.pathname])
@@ -103,7 +105,7 @@ export function AppLayout() {
       </div>
 
       {/* Site managers live on their phones: slip capture is one thumb away everywhere. */}
-      {!isCapture && (
+      {!isCapture && snaps && (
         <Link
           to={paths.capture()}
           style={{ bottom: 'calc(1rem + env(safe-area-inset-bottom))' }}

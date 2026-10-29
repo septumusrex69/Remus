@@ -1,7 +1,7 @@
 import { lazy } from 'react'
 import { Route, useParams } from 'react-router-dom'
 import { Allow } from '../../components/Allow'
-import { editsQuotes, seesMoney, seesQuotes } from '../../lib/access'
+import { editsQuotes, seesMoney, seesQuotes, snapsSlips } from '../../lib/access'
 import { paths as P } from './paths'
 
 // Each page loads on demand (charts in particular are heavy); AppLayout supplies the Suspense boundary.
@@ -89,7 +89,7 @@ export const buildRoutes = (
     <Route path="projects" element={<ProjectsList />} />
     <Route path="projects/:id" element={<ProjectDetail />} />
     <Route path="expenses" element={<Allow when={seesMoney}><ExpensesPage /></Allow>} />
-    <Route path="expenses/capture" element={<SlipCapture />} />
+    <Route path="expenses/capture" element={<Allow when={(_a, p) => snapsSlips(p)}><SlipCapture /></Allow>} />
     <Route path="diary" element={<DiaryPage />} />
     <Route path="bank" element={<Allow when={seesMoney}><BankPage /></Allow>} />
     <Route path="finance" element={<Allow when={seesMoney}><FinancePage /></Allow>} />

@@ -12,7 +12,7 @@ import { useSidebarCollapsed } from '../../lib/sidebarCollapsed'
 import { useUnreadMail } from '../../lib/unreadMail'
 import { useRequestCount } from '../../lib/requestCount'
 import { useTheme } from '../../store/ThemeContext'
-import { ACCESS_LABEL, seesMoney, seesQuotes, useAccess, type Access } from '../../lib/access'
+import { ACCESS_LABEL, seesMoney, seesQuotes, useAccess, useSnapsSlips, type Access } from '../../lib/access'
 
 /**
  * The navigation, copied from Raptor's Sidebar: folds to an icon rail (remembered per device),
@@ -60,6 +60,7 @@ export function Sidebar({ drawer, onNavigate }: { drawer?: boolean; onNavigate?:
   const menuRef = useRef<HTMLDivElement>(null)
   const requestCount = useRequestCount()
   const access = useAccess()
+  const snaps = useSnapsSlips()
   const counts: Record<Badge, number> = { mail: unreadMail.count, bank: needsLinking, requests: requestCount }
 
   useEffect(() => {
@@ -100,7 +101,7 @@ export function Sidebar({ drawer, onNavigate }: { drawer?: boolean; onNavigate?:
         </Link>
       </div>
 
-      <div className={clsx('pt-4', collapsed ? 'px-2' : 'px-3')}>
+      {snaps && <div className={clsx('pt-4', collapsed ? 'px-2' : 'px-3')}>
         <Link
           to={paths.capture()}
           onClick={onNavigate}
@@ -112,7 +113,7 @@ export function Sidebar({ drawer, onNavigate }: { drawer?: boolean; onNavigate?:
         >
           <Camera size={16} /> {!collapsed && 'Snap slip'}
         </Link>
-      </div>
+      </div>}
 
       <nav className={clsx('flex-1 space-y-0.5 overflow-y-auto py-4', collapsed ? 'px-2' : 'px-3')}>
         {NAV.filter((n) => !n.when || n.when(access)).map(({ to, label, icon: Icon, end, badge }) => {

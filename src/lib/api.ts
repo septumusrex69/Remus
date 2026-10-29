@@ -142,7 +142,7 @@ export async function updateOwnProfile(id: ID, values: Pick<Partial<Profile>, 'n
 }
 
 /** Administrators only (enforced by RLS and the protect_profile_privileged_fields trigger). */
-export async function updateProfileAccess(id: ID, values: Pick<Partial<Profile>, 'role' | 'status' | 'job'>): Promise<void> {
+export async function updateProfileAccess(id: ID, values: Pick<Partial<Profile>, 'role' | 'status' | 'job' | 'can_snap'>): Promise<void> {
   const rows = unwrap<Profile[]>(await supabase.from('profiles').update(values).eq('id', id).select('*'))
   if (rows.length === 0) throw new Error('Only administrators can change access.')
 }

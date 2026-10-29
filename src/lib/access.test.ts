@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { accessOf, editsQuotes, profileFor, seesBudget, seesMoney, seesQuotes, type Access } from './access'
+import { accessOf, editsQuotes, profileFor, seesBudget, seesMoney, seesQuotes, snapsSlips, type Access } from './access'
 
 describe('who sees what', () => {
   it('reads the role and the job', () => {
@@ -13,6 +13,13 @@ describe('who sees what', () => {
   })
   it('writes back what it reads', () => {
     for (const a of ['admin', 'read_only', 'contractor', 'site_manager'] as Access[]) expect(accessOf(profileFor(a))).toBe(a)
+  })
+  it('slips: Administrators and contractors, a site manager only when ticked, never read only', () => {
+    expect(snapsSlips({ role: 'Administrator' })).toBe(true)
+    expect(snapsSlips({ role: 'Sales Representative', job: 'contractor' })).toBe(true)
+    expect(snapsSlips({ role: 'Sales Representative', job: 'site_manager' })).toBe(false)
+    expect(snapsSlips({ role: 'Sales Representative', job: 'site_manager', can_snap: true })).toBe(true)
+    expect(snapsSlips({ role: 'Read Only', can_snap: true })).toBe(false)
   })
   it('money for Administrators only; budget for contractors too; quotes not for site managers', () => {
     expect((['admin', 'read_only', 'contractor', 'site_manager'] as Access[]).map((a) => [seesMoney(a), seesBudget(a), seesQuotes(a), editsQuotes(a)]))

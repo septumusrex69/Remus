@@ -31,6 +31,8 @@ export interface Profile {
   email_signature?: string | null
   /** For a team member (role Sales Representative): a contractor or a site manager (0027, lib/access.ts). */
   job?: 'contractor' | 'site_manager'
+  /** A site manager allowed to snap slips (0028); contractors and Administrators always may. */
+  can_snap?: boolean
 }
 
 export interface Company {

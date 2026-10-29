@@ -20,7 +20,7 @@ export function TeamCard() {
   const [sending, setSending] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
 
-  async function change(p: Profile, values: Pick<Partial<Profile>, 'role' | 'status' | 'job'>) {
+  async function change(p: Profile, values: Pick<Partial<Profile>, 'role' | 'status' | 'job' | 'can_snap'>) {
     setError(null)
     try {
       await updateProfileAccess(p.id, values)
@@ -75,12 +75,19 @@ export function TeamCard() {
                   <select className="input w-auto py-1 text-xs" value={accessOf(p)} onChange={(e) => change(p, profileFor(e.target.value as Access))} aria-label={`Access for ${p.name || p.email}`}>
                     {ACCESS_OPTIONS.map((a) => <option key={a} value={a}>{ACCESS_LABEL[a]}</option>)}
                   </select>
+                  {/* A site manager does not buy; an Administrator may still let one snap slips (0028). */}
+                  {accessOf(p) === 'site_manager' && (
+                    <label className="flex items-center gap-1.5 text-xs text-slate-600" title="Lets this site manager photograph till slips (Snap slip)">
+                      <input type="checkbox" checked={!!p.can_snap} onChange={(e) => change(p, { can_snap: e.target.checked })} />
+                      May snap slips
+                    </label>
+                  )}
                   <Button size="sm" variant="ghost" onClick={() => change(p, { status: p.status === 'Active' ? 'Inactive' : 'Active' })}>
                     {p.status === 'Active' ? 'Deactivate' : 'Reactivate'}
                   </Button>
                 </>
               ) : (
-                <Badge>{ACCESS_LABEL[accessOf(p)]}</Badge>
+                <Badge>{ACCESS_LABEL[accessOf(p)]}{accessOf(p) === 'site_manager' && p.can_snap ? ' · snaps slips' : ''}</Badge>
               )}
               {p.status === 'Inactive' && <Badge tone="bg-red-50 text-red-700">Inactive</Badge>}
             </li>
