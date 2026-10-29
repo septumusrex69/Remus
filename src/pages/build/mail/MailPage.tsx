@@ -23,6 +23,7 @@ import { ReadingPane } from '../../../components/email/ReadingPane'
 import { EmailViewSwitcher } from '../../../components/email/EmailViewSwitcher'
 import { ComposeEmailModal } from '../../../components/email/ComposeEmailModal'
 import { paths } from '../paths'
+import { dropDraft, listDrafts, type MailDraft } from '../../../lib/mailDrafts'
 
 /**
  * Mail: the person's own mailbox inside Remus, ported from Raptor's src/pages/mail/MailPage.tsx.
@@ -84,6 +85,10 @@ type Draft = {
   contactId?: string | null
   /** A forward keeps the message's files (Raptor H13, R-8). */
   forward?: { mailId: string; names: string[] }
+  /** The message a forward is of (its draft is told apart from a forward of another). */
+  forwardOf?: string
+  /** Carrying on with a draft kept in this browser (Raptor S15, mailDrafts.ts). */
+  draftKey?: string
 }
 
 export function MailPage() {
@@ -121,6 +126,10 @@ export function MailPage() {
   const [loadingBody, setLoadingBody] = useState<string | null>(null)
   const [showPictures, setShowPictures] = useState<Record<string, boolean>>({})
   const [draft, setDraft] = useState<Draft | null>(null)
+  /* UNSENT EMAIL, KEPT IN THIS BROWSER (Raptor S15, mailDrafts.ts). */
+  const [showDrafts, setShowDrafts] = useState(false)
+  const [drafts, setDrafts] = useState<MailDraft[]>(() => listDrafts())
+  const refreshDrafts = () => setDrafts(listDrafts())
   const [mailbox, setMailbox] = useState<{ connected: boolean; email: string | null; lastSyncedAt?: string | null } | null>(null)
   const [dir, setDir] = useState<ClientDirectory | null>(null)
   const [wide, setWide] = useState(() => window.matchMedia('(min-width: 1024px)').matches)
@@ -248,7 +257,7 @@ export function MailPage() {
   function forward(m: MailItem) {
     setDraft({
       title: 'Forward', to: '', subject: forwardSubject(m.subject), body: quoteBlock(m, bodyText(m), 'forward'),
-      forward: m.attachmentNames.length ? { mailId: m.id, names: m.attachmentNames } : undefined,
+      forward: m.attachmentNames.length ? { mailId: m.id, names: m.attachmentNames } : undefined, forwardOf: m.id,
     })
   }
 
@@ -374,6 +383,19 @@ export function MailPage() {
                 </button>
               )
             })}
+            {/* DRAFTS (Raptor S15): unsent email kept in this browser -- see mailDrafts.ts. */}
+            <button
+              onClick={() => { refreshDrafts(); setShowDrafts((v) => !v) }}
+              title="Email you started and did not send"
+              aria-pressed={showDrafts}
+              data-testid="mail-drafts-tab"
+              className={`inline-flex shrink-0 items-center gap-1.5 border-b-2 px-3.5 py-2 text-sm font-medium ${showDrafts ? 'border-brand-500 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+            >
+              Drafts
+              {drafts.length > 0 && (
+                <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-slate-100 px-1 text-[10px] font-semibold text-slate-600 tabular-nums">{drafts.length}</span>
+              )}
+            </button>
           </div>
           <div className="flex shrink-0 items-center gap-2 py-1.5">
             {filter !== 'blocked' && items.length > 0 && (
@@ -427,6 +449,30 @@ export function MailPage() {
         )}
         {status && <p className="border-b border-slate-100 px-5 py-2 text-[13px] text-emerald-700">{status}</p>}
         {error && <p className="border-b border-slate-100 px-5 py-2 text-[13px] text-red-700">{error}</p>}
+        {showDrafts && (
+          <div className="border-b border-slate-100 bg-slate-50/60" data-testid="mail-drafts">
+            <p className="px-5 pt-3 text-xs text-slate-500">Email you started and did not send, kept in this browser. Sending one removes it.</p>
+            {drafts.length === 0 ? <p className="px-5 py-3 text-sm text-slate-500">No drafts.</p> : (
+              <ul className="divide-y divide-slate-100">
+                {drafts.map((d) => (
+                  <li key={d.key} className="flex items-center gap-3 px-5 py-2.5" data-testid="mail-draft">
+                    <button type="button" className="min-w-0 flex-1 text-left" onClick={() => setDraft({
+                      draftKey: d.key, title: d.title, to: d.to, cc: d.cc ? d.cc.split(/[,;]/).map((x) => x.trim()).filter(Boolean) : undefined,
+                      subject: d.subject, body: d.body, inReplyTo: d.inReplyTo, companyId: d.companyId, contactId: d.contactId,
+                      forward: d.forward && d.forward.names.length ? d.forward : undefined, forwardOf: d.forward?.mailId,
+                    })}>
+                      <span className="block truncate text-sm font-medium text-slate-800">{d.subject.trim() || '(no subject)'}</span>
+                      <span className="block truncate text-xs text-slate-500">
+                        {d.title}{d.to ? ` · to ${d.to}` : ''} · {new Date(d.savedAt).toLocaleString('en-ZA', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </button>
+                    <button type="button" onClick={() => { dropDraft(d.key); refreshDrafts() }} className="text-xs text-slate-500 hover:text-red-600">Discard</button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
 
         {filter !== 'blocked' && !paneShowing && <div className="border-b border-slate-100">{searchBar}</div>}
 
@@ -523,11 +569,21 @@ export function MailPage() {
           companyId={draft.companyId ?? null}
           contactId={draft.contactId ?? null}
           forward={draft.forward}
-          onClose={() => setDraft(null)}
-          onSent={(leftOff) => {
-            setStatus(leftOff.length
-              ? `Sent, but without ${leftOff.join(', ')} (too big for one message, or no longer in the mailbox). Send those in a second email.`
-              : 'Sent. A copy is in your Sent folder.')
+          forwardOf={draft.forwardOf}
+          draftKey={draft.draftKey}
+          contextNote={draft.draftKey ? 'Carrying on with a draft kept in this browser. It goes out from your mailbox.' : undefined}
+          onClose={() => { setDraft(null); refreshDrafts() }}
+          onSent={(leftOff, filedInSent) => {
+            refreshDrafts()
+            const sent = draft.title === 'Forward' ? 'Forwarded' : 'Sent'
+            setStatus([
+              leftOff.length
+                ? `${sent}, but without ${leftOff.join(', ')} (too big for one message, or no longer in the mailbox). Send those in a second email.`
+                : `${sent}.`,
+              filedInSent
+                ? 'A copy is in your Sent folder.'
+                : 'But your mailbox would not take a copy for Sent Items, so it will not show there.',
+            ].join(' '))
             void unreadMail.sync()
           }}
         />

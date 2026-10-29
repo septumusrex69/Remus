@@ -179,7 +179,20 @@ export function StatusBadge({ status }: { status: string }) {
 export function Modal({ open, onClose, title, children, footer, wide }: { open: boolean; onClose: () => void; title: ReactNode; children: ReactNode; footer?: ReactNode; wide?: boolean }) {
   useEffect(() => {
     if (!open) return
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+      /*
+       * BACKSPACE NEVER LEAVES A DIALOG (Raptor S15). Stephan, in Raptor: "if I highlight a specific area
+       * in the text and I press backspace, it takes me out of that email draft." With the selection in
+       * something that is not a box you type in, some browsers read Backspace as Back. Inside a field it
+       * still deletes.
+       */
+      if (e.key === 'Backspace') {
+        const t = e.target as HTMLElement | null
+        const typing = !!t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))
+        if (!typing) e.preventDefault()
+      }
+    }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [open, onClose])

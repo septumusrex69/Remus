@@ -2,7 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { requireCaller } from '../_lib/auth.js'
 import { credentialsKeyProblem } from '../_lib/crypto.js'
 import { fetchAttachments } from '../_lib/emailSync.js'
-import { adminClient, getConnection, logEmailActivity, sendFromOwnMailbox } from '../_lib/mailbox.js'
+import { adminClient, getConnection, logEmailActivity, sendFromOwnMailboxReporting, type SentCopy } from '../_lib/mailbox.js'
 
 /**
  * Emails a client from the caller's own mailbox, with their signature, and files it on the
@@ -84,8 +84,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const html = `<div style="font-family:Arial,Helvetica,sans-serif;color:#0f172a;line-height:1.5">${esc(text).replace(/\n/g, '<br>')}</div>`
   let messageId: string | null
+  let sentCopy: SentCopy | null
+  let sentHtml: string
   try {
-    messageId = await sendFromOwnMailbox(conn, me, { to: toList, cc, subject, html, text, attachments, inReplyTo: str(b.inReplyTo) })
+    ({ messageId, sentCopy, html: sentHtml } = await sendFromOwnMailboxReporting(conn, me, { to: toList, cc, subject, html, text, attachments, inReplyTo: str(b.inReplyTo) }))
   } catch (err) {
     return res.status(502).json({ error: `The email could not be sent: ${err instanceof Error ? err.message : String(err)}` })
   }
@@ -102,5 +104,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   }
   const activityId = await logEmailActivity(db, { userId: caller.user.id, companyId, contactId, subject, notes: text, messageId })
-  return res.status(200).json({ ok: true, messageId, activityId, leftOff })
+
+  /*
+   * ON THE SENDER'S SENT LIST NOW, NOT AT THE NEXT SYNC (Raptor S15). Stephan forwarded in Raptor, was
+   * told it went, refreshed, and it was not in Sent. Where the server said which folder and uid the copy
+   * went to, the row the sync would write is written here under the same key (user_id, message_id), so
+   * the sync later sees it already there. Without a uid nothing is written (the reading pane could not
+   * fetch it), and the screen is told the copy is not filed, so it can say so.
+   */
+  if (sentCopy?.uid && messageId) {
+    const now = new Date().toISOString()
+    const { error: rowErr } = await admin.from('user_emails').upsert({
+      user_id: caller.user.id, folder: sentCopy.folder, uid: sentCopy.uid, message_id: messageId,
+      from_address: conn.email, from_name: me.name?.trim() || null, subject,
+      snippet: text.replace(/\s+/g, ' ').trim().slice(0, 240) || null, attachment_names: attachments.map((a) => a.filename),
+      is_junk: false, is_sent: true,
+      to_address: to.toLowerCase(), to_name: null,
+      to_recipients: toList.map((a) => ({ address: a.toLowerCase(), name: null })), cc_recipients: cc.map((a) => ({ address: a.toLowerCase(), name: null })),
+      occurred_at: now, read_at: now,
+      body_text: text, body_html: sentHtml.length <= 500_000 ? sentHtml : null, body_cached_at: now,
+    }, { onConflict: 'user_id,message_id', ignoreDuplicates: true })
+    if (rowErr) console.error(`[email/send] sent copy not put on the Sent list: ${rowErr.message}`)
+  }
+  return res.status(200).json({ ok: true, messageId, activityId, leftOff, filedInSent: !!sentCopy })
 }

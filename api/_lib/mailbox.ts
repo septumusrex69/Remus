@@ -65,18 +65,24 @@ export function findFolder(mailboxes: ListResponse[], specialUse: string, common
   return byName?.path
 }
 
+/** Where a Sent copy was filed: the folder and, where the server says (UIDPLUS), its uid. */
+export type SentCopy = { folder: string; uid: number | null }
+
 /**
  * Files a copy of a sent message in the mailbox's Sent folder, so it shows in the person's own
  * mail client too. SMTP alone never does that: the server relays the message and keeps nothing.
+ * Says WHERE it went (Raptor S15), or null when the mailbox has no Sent folder.
  */
-export async function appendToSent(conn: MailboxConnection, rawMessage: Buffer): Promise<void> {
+export async function appendToSent(conn: MailboxConnection, rawMessage: Buffer): Promise<SentCopy | null> {
   const client = imapClient(conn, decrypt(conn.encrypted_password))
   await client.connect()
   try {
     const mailboxes = await client.list()
     const sentPath = findFolder(mailboxes, '\\Sent', ['sent', 'sent items', 'sent messages', 'inbox.sent', 'inbox/sent'])
-    if (!sentPath) return
-    await client.append(sentPath, rawMessage, ['\\Seen'])
+    if (!sentPath) return null
+    const r = await client.append(sentPath, rawMessage, ['\\Seen'])
+    const uid = r && typeof r === 'object' && typeof (r as { uid?: unknown }).uid === 'number' ? (r as { uid: number }).uid : null
+    return { folder: sentPath, uid }
   } finally {
     await client.logout().catch(() => {})
   }
@@ -112,6 +118,19 @@ export async function sendFromOwnMailbox(
     inReplyTo?: string | null
   },
 ): Promise<string | null> {
+  return (await sendFromOwnMailboxReporting(conn, me, msg)).messageId
+}
+
+/**
+ * The same send, also saying where the Sent copy was filed (Raptor S15). Stephan's forward in Raptor
+ * was reported sent and never reached Sent Items: a copy that was not filed looked exactly like one
+ * that was. `sentCopy` is null when it was not filed, and the reason is logged.
+ */
+export async function sendFromOwnMailboxReporting(
+  conn: MailboxConnection,
+  me: SenderProfile,
+  msg: Parameters<typeof sendFromOwnMailbox>[2],
+): Promise<{ messageId: string | null; sentCopy: SentCopy | null; html: string }> {
   const imageUrl = me?.email_signature_image_url ?? null
   const image = imageUrl ? { width: me?.email_signature_image_width ?? 160, align: me?.email_signature_image_align ?? 'left' } : null
   const embedded = imageUrl ? await fetchSignatureImage(imageUrl) : null
@@ -135,15 +154,18 @@ export async function sendFromOwnMailbox(
   const info = await smtpTransport(conn, decrypt(conn.encrypted_password)).sendMail(mail)
   const messageId = (info.messageId as string | undefined) ?? null
 
-  // Best effort: the message has already gone, so failing to file the copy is never a send error.
+  // Best effort: the message has already gone, so failing to file the copy is never a send error --
+  // but it is logged with its reason and returned, so the screen can say so (Raptor S15).
   // The copy carries the same Message-ID, so it is the same message in the person's mail app.
+  let sentCopy: SentCopy | null = null
   try {
     const raw = await new MailComposer({ ...mail, messageId: messageId ?? undefined }).compile().build()
-    await appendToSent(conn, raw)
+    sentCopy = await appendToSent(conn, raw)
+    if (!sentCopy) console.error(`[mailbox] ${conn.email}: no Sent folder found, so no Sent copy was filed`)
   } catch (e) {
-    console.error('Email sent, but not filed in Sent', e)
+    console.error(`[mailbox] ${conn.email}: email sent, but not filed in Sent: ${e instanceof Error ? e.message : String(e)}`)
   }
-  return messageId
+  return { messageId, sentCopy, html: mail.html }
 }
 
 /** Room for a long business email, while refusing to store a runaway newsletter or quoted chain. */

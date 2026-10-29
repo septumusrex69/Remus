@@ -9,8 +9,27 @@ write Handover 7 at the top of this file before you finish (CLAUDE.md, "Say whic
 Handoff 5" ("Call it 5"), so 2–4 were skipped. Numbering carries on from 5; there is no lost work.
 
 **Remus · Handover 6 session (29 Oct), in progress:** working branch `claude/new-session-umpip5`, fast-forwarded to
-`claude/bold-mayer-yncf1w` (87eac8f), so it carries everything waiting on the preview below. Raptor checked (see
-"Raptor last checked"); waiting for Stephan's pick.
+`claude/bold-mayer-yncf1w` (87eac8f), so it carries everything waiting on the preview below (items 10-12).
+Preview: https://remus-git-claude-new-session-umpip5-team-raptor.vercel.app
+
+13. **Raptor S15's email changes, copied (Stephan: "you can make the same updates that was made on Raptor"),
+    preview only:**
+    - **Drafts:** every compose box (Mail page and client Emails card) keeps what is typed in this browser
+      (`src/lib/mailDrafts.ts`, +test; key `remus.mail.drafts`), offers it back ("Carry on with it / Discard it")
+      when the same reply/forward/new email opens again, and the Mail page has a **Drafts** tab listing them.
+      Sending removes it. A draft keeps its client (files on the Emails card) and a forward's kept files.
+    - **Backspace never leaves a dialog** (`Modal` in `components/ui/index.tsx`): outside a box you type in it does
+      nothing; inside one it deletes.
+    - **The Sent copy is said:** `sendFromOwnMailboxReporting` (mailbox.ts) returns where the copy was filed;
+      `api/email/send` puts the message on the sender's Sent list at once (same key as the sync, so no
+      double) and answers `filedInSent`; the screen says "Sent." / "Forwarded." and, when the mailbox refused the
+      copy, says it will not show in Sent Items. Quotes and the portal still use plain `sendFromOwnMailbox`.
+    - **Forward opens at once with an editable original: already so in Remus.** Remus quotes the original as
+      text into the message box (the reading pane has already loaded it), so nothing was fetched first and it
+      could always be edited. Raptor's separate editable HTML box was NOT copied: Remus's send takes plain text.
+    - Checked in Playwright with fixtures (forward, type, Backspace on the heading keeps the box, Cancel, Drafts
+      lists it, carry on, send: "Forwarded. But your mailbox would not take a copy...", draft gone). The real
+      send and Sent list can only be tried live (service key is Production only).
 
 ## Start here: where things stand (29 Oct 2026, end of Remus · Handover 5)
 
@@ -598,7 +617,7 @@ what Raptor gained since the last one:
 `claude/beautiful-curie-f7deq7` (7a13c74, S16) and `claude/s13-reino-campaigns` (48579a1, Ryno's PR #2, not merged).
 New since 524f0c6: **email** (b8f4023: a forward opens at once with the original in an editable box; Backspace
 never leaves a dialog; every compose box keeps a draft and Mail gets a Drafts list; a Sent copy that did not file
-is said) -- offered to Stephan, not built yet. Not for Remus: clients hand accounts over from the portal
+is said) -- copied in Remus · Handover 6 (item 13 at the top). Not for Remus: clients hand accounts over from the portal
 (`portal_handovers`), Ryno's newsletter campaigns (sender addresses, Outlook-style campaign editor, batches, the
 Sent sheet) -- newsletter-only, though its Outlook-style editor and per-address signatures could be borrowed later.
 
