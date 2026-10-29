@@ -1,9 +1,9 @@
-# Remus · Handoff 6 (written 28 Oct 2026 by the Remus · Handoff 5 session)
+# Remus · Handover 6 (written 28–29 Oct 2026 by the Remus · Handover 5 session)
 
 For the next Claude Code session on `septumusrex69/Remus`. Read `CLAUDE.md` (the standing rules),
 then this file, then do the Raptor check below **before** waiting for Stephan's instructions.
-**You are the Remus · Handoff 6 session**: say so on every reply and commit (`Remus H6: ...`), and
-write Handoff 7 at the top of this file before you finish (CLAUDE.md, "Say which project").
+**You are the Remus · Handover 6 session**: say so on every reply and commit (`Remus H6: ...`), and
+write Handover 7 at the top of this file before you finish (CLAUDE.md, "Say which project").
 
 **About the numbers:** the previous file said Handoff 2, but Stephan called that session "Remus ·
 Handoff 5" ("Call it 5"), so 2–4 were skipped. Numbering carries on from 5; there is no lost work.
@@ -561,7 +561,13 @@ what Raptor gained since the last one:
 4. Tick off the Raptor checklist in `CLAUDE.md` as features land, and update the "Raptor last
    checked" line below.
 
-**Raptor last checked:** 28 Oct 2026 09:10 (Remus · Handoff 5) — `claude/sales-raptor-review-p1pzx2` at ba34728
+**Raptor last checked:** 29 Oct 2026 06:10 (Remus · Handover 5) — `claude/sales-raptor-review-p1pzx2` at 524f0c6
+(Raptor S15). Copied: "handover" not "handoff" (CLAUDE.md); a reworded request tells its sender (0029) and the
+correction can be dictated. Offered to Stephan, not built: "Big Boss" (only Stephan approves what gets built);
+portal phase 2a (client questions, tickets, callbacks; the portal with its own sidebar); two photo skins (Africa,
+Forest -- Raptor's photos). Not for Remus: settlement and paid-up letters, account closing, ticket referral.
+
+Before that: 28 Oct 2026 09:10 (Remus · Handoff 5) — `claude/sales-raptor-review-p1pzx2` at ba34728
 (Raptor · Handoff 14, S14). Copied: the bell grouped with real times; requests shelves; correcting a request;
 the Requests count; the builder's step 0; forward keeps attachments (R-8); search everything; the client
 portal phase 1. Asked, not copied: Administrators with/without finance. Not for Remus: written-off fees,

@@ -4,14 +4,17 @@ Remus is the management app for **Urban Haus Construction** (Urban Haus Group): 
 projects, job costing, slips, bank, diary, finance, client email. Then read `HANDOVER.md` for where
 the work stands today, and update it before you finish.
 
-## Say which project and which handoff, on everything
+## Say which project and which handover, on everything
 
 Stephan runs two projects (Raptor and Remus) and asked, 26 Oct 2026: *"for every little thing, just make
 sure that ... Remus or Raptor is mentioned clearly, and then the handoff number. Remus handoff 5 or ...
 Raptor handoff 6."* So every reply, commit subject (`Remus H1: ...`), branch note and handover section
-carries **"Remus · Handoff N"**, where N is the handoff the session started from. Numbering began at
+carries **"Remus · Handover N"**, where N is the handover the session started from. Numbering began at
 Handoff 1 on 26 Oct 2026; the number at the top of `HANDOVER.md` is the one you start from, and you
 write the next one.
+
+**"Handover", not "handoff"** (Stephan, 28 Oct, on Raptor; Remus follows from Handover 5 on). Older
+sections say "Handoff" and stay as written. Commit subjects keep the short `Remus H6: ...`.
 
 ## Spelling: it is Urban **Haus** (H-A-U-S), never "House"
 
