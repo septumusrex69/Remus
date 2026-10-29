@@ -8,7 +8,7 @@ write Handover 7 at the top of this file before you finish (CLAUDE.md, "Say whic
 **About the numbers:** the previous file said Handoff 2, but Stephan called that session "Remus ·
 Handoff 5" ("Call it 5"), so 2–4 were skipped. Numbering carries on from 5; there is no lost work.
 
-## Start here: where things stand (28 Oct 2026, end of Remus · Handoff 5)
+## Start here: where things stand (29 Oct 2026, end of Remus · Handover 5)
 
 **Working branch: `claude/bold-mayer-yncf1w`** (started from `claude/price-crawler`, which is all on `main`).
 Preview: https://remus-git-claude-bold-mayer-yncf1w-team-raptor.vercel.app · Live: https://remus-xi.vercel.app
@@ -41,6 +41,25 @@ Next go-live: fast-forward `main` to the working branch (check main has nothing 
 
 9. **Who sees the money** (Stephan answered instead of Raptor's two Administrators, see the section below):
    Administrator / Contractor / Site manager / Read only, and the **budget warning**. Migration 0027 applied live.
+   Plus the **budget bar** on every job. (9 and the bar are live too, at 1d736ad.)
+
+**ON THE PREVIEW ONLY, waiting for Stephan's "go live"** (`git log origin/main..claude/bold-mayer-yncf1w`; the
+database parts, 0028-0030, are already applied live and are additive):
+10. **Snap slip:** contractors and Administrators; a site manager only when ticked "May snap slips" (0028).
+    NOTE: live still shows Snap slip to site managers while the database already refuses them -- going live
+    fixes it. Only Stephan's test login (stephan@bredellferreira.co.za, a site manager) is affected.
+11. **A reworded request tells its sender**, and the correction can be dictated (0029, from Raptor S15).
+12. **Site diary photos** from the phone camera, and the **Schedule as a day-by-day list on a phone** (0030).
+    Photo upload not yet tried with a real phone.
+
+**Stephan is doing (29 Oct), given step-by-step instructions:** Supabase → Authentication → URL Configuration
+(Site URL `https://remus-xi.vercel.app`, redirect `https://remus-xi.vercel.app/set-password`); Sign In /
+Providers → "Allow new users to sign up" off; optional leaked-password protection. Then testing the client
+portal (invite his own Gmail on a test client, sign in at /portal on his phone) and Forward with attachments.
+Ask how it went; until the URL is set, invite and password-reset links fail.
+
+**Asked, not answered:** copy Raptor's "Big Boss" (only Stephan approves what Claude builds, even over other
+Administrators)? Also still open from before, below.
 
 **Asked of Stephan, not answered yet:**
 - His crew message cut off at "Should also be able to, ..." -- ask what he meant.
@@ -50,7 +69,10 @@ Next go-live: fast-forward `main` to the working branch (check main has nothing 
 - The "Waiting on Stephan" list further down (Supabase auth URLs, Resend DNS, P-0005, Duplicate quote).
 
 **Paused:** WhatsApp a quote (decided: share the PDF file itself, option 3).
-**Next on the list (suggested, not started):** client portal phase 2 (below); learning from finished jobs.
+**Next on the list (suggested to Stephan 29 Oct):** client portal phase 2 -- site photos the client may see
+(`site_diary_photos.show_client` is ready), progress notes, quote/invoice PDFs, accept a quote; a budget alert
+in the bell and by email at 90%; clearing the demo data before real use; the contractor money lock at
+database level; learning from finished jobs; later, multi-company.
 
 **How screens are checked:** no e2e suite in Remus. A throwaway Playwright harness (`vite` with
 `VITE_SUPABASE_URL=https://fake.supabase.co`, fake session in localStorage `sb-fake-auth-token`, requests
