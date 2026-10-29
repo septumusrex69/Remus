@@ -8,6 +8,10 @@ write Handover 7 at the top of this file before you finish (CLAUDE.md, "Say whic
 **About the numbers:** the previous file said Handoff 2, but Stephan called that session "Remus ·
 Handoff 5" ("Call it 5"), so 2–4 were skipped. Numbering carries on from 5; there is no lost work.
 
+**Remus · Handover 6 session (29 Oct), in progress:** working branch `claude/new-session-umpip5`, fast-forwarded to
+`claude/bold-mayer-yncf1w` (87eac8f), so it carries everything waiting on the preview below. Raptor checked (see
+"Raptor last checked"); waiting for Stephan's pick.
+
 ## Start here: where things stand (29 Oct 2026, end of Remus · Handover 5)
 
 **Working branch: `claude/bold-mayer-yncf1w`** (started from `claude/price-crawler`, which is all on `main`).
@@ -590,7 +594,15 @@ what Raptor gained since the last one:
 4. Tick off the Raptor checklist in `CLAUDE.md` as features land, and update the "Raptor last
    checked" line below.
 
-**Raptor last checked:** 29 Oct 2026 06:10 (Remus · Handover 5) — `claude/sales-raptor-review-p1pzx2` at 524f0c6
+**Raptor last checked:** 29 Oct 2026 (Remus · Handover 6) — `claude/sales-raptor-review-p1pzx2` at 04947bf, plus
+`claude/beautiful-curie-f7deq7` (7a13c74, S16) and `claude/s13-reino-campaigns` (48579a1, Ryno's PR #2, not merged).
+New since 524f0c6: **email** (b8f4023: a forward opens at once with the original in an editable box; Backspace
+never leaves a dialog; every compose box keeps a draft and Mail gets a Drafts list; a Sent copy that did not file
+is said) -- offered to Stephan, not built yet. Not for Remus: clients hand accounts over from the portal
+(`portal_handovers`), Ryno's newsletter campaigns (sender addresses, Outlook-style campaign editor, batches, the
+Sent sheet) -- newsletter-only, though its Outlook-style editor and per-address signatures could be borrowed later.
+
+Before that: 29 Oct 2026 06:10 (Remus · Handover 5) — `claude/sales-raptor-review-p1pzx2` at 524f0c6
 (Raptor S15). Copied: "handover" not "handoff" (CLAUDE.md); a reworded request tells its sender (0029) and the
 correction can be dictated. Offered to Stephan, not built: "Big Boss" (only Stephan approves what gets built);
 portal phase 2a (client questions, tickets, callbacks; the portal with its own sidebar); two photo skins (Africa,
