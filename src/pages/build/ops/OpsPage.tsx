@@ -40,7 +40,7 @@ async function load() {
 }
 
 // Platinum's signals, lifted for a dark board: Steel on track, Brass getting close, Ember over.
-const COLOUR: Record<BudgetColour, string> = { green: '#8fa6b5', yellow: '#c9a35c', red: '#c8553f', grey: '#5f636b' }
+const COLOUR: Record<BudgetColour, string> = { green: '#9eaab4', yellow: '#b89a62', red: '#b65a48', grey: '#5f636b' }
 const running = (p: Project) => p.status === 'active' || p.status === 'on_hold'
 
 /* ---------- Where each site is: looked up once, kept in this browser ---------- */
@@ -230,7 +230,7 @@ function JobCard({ p, score, progress, colour, stages, crew, budget, onClose }: 
       </div>
 
       {warn && budget && (
-        <p className="mt-3 flex items-center gap-2 rounded-xl px-3 py-2 text-xs" style={{ background: colour === 'red' ? 'rgba(200,85,63,0.14)' : 'rgba(201,163,92,0.14)', color: colour === 'red' ? 'var(--ops-bad)' : 'var(--ops-warn)' }}>
+        <p className="mt-3 flex items-center gap-2 rounded-xl px-3 py-2 text-xs" style={{ background: colour === 'red' ? 'rgba(182,90,72,0.14)' : 'rgba(184,154,98,0.14)', color: colour === 'red' ? 'var(--ops-bad)' : 'var(--ops-warn)' }}>
           <AlertTriangle size={14} /> {warn}: {score.costPct}% of the quoted cost used.
         </p>
       )}
@@ -245,9 +245,9 @@ function JobCard({ p, score, progress, colour, stages, crew, budget, onClose }: 
 /** A ring: thick arc for done, fine ticks for the rest (the progress dial, in the board's colours). */
 export function Ring({ value, size, colour, label }: { value: number | null; size: number; colour: string; label?: string }) {
   const v = value == null ? 0 : Math.max(0, Math.min(100, value))
-  const r = 40
-  const len = 2 * Math.PI * r
   const small = size < 80
+  const r = small ? 42 : 40
+  const len = 2 * Math.PI * r
   return (
     <span className="relative inline-flex shrink-0 items-center justify-center" style={{ width: size, height: size }}>
       <svg viewBox="0 0 100 100" className="absolute inset-0 -rotate-90">
@@ -256,10 +256,12 @@ export function Ring({ value, size, colour, label }: { value: number | null; siz
           const a = (i / 48) * 2 * Math.PI
           return <line key={i} x1={50 + Math.cos(a) * 36} y1={50 + Math.sin(a) * 36} x2={50 + Math.cos(a) * 44} y2={50 + Math.sin(a) * 44} stroke="#3b3e44" strokeWidth={small ? 2.2 : 1.4} strokeLinecap="round" />
         })}
-        {v > 0 && <circle cx={50} cy={50} r={r} fill="none" stroke={colour} strokeWidth={small ? 11 : 8} strokeLinecap="round" strokeDasharray={`${(v / 100) * len} ${len}`} style={{ filter: 'drop-shadow(0 0 4px rgba(230,232,235,0.45))' }} />}
+        {v > 0 && <circle cx={50} cy={50} r={r} fill="none" stroke={colour} strokeWidth={small ? 8 : 8} strokeLinecap="round" strokeDasharray={`${(v / 100) * len} ${len}`} style={{ filter: 'drop-shadow(0 0 4px rgba(230,232,235,0.45))' }} />}
       </svg>
       <span className="relative text-center leading-none">
-        <span className={small ? 'text-[11px] font-semibold' : 'text-2xl font-semibold tracking-tight'}>{value == null ? '—' : `${v}%`}</span>
+        <span className="font-semibold tracking-tight" style={{ fontSize: Math.round(size * (small ? 0.24 : 0.21)) }}>
+          {value == null ? '—' : <>{v}<span style={{ fontSize: '0.62em', marginLeft: '0.04em' }}>%</span></>}
+        </span>
         {label && !small && <span className="mt-1 block text-[10px] ops-dim">{label}</span>}
       </span>
     </span>
@@ -394,7 +396,7 @@ function Capacity({ running, capacity }: { running: number; capacity: number }) 
           const a = Math.PI + (i / 40) * Math.PI
           const lit = (i / 40) * 100 <= v
           return <line key={i} x1={100 + Math.cos(a) * 72} y1={100 + Math.sin(a) * 72} x2={100 + Math.cos(a) * 90} y2={100 + Math.sin(a) * 90}
-            stroke={lit ? (pct > 100 ? '#c8553f' : '#e6e8eb') : '#2a2c31'} strokeWidth={2.4} strokeLinecap="round" />
+            stroke={lit ? (pct > 100 ? '#b65a48' : '#e6e8eb') : '#2a2c31'} strokeWidth={2.4} strokeLinecap="round" />
         })}
       </svg>
       <p className="-mt-12 text-3xl font-semibold tracking-tight">{pct}%</p>

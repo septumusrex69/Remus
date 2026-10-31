@@ -120,12 +120,12 @@ export function BrandBoardPage() {
         <p className="text-sm text-[#8b9098]">Black glass and silver light, as on the Operations page. The signals are lifted to read on dark, and nothing glows in colour: no neon.</p>
         <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <div className="ops-panel flex flex-col items-center p-3"><p className="ops-label self-start">Progress ring</p><Ring value={68} size={110} colour="#e6e8eb" label="by the plan" /></div>
-          <div className="ops-panel flex flex-col items-center p-3"><p className="ops-label self-start">Budget gauge · Steel</p><Gauge value={52} colour="#8fa6b5" /></div>
-          <div className="ops-panel flex flex-col items-center p-3"><p className="ops-label self-start">Budget gauge · Brass</p><Gauge value={84} colour="#c9a35c" /></div>
-          <div className="ops-panel flex flex-col items-center p-3"><p className="ops-label self-start">Budget gauge · Ember</p><Gauge value={104} colour="#c8553f" /></div>
+          <div className="ops-panel flex flex-col items-center p-3"><p className="ops-label self-start">Budget gauge · Steel</p><Gauge value={52} colour="#9eaab4" /></div>
+          <div className="ops-panel flex flex-col items-center p-3"><p className="ops-label self-start">Budget gauge · Brass</p><Gauge value={84} colour="#b89a62" /></div>
+          <div className="ops-panel flex flex-col items-center p-3"><p className="ops-label self-start">Budget gauge · Ember</p><Gauge value={104} colour="#b65a48" /></div>
         </div>
         <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-6">
-          {[['Black glass', '#121315'], ['Panel line', '#2a2c31'], ['Silver light', '#e6e8eb'], ['Steel, lifted', '#8fa6b5'], ['Brass, lifted', '#c9a35c'], ['Ember, lifted', '#c8553f']].map(([n, h]) => (
+          {[['Black glass', '#121315'], ['Panel line', '#2a2c31'], ['Silver light', '#e6e8eb'], ['Steel, lifted', '#9eaab4'], ['Brass, lifted', '#b89a62'], ['Ember, lifted', '#b65a48']].map(([n, h]) => (
             <div key={n} className="ops-panel overflow-hidden"><div className="h-10" style={{ background: h }} /><p className="px-2.5 pt-1.5 text-[11px] text-[#eff1f3]">{n}</p><p className="px-2.5 pb-2 font-mono text-[11px] text-[#8b9098]">{h}</p></div>
           ))}
         </div>

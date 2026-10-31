@@ -30,6 +30,13 @@ Brass / Ember lifted for dark, square with faint silver ticks, photo band and si
 Settings -> Appearance. Also on the preview only: the openings session's softer Pour sound as the sign-in default
 (merged 81dd50d). Not on main yet.
 
+**Then (preview only):** Platinum Night became GLASS (Stephan: "it should be glass ... dark architectural drawings in
+the back ... maybe even the hero picture"): `public/brand/night-plan.svg` (a ground-floor plan, elevation, dimensions,
+in silver) fixed behind the page; cards, frame, top bar and the Operations board are frosted glass (backdrop-filter)
+over it; the dashboard band is the same plan, larger. Signals calmed everywhere dark (Steel #9eaab4, Brass #b89a62,
+Ember #b65a48). Ring figures sized to the ring's hole, % smaller (ProgressDial + ops Ring): "91% ... over the line".
+Also merged from the openings session: the autofill-yellow fix (src/index.css).
+
 **Watch:** Snap slip's "Tell Claude" and the split slip have not been tried with a real slip; the Operations map's
 tiles (CARTO) and the Unsplash photos could not be loaded from the build container (its network refuses them), so
 they were checked by layout only -- ask Stephan what he sees.

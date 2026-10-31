@@ -21,9 +21,9 @@ export function ProgressDial({ value, label, size = 140, className, toneClass = 
 }) {
   const v = value == null ? 0 : Math.max(0, Math.min(100, value))
   const c = 50
-  const r = 40
-  const len = 2 * Math.PI * r
   const small = size < 90
+  const r = small ? 42 : 40
+  const len = 2 * Math.PI * r
   return (
     <div className={clsx('relative inline-flex shrink-0 items-center justify-center', className)} style={{ width: size, height: size }}
       role="img" aria-label={value == null ? 'No progress figure yet' : `${v}% ${label ?? 'done'}`} data-testid="progress-dial">
@@ -38,13 +38,15 @@ export function ProgressDial({ value, label, size = 140, className, toneClass = 
         })}
         {/* What is done: one thick arc from twelve o'clock. */}
         {value != null && v > 0 && (
-          <circle cx={c} cy={c} r={r} fill="none" className={clsx('stroke-current', toneClass)} strokeWidth={small ? 10 : 8.5}
+          <circle cx={c} cy={c} r={r} fill="none" className={clsx('stroke-current', toneClass)} strokeWidth={small ? 8 : 8.5}
             strokeLinecap="round" strokeDasharray={`${(v / 100) * len} ${len}`} />
         )}
       </svg>
+      {/* Sized to the ring's hole (Stephan: "91% ... over the line of the block ... looks pretty shitty"): the figure
+          is a share of the dial's width, the % sign smaller, so it never reaches the arc. */}
       <span className="relative text-center leading-none">
-        <span className={clsx('tabular block font-semibold tracking-tight text-slate-900', small ? 'text-sm' : 'text-3xl')}>
-          {value == null ? '—' : `${v}%`}
+        <span className="tabular block font-semibold tracking-tight text-slate-900" style={{ fontSize: Math.round(size * (small ? 0.24 : 0.21)) }}>
+          {value == null ? '—' : <>{v}<span style={{ fontSize: '0.62em', marginLeft: '0.04em' }}>%</span></>}
         </span>
         {label && !small && <span className="mt-1 block text-[11px] text-slate-500">{label}</span>}
       </span>

@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000">
+  <!-- Remus · Handover 6: a dark architectural drawing for Platinum Night ("dark architectural drawings in the back ... of plans and stuff"). Silver lines on nothing; the page colour shows through. -->
+  <defs>
+    <pattern id="g" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M20 0H0V20" fill="none" stroke="#c4c8cf" stroke-opacity=".035"/></pattern>
+    <pattern id="G" width="100" height="100" patternUnits="userSpaceOnUse"><path d="M100 0H0V100" fill="none" stroke="#c4c8cf" stroke-opacity=".06"/></pattern>
+    <pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><path d="M0 0V6" stroke="#c4c8cf" stroke-opacity=".18"/></pattern>
+  </defs>
+  <rect width="1600" height="1000" fill="url(#g)"/>
+  <rect width="1600" height="1000" fill="url(#G)"/>
+  <g fill="none" stroke="#c4c8cf" stroke-linecap="square">
+    <!-- the house: outer walls, double line with hatch between -->
+    <path d="M300 220H1180V760H300Z" stroke-opacity=".5" stroke-width="2"/>
+    <path d="M314 234H1166V746H314Z" stroke-opacity=".35"/>
+    <path d="M300 220H1180V760H300ZM314 234V746H1166V234Z" fill="url(#hatch)" fill-rule="evenodd" stroke="none"/>
+    <!-- inner walls -->
+    <path d="M640 234V520M640 600V746M314 520H560M640 520H900M980 520H1166M900 234V420M900 470V520M1000 520V746" stroke-opacity=".38" stroke-width="2"/>
+    <!-- door swings -->
+    <path d="M560 520A80 80 0 0 1 640 600M560 520H640V600" stroke-opacity=".28"/>
+    <path d="M900 420A50 50 0 0 1 950 470M900 420V470H950" stroke-opacity=".28"/>
+    <path d="M900 520A80 80 0 0 0 980 600M900 520V600H980" stroke-opacity=".28" transform="translate(0 0)"/>
+    <path d="M700 760A70 70 0 0 0 770 690M700 760V690H770" stroke-opacity=".28"/>
+    <!-- windows -->
+    <path d="M400 214V240M480 214V240M400 220H480M400 227H480M400 234H480" stroke-opacity=".4"/>
+    <path d="M720 214V240M860 214V240M720 220H860M720 227H860M720 234H860" stroke-opacity=".4"/>
+    <path d="M1000 214V240M1100 214V240M1000 220H1100M1000 227H1100M1000 234H1100" stroke-opacity=".4"/>
+    <path d="M1174 600V700M1186 600V700M1180 600V700" stroke-opacity=".4"/>
+    <path d="M294 300V420M306 300V420M300 300V420" stroke-opacity=".4"/>
+    <!-- kitchen counter and island, bath fittings -->
+    <path d="M660 250H880V280H660ZM700 360H840V410H700Z" stroke-opacity=".25"/>
+    <path d="M1020 650H1150V730H1020ZM1030 545H1080V600H1030Z" stroke-opacity=".25"/>
+    <circle cx="1120" cy="580" r="18" stroke-opacity=".25"/>
+    <!-- stair -->
+    <path d="M330 540H540V730H330ZM330 560H540M330 580H540M330 600H540M330 620H540M330 640H540M330 660H540M330 680H540M330 700H540M435 560V715L425 700M435 715L445 700" stroke-opacity=".22"/>
+    <!-- dimension lines -->
+    <path d="M300 160H1180M300 150V170M640 150V170M900 150V170M1180 150V170" stroke-opacity=".35"/>
+    <path d="M292 152L308 168M632 152L648 168M892 152L908 168M1172 152L1188 168" stroke-opacity=".5"/>
+    <path d="M240 220V760M230 220H250M230 520H250M230 760H250M232 212L248 228M232 512L248 528M232 752L248 768" stroke-opacity=".35"/>
+    <path d="M1240 220V760M1230 220H1250M1230 760H1250" stroke-opacity=".25" stroke-dasharray="6 6"/>
+    <!-- section mark and north arrow -->
+    <circle cx="1380" cy="330" r="34" stroke-opacity=".35"/>
+    <path d="M1346 330H1414M1380 296V364" stroke-opacity=".2"/>
+    <path d="M1380 270L1392 300H1368Z" stroke-opacity=".5"/>
+    <circle cx="1380" cy="640" r="26" stroke-opacity=".35"/>
+    <path d="M1354 640H1406" stroke-opacity=".35"/>
+    <!-- elevation, lower right -->
+    <path d="M1280 900H1560M1300 900V800L1420 730L1540 800V900M1330 900V840H1370V900M1450 820H1510V860H1450Z" stroke-opacity=".22"/>
+    <!-- a column grid with bubbles -->
+    <path d="M300 100V120M640 100V120M900 100V120M1180 100V120" stroke-opacity=".2"/>
+    <circle cx="300" cy="86" r="14" stroke-opacity=".3"/><circle cx="640" cy="86" r="14" stroke-opacity=".3"/>
+    <circle cx="900" cy="86" r="14" stroke-opacity=".3"/><circle cx="1180" cy="86" r="14" stroke-opacity=".3"/>
+  </g>
+  <g fill="#c4c8cf" fill-opacity=".38" font-family="Inter, Arial, sans-serif" font-size="13" letter-spacing="3">
+    <text x="420" y="390">LOUNGE</text><text x="720" y="470">KITCHEN</text><text x="980" y="380">BED 1</text>
+    <text x="700" y="660">DINING</text><text x="1040" y="630" font-size="11">BATH</text>
+    <text x="440" y="150" font-size="11">4 200</text><text x="740" y="150" font-size="11">3 100</text><text x="1010" y="150" font-size="11">3 400</text>
+    <text x="294" y="91" font-size="11">A</text><text x="634" y="91" font-size="11">B</text><text x="894" y="91" font-size="11">C</text><text x="1174" y="91" font-size="11">D</text>
+    <text x="1300" y="960" font-size="11">NORTH ELEVATION · 1:100</text>
+    <text x="300" y="830" font-size="11">GROUND FLOOR PLAN · 1:100 · REMUS</text>
+  </g>
+</svg>

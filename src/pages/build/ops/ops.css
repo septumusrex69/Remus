@@ -12,9 +12,9 @@
   --ops-dim: #8b9098;
   --ops-faint: #3b3e44;
   --ops-accent: #e6e8eb;
-  --ops-good: #8fa6b5;
-  --ops-warn: #c9a35c;
-  --ops-bad: #c8553f;
+  --ops-good: #9eaab4;
+  --ops-warn: #b89a62;
+  --ops-bad: #b65a48;
   color: var(--ops-text);
   background:
     radial-gradient(900px 420px at 80% -8%, rgba(230, 232, 235, 0.08), transparent 60%),
