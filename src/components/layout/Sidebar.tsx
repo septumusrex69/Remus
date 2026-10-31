@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, NavLink } from 'react-router-dom'
 import { clsx } from 'clsx'
 import {
-  Banknote, CalendarDays, Radar, CalendarRange, Camera, ChevronDown, FileText, FolderKanban, HardHat, Inbox, LayoutDashboard, LineChart, LogOut,
+  Banknote, CalendarDays, Radar, Package, CalendarRange, Camera, ChevronDown, FileText, FolderKanban, HardHat, Inbox, LayoutDashboard, LineChart, LogOut,
   Lightbulb, PanelLeftClose, PanelLeftOpen, Receipt, Settings, Users, UsersRound, type LucideIcon, ClipboardCheck,
 } from 'lucide-react'
 import { useAuth } from '../../store/AuthContext'
@@ -30,6 +30,8 @@ const NAV: { to: string; label: string; icon: LucideIcon; end?: boolean; badge?:
   // Second, under Dashboard, as in Raptor: client mail is the first thing to check.
   { to: paths.mail(), label: 'Mail', icon: Inbox, badge: 'mail' },
   { to: paths.quotes(), label: 'Quotes', icon: FileText, when: seesQuotes },
+  // Remus · Handover 6: the products book.
+  { to: paths.products(), label: 'Products', icon: Package },
   { to: paths.projects(), label: 'Projects', icon: FolderKanban },
   { to: paths.clients(), label: 'Clients', icon: Users },
   { to: paths.schedule(), label: 'Schedule', icon: CalendarRange },

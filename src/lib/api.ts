@@ -4,6 +4,7 @@
  *
  * Functions throw on error (with the PostgREST message); pages catch and show it.
  */
+import type { Product, ProductUse } from './products'
 import { supabase, BRANDING_BUCKET, QUOTE_FILES_BUCKET, RECEIPTS_BUCKET } from './supabase'
 import { quoteTotals } from './quoteMath'
 import { formatZAR } from './format'
@@ -1191,6 +1192,12 @@ export async function findNearby(areas: { label: string; address: string; radius
 // ---------- My stores: the branches Urban Haus shops at (Remus · Handoff 1, 0023) ----------
 
 export const myStores = crud<MyStore>('my_stores', ['lat', 'lon'], 'name', true)
+
+// ---------- The products book (Remus · Handover 6, 0034) ----------
+
+export const productsApi = crud<Product>('products', ['last_price', 'rating'], 'name', true)
+export const productUses = crud<ProductUse>('product_uses', ['price'], 'used_on', false)
+
 
 /** An address to a point, through Remus's server (free OpenStreetMap, or Google once its key is set). */
 export async function placeAddress(address: string): Promise<{ lat: number; lon: number; found: string }> {

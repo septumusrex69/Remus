@@ -62,6 +62,9 @@ import { QuotePlanCard } from './QuotePlan'
 import { AcceptQuoteModal } from './AcceptQuoteModal'
 import { PdfMenu } from './PdfMenu'
 import { WhatsAppQuoteButton } from './WhatsAppQuoteButton'
+import { ProductAdvice } from '../products/ProductAdvice'
+import { productsApi } from '../../../lib/api'
+import { useLoad } from '../../../hooks/useLoad'
 import { quoteWhatsAppMessage } from '../../../lib/whatsapp'
 import { FindPricesModal } from './FindPricesModal'
 import { ShoppingListModal } from './ShoppingListModal'
@@ -158,6 +161,8 @@ export function QuoteEditor() {
   const [savedAt, setSavedAt] = useState<string | null>(null)
   /** Lines whose details box was opened by hand; a line that already has details always shows it. */
   const [detailsOpen, setDetailsOpen] = useState<Set<string>>(new Set())
+  /* The products book (Remus · Handover 6): what the team prefers or avoids, said under each material line. */
+  const { data: productBook } = useLoad(() => productsApi.list().catch(() => []), [], 'products-book')
   // Material lines whose "buy at" row was opened by hand (a line that has a store shows it anyway).
   const [buyOpen, setBuyOpen] = useState<Set<string>>(new Set())
   /** Each section's plan, by section name ('' = General). A section with none uses defaultStage. */
@@ -902,6 +907,9 @@ export function QuoteEditor() {
                             </button>
                           </div>
                         </div>
+                      )}
+                      {l.kind === 'material' && (
+                        <ProductAdvice className="col-span-2 @lg:col-span-full" text={[l.description, l.details, l.buy_product].filter(Boolean).join(' ')} book={productBook} />
                       )}
                     </div>
                     )

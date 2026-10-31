@@ -4,6 +4,9 @@ import { Button, Modal } from '../../../components/ui'
 import { formatZAR } from '../../../lib/format'
 import { effectiveAreas, findNearby, findPrices, PRICE_STORES, type NearbyBranch, type PriceEngine, type PriceHit, type PriceSearch, type PriceSource } from '../../../lib/api'
 import type { ShopArea } from '../../../types'
+import { ProductAdvice } from '../products/ProductAdvice'
+import { productsApi } from '../../../lib/api'
+import { useLoad } from '../../../hooks/useLoad'
 
 /**
  * FIND PRICES on a quote line (Remus · Handoff 1, 27 Oct 2026). Stephan: "I can't find it on the line
@@ -43,6 +46,8 @@ export function FindPricesModal({ open, onClose, initialQuery, onPick, areas = [
   onPick: (hit: PriceHit & { price: number }) => void
 }) {
   const [query, setQuery] = useState(initialQuery)
+  // The products book (Remus · Handover 6): before anyone shops, what the team prefers or avoids for this.
+  const { data: productBook } = useLoad(() => productsApi.list().catch(() => []), [], 'products-book')
   const [engine, setEngine] = useState<PriceEngine>('crawler')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -125,6 +130,7 @@ export function FindPricesModal({ open, onClose, initialQuery, onPick, areas = [
             {busy ? <Loader2 size={15} className="animate-spin" /> : <Search size={15} />} Search
           </Button>
         </form>
+        <ProductAdvice text={query} book={productBook} max={3} />
 
         <div>
           <p className="mb-1.5 text-xs font-semibold text-slate-600">How to search</p>

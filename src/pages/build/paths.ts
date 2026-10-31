@@ -36,5 +36,7 @@ export const paths = {
   brand: () => p('/brand'),
   /** The Operations board: every site on a dark map (Remus · Handover 6). */
   ops: () => p('/ops'),
+  /** The products book: what the team buys, prefers and avoids (Remus · Handover 6). */
+  products: () => p('/products'),
   settings: (tab?: string) => p(tab ? `/settings?tab=${encodeURIComponent(tab)}` : '/settings'),
 }

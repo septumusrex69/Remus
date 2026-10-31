@@ -5,6 +5,10 @@ import { NumInput } from '../../../components/ui/NumInput'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { ArrowLeft, Camera, CheckCircle2, FileText, Images, Loader2, Plus, RefreshCw, Sparkles, Split, X } from 'lucide-react'
 import { DictateButton } from '../../../components/ui/Dictate'
+import { ProductAdvice } from '../products/ProductAdvice'
+import { ProductForm } from '../products/ProductsPage'
+import { productsApi } from '../../../lib/api'
+import type { Product } from '../../../lib/products'
 import { expenses as expensesApi, extractReceipt, projects as projectsApi, uploadReceipt } from '../../../lib/api'
 import { RECEIPTS_BUCKET, supabase } from '../../../lib/supabase'
 import { formatZAR, labelize, round2, todayYmd } from '../../../lib/format'
@@ -106,6 +110,9 @@ export function SlipCapture() {
    * one place (the form below). Parts: one expense each, all on the same slip photo, VAT shared pro rata.
    */
   const [parts, setParts] = useState<Part[] | null>(null)
+  /* The products book (Remus · Handover 6): each item on the slip checked against it, and added to it with one tap. */
+  const { data: productBook, reload: reloadBook } = useLoad(() => productsApi.list().catch(() => [] as Product[]), [], 'products-book')
+  const [addingProduct, setAddingProduct] = useState<{ name: string; price: number | null } | null>(null)
   const setPart = (key: string, patch: Partial<Part>) => setParts((ps) => ps && ps.map((x) => (x.key === key ? { ...x, ...patch } : x)))
   const cameraRef = useRef<HTMLInputElement>(null)
   const filesRef = useRef<HTMLInputElement>(null)
@@ -459,6 +466,27 @@ export function SlipCapture() {
                 </>}
                 <label className="col-span-2 flex items-center gap-2 text-sm"><input type="checkbox" checked={form.paid} onChange={(e) => set('paid', e.target.checked)} /> Already paid</label>
               </div>
+              {/* WHAT WAS ON THE SLIP, against the products book: an Avoid is said in red, and any item can be added. */}
+              {current.extraction?.line_items?.length ? (
+                <div className="rounded-xl border border-slate-200 p-3" data-testid="slip-items">
+                  <p className="mb-1.5 text-xs font-semibold text-slate-600">On the slip</p>
+                  <ul className="space-y-2">
+                    {current.extraction.line_items.slice(0, 12).map((li, i) => (
+                      <li key={i}>
+                        <div className="flex items-center justify-between gap-2 text-sm">
+                          <span className="min-w-0 truncate text-slate-800">{li.quantity && li.quantity !== 1 ? `${li.quantity} × ` : ''}{li.description}</span>
+                          <span className="flex shrink-0 items-center gap-2">
+                            {li.amount != null && <span className="tabular text-slate-600">{formatZAR(li.amount)}</span>}
+                            <button type="button" onClick={() => setAddingProduct({ name: li.description, price: li.amount != null && li.quantity ? round2(li.amount / li.quantity) : li.amount })}
+                              className="text-xs font-medium text-brand-700 hover:underline" data-testid="slip-item-add">+ Products</button>
+                          </span>
+                        </div>
+                        <ProductAdvice className="mt-1" text={li.description} book={productBook} max={1} />
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
               {current.extraction?.card_last4 && (
                 <p className="text-xs text-slate-500">Paid by {current.extraction.payment_method ?? 'card'} ending {current.extraction.card_last4}</p>
               )}
@@ -472,6 +500,12 @@ export function SlipCapture() {
           )}
         </Card>
       </div>
+      {addingProduct && (
+        <ProductForm product={null} uses={[]} projects={projects ?? []} canWrite
+          categories={[...new Set((productBook ?? []).map((p) => p.category).filter((c): c is string => !!c))]}
+          preset={{ name: addingProduct.name, last_price: addingProduct.price, store: form.supplier || null, project_id: form.project_id }}
+          onClose={() => setAddingProduct(null)} onSaved={() => { setAddingProduct(null); reloadBook() }} />
+      )}
     </div>
   )
 }

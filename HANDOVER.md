@@ -52,6 +52,22 @@ city made "cooler": a faint city behind for depth, lit windows, mullions, a ring
 train, flying craft on dashed paths, beacon lights, a faint reflection (all in scripts/brand/night-city.py). Stephan
 asked how to test Snap slip with Claude: it is live; told him the steps.
 
+**Then (preview only):**
+- **Ten Night hero drawings** (Stephan: the busy city was worse than the first; "Give me like 10 options"):
+  `public/brand/heroes/hero-01..10.svg` (01 = the first city, `scripts/brand/hero-city-classic.py`; 02 = the busy
+  city, `night-city.py`; 03-10 `heroes.py`: tower going up with cranes, cable-stayed bridge, cantilevered house,
+  isometric tower, street in perspective, bolted steel detail, arena truss roof, site contours). Chosen on /photos
+  ("Platinum Night: the drawing in the dashboard band"), kept in `company_settings.brand_photos.hero`, put on the page
+  as `--skin-night-hero` by applyBrandPhotos; default hero-01. **Waiting on Stephan's pick.**
+- **The products book** (Stephan's paint stripper story; step 1 agreed, step 2 -- sharing with other builders --
+  waits for multi-company): 0034 (applied live: `products` with verdict preferred/ok/avoid, rating, use_for, note,
+  store, price, code, link, `share_ok` for later; `product_uses` per job/slip/quote line). `lib/products.ts` (+test:
+  plain-word matching, `adviceFor` -> avoid matches + preferred of the same kind). Page **/products** (menu, under
+  Quotes): shelves All/Preferred/Fine/Avoid, search, grouped by kind, form with verdict, stars, dictated note, used-on
+  history. `ProductAdvice` (red "Avoid: ... note", steel "We prefer: ... price at store") under every material line of
+  a quote, under Find prices' search box, and under each item Claude read off a slip (Snap slip), where "+ Products"
+  adds the item to the book with its price, store and job.
+
 **Watch:** Snap slip's "Tell Claude" and the split slip have not been tried with a real slip; the Operations map's
 tiles (CARTO) and the Unsplash photos could not be loaded from the build container (its network refuses them), so
 they were checked by layout only -- ask Stephan what he sees.
