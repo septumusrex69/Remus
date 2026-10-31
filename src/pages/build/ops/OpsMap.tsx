@@ -30,12 +30,12 @@ export default function OpsMap({ points, selected, onSelect }: { points: OpsPoin
       <Fit points={points} selected={selected} />
       {points.map((p) => (
         <CircleMarker key={`halo-${p.id}`} center={[p.lat, p.lon]} radius={p.id === selected ? 26 : 16} interactive={false}
-          pathOptions={{ stroke: false, fillColor: p.id === selected ? '#d4f24a' : p.colour, fillOpacity: p.id === selected ? 0.18 : 0.12 }} />
+          pathOptions={{ stroke: false, fillColor: p.id === selected ? '#e6e8eb' : p.colour, fillOpacity: p.id === selected ? 0.18 : 0.12 }} />
       ))}
       {points.map((p) => (
         <CircleMarker key={p.id} center={[p.lat, p.lon]} radius={p.id === selected ? 9 : 7}
           eventHandlers={{ click: () => onSelect(p.id) }}
-          pathOptions={{ color: p.id === selected ? '#d4f24a' : '#0b0c0e', weight: 3, fillColor: p.colour, fillOpacity: 1 }}>
+          pathOptions={{ color: p.id === selected ? '#e6e8eb' : '#0b0c0e', weight: 3, fillColor: p.colour, fillOpacity: 1 }}>
           <Tooltip direction="top" offset={[0, -8]}>{p.name}</Tooltip>
         </CircleMarker>
       ))}

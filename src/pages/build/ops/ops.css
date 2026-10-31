@@ -1,7 +1,7 @@
 /*
- * THE OPERATIONS BOARD (Remus · Handover 6). Always dark, whatever the skin, as the three boards Stephan sent:
- * black glass panels, soft light from above, white words, and one colour -- hi-vis. Its own tokens live here,
- * scoped to the board; under Remus Night they are the skin's own colours.
+ * THE OPERATIONS BOARD (Remus · Handover 6). Always dark, as the boards Stephan sent, but in PLATINUM ("please don't
+ * use this neon ... stick to platinum"): black glass panels, brushed-silver lines, white light, and Platinum's three
+ * signals lifted for a dark ground (Steel, Brass, Ember). No colour of its own. Tokens scoped to the board.
  */
 .ops-board {
   --ops-bg: #08090a;
@@ -11,28 +11,28 @@
   --ops-text: #eff1f3;
   --ops-dim: #8b9098;
   --ops-faint: #3b3e44;
-  --ops-accent: #d4f24a;
-  --ops-good: #8fd14f;
-  --ops-warn: #f5b544;
-  --ops-bad: #ff6b4a;
+  --ops-accent: #e6e8eb;
+  --ops-good: #8fa6b5;
+  --ops-warn: #c9a35c;
+  --ops-bad: #c8553f;
   color: var(--ops-text);
   background:
-    radial-gradient(900px 420px at 80% -8%, rgba(212, 242, 74, 0.08), transparent 60%),
+    radial-gradient(900px 420px at 80% -8%, rgba(230, 232, 235, 0.08), transparent 60%),
     radial-gradient(700px 400px at 0% 110%, rgba(255, 255, 255, 0.04), transparent 60%),
     var(--ops-bg);
-  border-radius: 1.25rem;
+  border-radius: 3px;
   padding: 1.25rem;
 }
 .ops-panel {
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0) 40%), var(--ops-panel);
   border: 1px solid var(--ops-line);
-  border-radius: 1rem;
+  border-radius: 3px;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 24px 48px -28px rgba(0, 0, 0, 0.9);
 }
 .ops-glass {
   background: rgba(18, 19, 21, 0.78);
   border: 1px solid rgba(255, 255, 255, 0.09);
-  border-radius: 1rem;
+  border-radius: 3px;
   backdrop-filter: blur(14px);
   box-shadow: 0 20px 40px -20px rgba(0, 0, 0, 0.8);
 }

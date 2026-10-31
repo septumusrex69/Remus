@@ -1,5 +1,7 @@
 import { Link } from 'react-router-dom'
-import { Camera, ChevronRight, FileText } from 'lucide-react'
+import { Camera, ChevronRight, ClipboardCheck, FileText, FolderKanban, HardHat, Receipt, Ruler } from 'lucide-react'
+import { Gauge, Ring } from '../ops/OpsPage'
+import '../ops/ops.css'
 import { PHOTO_PLACES, photoFor, photoUrl } from '../../../lib/brandPhotos'
 import { PageHeader } from '../../../components/ui'
 import { BudgetBar } from '../components/BudgetBar'
@@ -100,6 +102,51 @@ export function BrandBoardPage() {
         <p className="skin-eyebrow text-[11px] font-semibold text-slate-500">Section label · tracked capitals</p>
         <p className="mt-2 text-3xl font-extrabold tracking-tight text-slate-900">Good afternoon, Stephan</p>
         <p className="mt-1 text-sm text-slate-600">Inter throughout. Headings heavy and tight, words plain, figures in even columns: <span className="tabular font-semibold text-slate-900">R 374 218.00</span></p>
+      </div>
+
+      <Label>The wordmark</Label>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="card flex h-36 items-center justify-center" style={{ backgroundColor: '#0b0b0d' }}>
+          <img src="/brand/remus-wordmark-white.png" alt="Remus on Obsidian" className="h-9 w-auto" />
+        </div>
+        <div className="card flex h-36 items-center justify-center" style={{ backgroundColor: '#f1f1ef' }}>
+          <img src="/brand/remus-wordmark-graphite.png" alt="Remus on Bone" className="h-9 w-auto" />
+        </div>
+      </div>
+      <p className="mt-2 text-xs text-slate-500">REMUS stands alone: no line under it, no company name beside it. White on the dark metals, graphite on the light ones. Room around it at least the height of its letters; never smaller than 20px tall.</p>
+
+      <Label>On dark: the operations look</Label>
+      <div className="ops-board">
+        <p className="text-sm text-[#8b9098]">Black glass and silver light, as on the Operations page. The signals are lifted to read on dark, and nothing glows in colour: no neon.</p>
+        <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="ops-panel flex flex-col items-center p-3"><p className="ops-label self-start">Progress ring</p><Ring value={68} size={110} colour="#e6e8eb" label="by the plan" /></div>
+          <div className="ops-panel flex flex-col items-center p-3"><p className="ops-label self-start">Budget gauge · Steel</p><Gauge value={52} colour="#8fa6b5" /></div>
+          <div className="ops-panel flex flex-col items-center p-3"><p className="ops-label self-start">Budget gauge · Brass</p><Gauge value={84} colour="#c9a35c" /></div>
+          <div className="ops-panel flex flex-col items-center p-3"><p className="ops-label self-start">Budget gauge · Ember</p><Gauge value={104} colour="#c8553f" /></div>
+        </div>
+        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-6">
+          {[['Black glass', '#121315'], ['Panel line', '#2a2c31'], ['Silver light', '#e6e8eb'], ['Steel, lifted', '#8fa6b5'], ['Brass, lifted', '#c9a35c'], ['Ember, lifted', '#c8553f']].map(([n, h]) => (
+            <div key={n} className="ops-panel overflow-hidden"><div className="h-10" style={{ background: h }} /><p className="px-2.5 pt-1.5 text-[11px] text-[#eff1f3]">{n}</p><p className="px-2.5 pb-2 font-mono text-[11px] text-[#8b9098]">{h}</p></div>
+          ))}
+        </div>
+      </div>
+
+      <Label>Icons</Label>
+      <div className="card flex flex-wrap items-center gap-6 p-5 text-slate-700">
+        {[HardHat, FolderKanban, Receipt, ClipboardCheck, Ruler, Camera].map((I, i) => <I key={i} size={22} strokeWidth={1.6} />)}
+        <p className="text-xs text-slate-500">Thin line icons (Lucide, 1.5-1.75 stroke), in the text colour. Never filled, never in colour on their own.</p>
+      </div>
+
+      <Label>The rules</Label>
+      <div className="card grid gap-x-8 gap-y-2 p-5 text-sm text-slate-700 sm:grid-cols-2">
+        <p>✓ Metals for everything; Steel, Brass and Ember only when something needs saying.</p>
+        <p>✗ No neon, no bright greens, no traffic-light colours.</p>
+        <p>✓ Square corners, hairlines, corner ticks on light pages.</p>
+        <p>✗ No soft drop shadows, no pill-shaped cards.</p>
+        <p>✓ Photographs in black and white: tools, materials, hands at work.</p>
+        <p>✗ No faces, no houses-for-sale, no stock smiles.</p>
+        <p>✓ Plain words: "Getting close to the budget", not "Alert".</p>
+        <p>✗ No tagline under REMUS.</p>
       </div>
 
       <Label>Photographs · black and white, tools and work, no faces</Label>

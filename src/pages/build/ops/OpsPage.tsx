@@ -39,7 +39,8 @@ async function load() {
   return { projects, src, payments, quotes }
 }
 
-const COLOUR: Record<BudgetColour, string> = { green: '#8fd14f', yellow: '#f5b544', red: '#ff6b4a', grey: '#8b9098' }
+// Platinum's signals, lifted for a dark board: Steel on track, Brass getting close, Ember over.
+const COLOUR: Record<BudgetColour, string> = { green: '#8fa6b5', yellow: '#c9a35c', red: '#c8553f', grey: '#5f636b' }
 const running = (p: Project) => p.status === 'active' || p.status === 'on_hold'
 
 /* ---------- Where each site is: looked up once, kept in this browser ---------- */
@@ -157,7 +158,7 @@ export function OpsPage() {
                 <li key={p.id}>
                   <button type="button" onClick={() => setSelected(p.id)} data-testid="ops-site"
                     className="flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left transition-colors hover:bg-white/5"
-                    style={p.id === selected ? { background: 'rgba(212,242,74,0.08)', boxShadow: 'inset 0 0 0 1px rgba(212,242,74,0.35)' } : undefined}>
+                    style={p.id === selected ? { background: 'rgba(230,232,235,0.08)', boxShadow: 'inset 0 0 0 1px rgba(230,232,235,0.35)' } : undefined}>
                     <Ring value={pr} size={40} colour={p.status === 'planned' ? '#8b9098' : 'var(--ops-accent)'} />
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-[13px] font-medium">{p.name}</span>
@@ -212,7 +213,7 @@ function JobCard({ p, score, progress, colour, stages, crew, budget, onClose }: 
           <span>{p.end_date ? formatDate(p.end_date, 'd MMM') : '—'}</span>
         </div>
         <div className="relative mt-2 h-1.5 rounded-full" style={{ background: 'repeating-linear-gradient(90deg, #3b3e44 0 2px, transparent 2px 6px)' }}>
-          <div className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${progress ?? 0}%`, background: 'var(--ops-accent)', boxShadow: '0 0 12px rgba(212,242,74,0.6)' }} />
+          <div className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${progress ?? 0}%`, background: 'var(--ops-accent)', boxShadow: '0 0 12px rgba(230,232,235,0.6)' }} />
         </div>
         <p className="mt-2 flex items-center gap-1.5 text-[11px] ops-dim"><CalendarClock size={12} /> {p.status === 'completed' ? 'Finished' : `${left} working day${left === 1 ? '' : 's'} left`}</p>
       </div>
@@ -229,7 +230,7 @@ function JobCard({ p, score, progress, colour, stages, crew, budget, onClose }: 
       </div>
 
       {warn && budget && (
-        <p className="mt-3 flex items-center gap-2 rounded-xl px-3 py-2 text-xs" style={{ background: colour === 'red' ? 'rgba(255,107,74,0.12)' : 'rgba(245,181,68,0.12)', color: colour === 'red' ? 'var(--ops-bad)' : 'var(--ops-warn)' }}>
+        <p className="mt-3 flex items-center gap-2 rounded-xl px-3 py-2 text-xs" style={{ background: colour === 'red' ? 'rgba(200,85,63,0.14)' : 'rgba(201,163,92,0.14)', color: colour === 'red' ? 'var(--ops-bad)' : 'var(--ops-warn)' }}>
           <AlertTriangle size={14} /> {warn}: {score.costPct}% of the quoted cost used.
         </p>
       )}
@@ -242,7 +243,7 @@ function JobCard({ p, score, progress, colour, stages, crew, budget, onClose }: 
 /* ---------- Drawn pieces ---------- */
 
 /** A ring: thick arc for done, fine ticks for the rest (the progress dial, in the board's colours). */
-function Ring({ value, size, colour, label }: { value: number | null; size: number; colour: string; label?: string }) {
+export function Ring({ value, size, colour, label }: { value: number | null; size: number; colour: string; label?: string }) {
   const v = value == null ? 0 : Math.max(0, Math.min(100, value))
   const r = 40
   const len = 2 * Math.PI * r
@@ -255,7 +256,7 @@ function Ring({ value, size, colour, label }: { value: number | null; size: numb
           const a = (i / 48) * 2 * Math.PI
           return <line key={i} x1={50 + Math.cos(a) * 36} y1={50 + Math.sin(a) * 36} x2={50 + Math.cos(a) * 44} y2={50 + Math.sin(a) * 44} stroke="#3b3e44" strokeWidth={small ? 2.2 : 1.4} strokeLinecap="round" />
         })}
-        {v > 0 && <circle cx={50} cy={50} r={r} fill="none" stroke={colour} strokeWidth={small ? 11 : 8} strokeLinecap="round" strokeDasharray={`${(v / 100) * len} ${len}`} style={{ filter: 'drop-shadow(0 0 4px rgba(212,242,74,0.45))' }} />}
+        {v > 0 && <circle cx={50} cy={50} r={r} fill="none" stroke={colour} strokeWidth={small ? 11 : 8} strokeLinecap="round" strokeDasharray={`${(v / 100) * len} ${len}`} style={{ filter: 'drop-shadow(0 0 4px rgba(230,232,235,0.45))' }} />}
       </svg>
       <span className="relative text-center leading-none">
         <span className={small ? 'text-[11px] font-semibold' : 'text-2xl font-semibold tracking-tight'}>{value == null ? '—' : `${v}%`}</span>
@@ -266,7 +267,7 @@ function Ring({ value, size, colour, label }: { value: number | null; size: numb
 }
 
 /** The speedometer: ticks round a half circle, lit up to the figure, a needle, the budget at the 80% mark of the dial. */
-function Gauge({ value, colour }: { value: number | null; colour: string }) {
+export function Gauge({ value, colour }: { value: number | null; colour: string }) {
   const max = 125
   const v = value == null ? 0 : Math.max(0, Math.min(max, value))
   const ang = (x: number) => Math.PI + (x / max) * Math.PI
@@ -303,7 +304,7 @@ function Compass() {
           const a = (i / 36) * 2 * Math.PI
           return <line key={i} x1={37 + Math.cos(a) * 30} y1={37 + Math.sin(a) * 30} x2={37 + Math.cos(a) * (i % 9 === 0 ? 24 : 27)} y2={37 + Math.sin(a) * (i % 9 === 0 ? 24 : 27)} stroke="#5f636b" strokeWidth={1} />
         })}
-        <path d="M37 9 L41 20 L33 20 Z" fill="#d4f24a" />
+        <path d="M37 9 L41 20 L33 20 Z" fill="#e6e8eb" />
       </svg>
       <span className="text-sm font-semibold">N</span>
     </span>
@@ -324,7 +325,7 @@ function BudgetCapsules({ jobs, scores, colourOf, selected, onSelect }: {
           const c = COLOUR[colourOf(p)]
           return (
             <button key={p.id} type="button" onClick={() => onSelect(p.id)} className="flex h-full flex-1 flex-col items-center gap-1.5" title={`${p.name}: ${pct}%`}>
-              <span className="relative w-full max-w-[34px] flex-1 overflow-hidden rounded-full" style={{ background: '#1d1f22', boxShadow: p.id === selected ? 'inset 0 0 0 1px #d4f24a' : undefined }}>
+              <span className="relative w-full max-w-[34px] flex-1 overflow-hidden rounded-full" style={{ background: '#1d1f22', boxShadow: p.id === selected ? 'inset 0 0 0 1px #e6e8eb' : undefined }}>
                 <span className="absolute inset-x-0 bottom-0 rounded-full" style={{ height: `${Math.min(100, pct / 1.25)}%`, background: `linear-gradient(180deg, ${c}, ${c}55)`, boxShadow: `0 0 14px ${c}55` }} />
                 <span className="absolute inset-x-0 border-t border-dashed" style={{ bottom: '80%', borderColor: 'rgba(239,241,243,0.35)' }} />
               </span>
@@ -352,7 +353,7 @@ function CrewGrid({ days, today }: { days: { day: string; days: number }[]; toda
       <div className="mt-3 grid grid-cols-7 gap-1.5">
         {cells.map((c) => (
           <span key={c.d} title={`${formatDate(c.d, 'EEE d MMM')}: ${c.n} crew day${c.n === 1 ? '' : 's'}`} className="aspect-square rounded-[4px]"
-            style={{ background: c.n ? `rgba(212,242,74,${0.15 + 0.85 * (c.n / max)})` : '#1d1f22', boxShadow: c.d === today ? '0 0 0 1px #eff1f3' : undefined }} />
+            style={{ background: c.n ? `rgba(230,232,235,${0.15 + 0.85 * (c.n / max)})` : '#1d1f22', boxShadow: c.d === today ? '0 0 0 1px #eff1f3' : undefined }} />
         ))}
       </div>
       <p className="mt-2 text-[10px] ops-dim">{cells.reduce((t, c) => t + c.n, 0)} crew days in all · the outlined square is today</p>
@@ -372,9 +373,9 @@ function MoneyIn({ months, values }: { months: string[]; values: number[] }) {
       <p className="mt-1 text-2xl font-semibold tracking-tight">{formatZAR(values[values.length - 1] ?? 0, { decimals: 0 })} <span className="text-xs font-normal ops-dim">this month</span></p>
       <svg viewBox="0 0 300 100" className="mt-2 h-24 w-full">
         {[30, 55, 80].map((y) => <line key={y} x1={0} x2={300} y1={y} y2={y} stroke="#1d1f22" />)}
-        <path d={`${path} L${last[0]} 100 L10 100 Z`} fill="rgba(212,242,74,0.08)" />
-        <path d={path} fill="none" stroke="#d4f24a" strokeWidth={2} style={{ filter: 'drop-shadow(0 0 6px rgba(212,242,74,0.5))' }} />
-        <circle cx={last[0]} cy={last[1]} r={4} fill="#d4f24a" />
+        <path d={`${path} L${last[0]} 100 L10 100 Z`} fill="rgba(230,232,235,0.08)" />
+        <path d={path} fill="none" stroke="#e6e8eb" strokeWidth={2} style={{ filter: 'drop-shadow(0 0 6px rgba(230,232,235,0.5))' }} />
+        <circle cx={last[0]} cy={last[1]} r={4} fill="#e6e8eb" />
       </svg>
       <div className="flex justify-between text-[10px] ops-dim">{months.map((m) => <span key={m}>{format(parseISO(`${m}-01`), 'MMM')}</span>)}</div>
     </div>
@@ -393,7 +394,7 @@ function Capacity({ running, capacity }: { running: number; capacity: number }) 
           const a = Math.PI + (i / 40) * Math.PI
           const lit = (i / 40) * 100 <= v
           return <line key={i} x1={100 + Math.cos(a) * 72} y1={100 + Math.sin(a) * 72} x2={100 + Math.cos(a) * 90} y2={100 + Math.sin(a) * 90}
-            stroke={lit ? (pct > 100 ? '#ff6b4a' : '#d4f24a') : '#2a2c31'} strokeWidth={2.4} strokeLinecap="round" />
+            stroke={lit ? (pct > 100 ? '#c8553f' : '#e6e8eb') : '#2a2c31'} strokeWidth={2.4} strokeLinecap="round" />
         })}
       </svg>
       <p className="-mt-12 text-3xl font-semibold tracking-tight">{pct}%</p>
