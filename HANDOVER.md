@@ -203,7 +203,7 @@ Remus, and big" (so no Urban Haus line under the word in the openings either).
   Raptor's Platinum tokens (#09090b, #1b1c1f, #4a4d54, #c4c8cf, #8b9098, #f6f6f4) live in `remusOpening.css`.
 - **The letters are the real wordmark**, traced from `public/brand/remus-wordmark-white.png` into `remusLetters.ts`
   (one path per letter, split at the four gaps; how to redo it is in the file), cut line included.
-- **Four openings, each with its own sound** (`remusSound.ts`, drawn by the browser, nothing high -- Raptor's rule):
+- **Four openings (five since round 2), each with its own sound** (`remusSound.ts`, drawn by the browser, nothing high -- Raptor's rule):
   1 Stamp (the letters slam down: doof + a puff of dust each, the floor shakes; the default), 2 Cut line (a blade of
   light runs up the logo's own cut, the word splits on it, lights up silver and clacks back), 3 Blueprint (cut lines on
   a steel plate, a torch with sparks, the off-cut drops away), 4 Pour (formwork, concrete up to a laser level,
@@ -212,7 +212,17 @@ Remus, and big" (so no Urban Haus line under the word in the openings either).
   localStorage `remus.opening`), because Stephan asked for several. Raptor plays one fixed in code.
 - Checked with Playwright (fake Supabase): every opening frame by frame at 1280 and 390 wide, and a real Sign in
   (token answered from a fixture) plays Stamp and leaves you on the dashboard. No sound check is possible headless.
-- **Ask Stephan:** which one he wants as the default for everybody (today Stamp), and whether the sound is right.
+- **The sound, round 2 (same day).** Stephan: *"I don't like any of the [sounds] ... this classical thing is not here.
+  Remus is hard. Remus is a builder ... doof, doof, doof ... an undertone of like, training ... like hammers."* Then, of
+  the first set, Pour's (mixer + knocks) was *"the closest ... like rain ... and thunder."* So `remusSound.ts` was
+  rewritten: no horn, no pad; a kick on a 0.35 s grid with a distorted bass pulse between (the training drive), through
+  a saturator and compressor; sledgehammers on steel, nail gun, angle grinder, the concrete mixer, timber knocks, a
+  steel plate crash; rain under all of them, thunder on the big hits. Rendered offline in Chromium: every opening
+  sounds for its whole length, peak ~0.6, nothing clips (no ears on it -- Stephan's are the test).
+- **A fifth: Blueprint + Pour (`build`)** -- Stephan: *"combine the blueprint and the pour ... It looks really cool."*
+  Grid and dimensions, the letters drawn as formwork to nail-gun shots, concrete poured in the rain, thunder as the
+  shuttering is knocked off, polished. 4.5 s (the others 3.9 s).
+- **Ask Stephan:** which one he wants as the default for everybody (today Stamp), and whether the new sound is right.
 
 ## Who sees the money, and the budget warning (28 Oct 2026, Remus · Handoff 5)
 

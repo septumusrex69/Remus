@@ -20,15 +20,20 @@ import './remusOpening.css'
  *   slash     -- the logo's own cut line: the word stands dark, a blade of light runs up the cut, the word splits along
  *                it and lights up silver, then the two halves clack back together. ("the cut lines are cut out")
  *   pour      -- the formwork drawn, the concrete poured up to a laser level, the shuttering struck, polished to silver.
+ *   build     -- Blueprint and Pour together (Stephan, 31 Oct: "combine the blueprint and the pour ... It looks really
+ *                cool"): the drawing-office grid and dimensions, the letters drawn as formwork, concrete poured to the
+ *                laser level, the shuttering struck, polished to silver.
  *
  * /opening plays any of them on demand; the sign-in plays REMUS_OPENING_DEFAULT. It covers the app as it loads underneath
  * and dissolves into it; a tap skips it; Reduced motion gets the still word (unless `force`, the replay page). It never
  * waits on anything: the app is already drawing under it.
  */
-export type RemusVariant = 'stamp' | 'slash' | 'cut' | 'pour'
+export type RemusVariant = 'stamp' | 'slash' | 'cut' | 'pour' | 'build'
 export const REMUS_OPENING_DEFAULT: RemusVariant = 'stamp'
 
 const FULL_MS = 3900
+/* Build tells two stories, so it holds a little longer. */
+const BUILD_MS = 4500
 
 /* One clock for all of them, matched in remusOpening.css and remusSound.ts. */
 export const STAMP_FIRST = 0.37
@@ -78,6 +83,49 @@ function Shine({ at }: { at: number }) {
   )
 }
 
+/** The dimensions, drawn like the drawing office does. */
+function Dimensions() {
+  return (
+    <Word className="rmo-svg rmo-dims">
+      <path pathLength={1} className="rmo-draw is-dim" d={`M0 -26 H${WORD_W} M0 -31 V-21 M${WORD_W} -31 V-21 M0 -6 V-31 M${WORD_W} -6 V-31`} />
+      <path pathLength={1} className="rmo-draw is-dim" d={`M-26 0 V100 M-31 0 H-21 M-31 100 H-21`} />
+      <text x={WORD_W / 2} y={-30} className="rmo-dim-text" textAnchor="middle">{Math.round(WORD_W * 10).toLocaleString('en-ZA')}</text>
+      <text x={-30} y={50} className="rmo-dim-text" textAnchor="middle" transform="rotate(-90 -30 50)">1 000</text>
+    </Word>
+  )
+}
+
+/** Pour, and (build) Pour on the drawing board: the same layers, Build's clock later (remusOpening.css `.is-build`). */
+function Pour({ build }: { build: boolean }) {
+  const strike = build ? 2.6 : 2.05
+  return (
+    <>
+      {build && <Dimensions />}
+      {/* The concrete, rising up the formwork to the laser level. */}
+      <div className="rmo-pour-fill">
+        <Word className="rmo-svg">
+          <path d={WORD_D} fill="url(#rmo-concrete-fill)" fillRule="evenodd" filter="url(#rmo-grain)" />
+        </Word>
+      </div>
+      <div className="rmo-pour-polish">
+        <Word className="rmo-svg">
+          <path d={WORD_D} fill="url(#rmo-silver)" fillRule="evenodd" />
+          <Shine at={build ? 3.25 : 2.7} />
+        </Word>
+      </div>
+      <span aria-hidden className="rmo-level" />
+      {/* The shuttering: each letter's formwork, struck one after the other. */}
+      <Word className="rmo-svg rmo-formwork">
+        {LETTERS.map((l, i) => (
+          <g key={l.ch} className="rmo-form" style={{ animationDelay: `${strike + i * 0.12}s`, ['--fx' as string]: `${(i - 2) * 14}px` }}>
+            <path d={l.d} pathLength={1} className="rmo-draw is-form" style={{ animationDelay: `${build ? 0.35 + i * 0.17 : i * 0.08}s` }} />
+          </g>
+        ))}
+      </Word>
+    </>
+  )
+}
+
 export function RemusOpening({ variant = REMUS_OPENING_DEFAULT, onDone, force = false }: {
   variant?: RemusVariant
   onDone: () => void
@@ -95,7 +143,7 @@ export function RemusOpening({ variant = REMUS_OPENING_DEFAULT, onDone, force = 
 
   useEffect(() => {
     if (!reduced) playRemusSound(variant)
-    const t = setTimeout(finish, reduced ? 700 : FULL_MS)
+    const t = setTimeout(finish, reduced ? 700 : variant === 'build' ? BUILD_MS : FULL_MS)
     return () => clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps -- one play per mount; the replay page remounts by key
   }, [])
@@ -138,8 +186,8 @@ export function RemusOpening({ variant = REMUS_OPENING_DEFAULT, onDone, force = 
         </defs>
       </svg>
 
-      {look === 'cut' && <div aria-hidden className="rmo-layer"><span className="rmo-grid" /></div>}
-      {look === 'pour' && <div aria-hidden className="rmo-layer"><span className="rmo-site-glow" /></div>}
+      {(look === 'cut' || look === 'build') && <div aria-hidden className="rmo-layer"><span className="rmo-grid" /></div>}
+      {(look === 'pour' || look === 'build') && <div aria-hidden className="rmo-layer"><span className="rmo-site-glow" /></div>}
       {look === 'stamp' && <div aria-hidden className="rmo-layer"><span className="rmo-floor" /></div>}
 
       <div className="rmo-stage">
@@ -215,13 +263,7 @@ export function RemusOpening({ variant = REMUS_OPENING_DEFAULT, onDone, force = 
                   <Shine at={2.55} />
                 </Word>
               </div>
-              {/* The dimensions, drawn like the drawing office does. */}
-              <Word className="rmo-svg rmo-dims">
-                <path pathLength={1} className="rmo-draw is-dim" d={`M0 -26 H${WORD_W} M0 -31 V-21 M${WORD_W} -31 V-21 M0 -6 V-31 M${WORD_W} -6 V-31`} />
-                <path pathLength={1} className="rmo-draw is-dim" d={`M-26 0 V100 M-31 0 H-21 M-31 100 H-21`} />
-                <text x={WORD_W / 2} y={-30} className="rmo-dim-text" textAnchor="middle">{Math.round(WORD_W * 10).toLocaleString('en-ZA')}</text>
-                <text x={-30} y={50} className="rmo-dim-text" textAnchor="middle" transform="rotate(-90 -30 50)">1 000</text>
-              </Word>
+              <Dimensions />
               {/* The torch: a white-hot line sweeping across, sparks falling from it. */}
               <span aria-hidden className="rmo-torch">
                 {SPARKS.map((s, i) => (
@@ -231,36 +273,13 @@ export function RemusOpening({ variant = REMUS_OPENING_DEFAULT, onDone, force = 
             </>
           )}
 
-          {look === 'pour' && (
-            <>
-              {/* The concrete, rising up the formwork to the laser level. */}
-              <div className="rmo-pour-fill">
-                <Word className="rmo-svg">
-                  <path d={WORD_D} fill="url(#rmo-concrete-fill)" fillRule="evenodd" filter="url(#rmo-grain)" />
-                </Word>
-              </div>
-              <div className="rmo-pour-polish">
-                <Word className="rmo-svg">
-                  <path d={WORD_D} fill="url(#rmo-silver)" fillRule="evenodd" />
-                  <Shine at={2.7} />
-                </Word>
-              </div>
-              <span aria-hidden className="rmo-level" />
-              {/* The shuttering: each letter's formwork, struck one after the other. */}
-              <Word className="rmo-svg rmo-formwork">
-                {LETTERS.map((l, i) => (
-                  <g key={l.ch} className="rmo-form" style={{ animationDelay: `${2.05 + i * 0.12}s`, ['--fx' as string]: `${(i - 2) * 14}px` }}>
-                    <path d={l.d} pathLength={1} className="rmo-draw is-form" style={{ animationDelay: `${i * 0.08}s` }} />
-                  </g>
-                ))}
-              </Word>
-            </>
-          )}
+          {(look === 'pour' || look === 'build') && <Pour build={look === 'build'} />}
         </div>
       </div>
 
       {look === 'cut' && <p aria-hidden className="rmo-readout">DRG RMS-001 · Rev A · Cut</p>}
       {look === 'pour' && <p aria-hidden className="rmo-readout">Poured · 30 MPa · Struck</p>}
+      {look === 'build' && <p aria-hidden className="rmo-readout">DRG RMS-001 · Poured · Struck</p>}
     </div>
   )
 }
