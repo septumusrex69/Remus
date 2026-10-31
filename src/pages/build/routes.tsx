@@ -26,6 +26,7 @@ const pages = {
   SettingsPage: () => import('./settings/SettingsPage'),
   MailPage: () => import('./mail/MailPage'),
   RequestsPage: () => import('../requests/RequestsPage'),
+  PhotosPage: () => import('./photos/PhotosPage'),
 }
 
 const DashboardPage = lazy(() => pages.DashboardPage().then((x) => ({ default: x.DashboardPage })))
@@ -37,6 +38,7 @@ const ClientDetail = lazy(() => pages.ClientDetail().then((x) => ({ default: x.C
 const SubcontractorsPage = lazy(() => pages.SubcontractorsPage().then((x) => ({ default: x.SubcontractorsPage })))
 const WorkersPage = lazy(() => pages.WorkersPage().then((x) => ({ default: x.WorkersPage })))
 const CrewRegisterPage = lazy(() => pages.CrewRegisterPage().then((x) => ({ default: x.CrewRegisterPage })))
+const PhotosPage = lazy(() => pages.PhotosPage().then((x) => ({ default: x.PhotosPage })))
 const SchedulePage = lazy(() => pages.SchedulePage().then((x) => ({ default: x.SchedulePage })))
 const ProjectsList = lazy(() => pages.ProjectsList().then((x) => ({ default: x.ProjectsList })))
 const ProjectDetail = lazy(() => pages.ProjectDetail().then((x) => ({ default: x.ProjectDetail })))
@@ -95,6 +97,8 @@ export const buildRoutes = (
     <Route path="finance" element={<Allow when={seesMoney}><FinancePage /></Allow>} />
     <Route path="mail" element={<MailPage />} />
     <Route path="settings" element={<SettingsPage />} />
+    {/* Remus · Handover 6: choosing the Unsplash photographs (anybody may look; Administrators choose). */}
+    <Route path="photos" element={<PhotosPage />} />
     {/* WHO SEES WHAT (lib/access.ts): money pages for Administrators; quotes not for site managers. */}
     {/* CHANGE REQUESTS (copied from Raptor): open to everybody -- "anyone can see requests". */}
     <Route path="requests" element={<RequestsPage />} />

@@ -59,6 +59,38 @@ Preview: https://remus-git-claude-new-session-umpip5-team-raptor.vercel.app
     project's quote"); none: an Administrator links one of the client's quotes. Live data, 31 Oct: only UHG-001
     and P-0005 have a quote_id; UHG-003 has Q-0002 (sent) naming it; completed UHG-004 and UHG-002 have none
     (demo data). Checked in Playwright, desktop and iPhone, no sideways scroll.
+18. **A year of made-up jobs** (Stephan: "four projects run every month ... Naidoo, Smith ... next month two continuing
+    and two new ... nothing in December or January ... a booked job in February"). `supabase/demo/plan.py` plans the
+    jobs and stages, `supabase/demo/seed.sql` (run once, live, 31 Oct) makes everything else: 36 finished jobs since
+    Nov 2025 (UHG-101..), current Smith 68% / Naidoo 87% / Botha 102% / Mokoena 89%, planned Centurion (Nov 4),
+    Pretorius (Nov 9), Van Wyk (Feb 2027); 10 workers, quotes Q-9001.., invoices INV-9001.., slips per stage, crew
+    register, site diary, diary events. **Every row is listed in `demo_rows` (0032)**: clearing the demo data is
+    `delete ... where id in (select row_id from demo_rows where table_name = ...)` per table (children first), plus
+    the older demo rows (UHG-001..005, bank `demo-*`). Smith/Naidoo/Centurion (older demo) were updated, not listed.
+19. **Jobs calendar** on Schedule (default tab "Jobs by week"; "Crew by day" is the old grid, `?view=crew`):
+    `lib/jobCalendar.ts` (+test), `schedule/JobsCalendar.tsx`. Capacity = Settings -> Company "Jobs we can run at
+    once" (`company_settings.max_jobs`, 0032, default 4). Shows this week, overbooked weeks ahead, open stretches.
+20. **Today on site** (dashboard Today/Tomorrow): the stage under way, "day n of m" with a bar, the crew, and the
+    newest site diary note (`listDiarySince`).
+21. **Split a slip** (Stephan: "R10,000 of cement ... R5,000 for one project ... split the slip. And also dictate
+    that"): Snap slip has "Split this slip across projects" (parts: project, stage, kind, amount; must add up; VAT
+    shared pro rata; one expense per part, same slip photo), and Claude returns `split` parts from the dictated note
+    (api/receipts/extract.ts rule 4). Materials per stage already flow into Plan & crew's quoted vs actual per stage.
+    Not tried with a real slip yet. Labour per stage: Stephan said "we can talk about that later".
+22. **Platinum** (Stephan: "that platinum look ... the most important thing is the look"): Raptor's Platinum is its
+    opening (raptorOpening.css: black glass, brushed silver, white light); it is NOT one of Raptor's skins, so Remus
+    has its own `platinum` skin (skins.css, themes.ts), now the DEFAULT for anyone who never chose. Black-glass
+    sidebar with a photo at the foot, silver Snap slip, photo band on the dashboard, photo sign-in. REMUS alone and
+    bigger in the sidebar, centred ("Don't say ... Urban Haus Group. Just make it Remus and big"). Needs attention
+    is compact rows (Raptor portal's Action rows). The bell's list no longer opens behind the hero band.
+23. **Photos from Unsplash** (Stephan: power tools, cement trucks, hands, carpentry, no faces, black and white):
+    `lib/brandPhotos.ts` (+test) lists 14 candidates, always drawn black and white (`sat=-100`), SERVED BY UNSPLASH
+    (this container's network refuses images.unsplash.com, so nothing is stored in the repo; Unsplash's guidelines
+    ask for hotlinking anyway). Page **/photos** (link in Settings -> Appearance): an Administrator picks the photo for
+    the dashboard band, sign-in and sidebar; kept for everybody in `company_settings.brand_photos` (0033, live). The
+    sign-in remembers the last choice in the browser. **Waiting on Stephan's pick.**
+Still to offer from Raptor S16: Mail's Archive ("inbox zero"), the portal signing in with a password instead of codes,
+the openings (animated start after sign-in).
 
 ## Start here: where things stand (29 Oct 2026, end of Remus · Handover 5)
 

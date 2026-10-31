@@ -30,5 +30,7 @@ export const paths = {
   /** The Feedback Centre, optionally with one request open (?r=12, what every notification links to). */
   requests: (n?: number) => p(n ? `/requests?r=${n}` : '/requests'),
   /** Settings, optionally on one tab (Raptor's ?tab= links), e.g. paths.settings('Integrations'). */
+  /** The Unsplash photographs and where each is used (Remus · Handover 6). */
+  photos: () => p('/photos'),
   settings: (tab?: string) => p(tab ? `/settings?tab=${encodeURIComponent(tab)}` : '/settings'),
 }

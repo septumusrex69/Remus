@@ -31,6 +31,7 @@ import { formatDate, formatPct, formatZAR, labelize, todayYmd, ymd } from '../..
 import { outstandingInvoices } from '../../../lib/finance'
 import { approvalCurrent } from '../../../lib/quoteMath'
 import { workingDaysIn } from '../../../lib/workdays'
+import { photoFor } from '../../../lib/brandPhotos'
 import { useLoad } from '../../../hooks/useLoad'
 import { reportBudgetLevels } from '../../../lib/budgetAlerts'
 import { useAuth } from '../../../store/AuthContext'
@@ -119,7 +120,8 @@ interface DayItem {
 
 export function DashboardPage() {
   const { data, error, loading } = useLoad(load, [], 'dashboard')
-  const { needsLinking } = useBuild()
+  const { needsLinking, settings: buildSettings } = useBuild()
+  const bandChoice = buildSettings?.brand_photos
   const { currentUser } = useAuth()
   // Who sees what (lib/access.ts): the money for Administrators, the budget for contractors too.
   const access = useAccess()
@@ -269,7 +271,7 @@ export function DashboardPage() {
       {/* ---------- Hero ---------- */}
       {/* skin-band: Platinum lays a construction photograph under black glass here (skins.css). */}
       <section className="skin-band relative overflow-hidden rounded-2xl bg-ink-950 px-6 py-6 text-white sm:px-7 sm:py-7">
-        <span className="skin-band-credit absolute right-3 bottom-1.5 hidden text-[9px] text-white/40">Photo: Arthur Baudry / Unsplash</span>
+        <span className="skin-band-credit absolute right-3 bottom-1.5 hidden text-[9px] text-white/40">Photo: {photoFor('band', bandChoice).credit} / Unsplash</span>
         <div className="relative z-[1] flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="mb-1 text-[11px] font-bold tracking-[0.1em] text-brand-300 uppercase">{format(now, 'EEEE d MMMM')}</p>

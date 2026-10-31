@@ -1,4 +1,6 @@
-import { Check } from 'lucide-react'
+import { Check, Image } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { paths } from '../paths'
 import { Card } from '../../../components/ui'
 import { THEMES } from '../../../lib/themes'
 import { useTheme } from '../../../store/ThemeContext'
@@ -52,6 +54,7 @@ export function AppearanceCard() {
           )
         })}
       </div>
+      <Link to={paths.photos()} className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-brand-700 hover:underline"><Image size={15} /> Choose the photographs (Platinum)</Link>
     </Card>
   )
 }

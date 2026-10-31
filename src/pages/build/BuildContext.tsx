@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react'
 import { countNeedsLinking, getSettings } from '../../lib/api'
+import { applyBrandPhotos } from '../../lib/brandPhotos'
 import type { CompanySettings } from '../../types'
 
 interface BuildContextValue {
@@ -17,7 +18,8 @@ export function BuildProvider({ children }: { children: ReactNode }) {
   const [needsLinking, setNeedsLinking] = useState(0)
 
   const reloadSettings = useCallback(() => {
-    getSettings().then(setSettings).catch(() => {})
+    // The chosen photographs go on the page as soon as the settings are read (lib/brandPhotos.ts).
+    getSettings().then((s) => { setSettings(s); applyBrandPhotos(s.brand_photos) }).catch(() => {})
   }, [])
   const refreshNeedsLinking = useCallback(() => {
     countNeedsLinking().then(setNeedsLinking).catch(() => {})

@@ -4,12 +4,15 @@ import { ArrowRight, Lock, Mail } from 'lucide-react'
 import { useAuth } from '../../store/AuthContext'
 import { isSupabaseConfigured, supabase } from '../../lib/supabase'
 import { useTheme } from '../../store/ThemeContext'
+import { photoUrl, rememberedLoginPhoto } from '../../lib/brandPhotos'
 
 export function LoginPage() {
   const { session, loading, signIn, needsPassword } = useAuth()
   const location = useLocation()
   const { theme } = useTheme()
   const remus = !!theme.tagline
+  // The sign-in cannot read the settings: the photograph last chosen, remembered in this browser (lib/brandPhotos.ts).
+  const loginPhoto = theme.loginPhoto ? rememberedLoginPhoto() : null
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -66,7 +69,7 @@ export function LoginPage() {
       ) : (
       <div className="relative hidden w-1/2 flex-col justify-between overflow-hidden bg-ink-950 bg-cover bg-center p-10 text-white lg:flex"
         // Platinum (Remus · Handover 6): a construction photograph under black glass, graded so the words read.
-        style={theme.loginPhoto ? { backgroundImage: `linear-gradient(160deg, rgba(9,9,11,0.88) 0%, rgba(9,9,11,0.55) 55%, rgba(9,9,11,0.85) 100%), url('${theme.loginPhoto.url}')` } : undefined}>
+        style={loginPhoto ? { backgroundImage: `linear-gradient(160deg, rgba(9,9,11,0.82) 0%, rgba(9,9,11,0.45) 55%, rgba(9,9,11,0.82) 100%), url('${photoUrl(loginPhoto, 1600)}')` } : undefined}>
         {remus ? (
           <div className="self-start">
             <img src={theme.lockupLight} alt={theme.productName} className="h-12 w-auto object-contain" />
@@ -87,7 +90,7 @@ export function LoginPage() {
           {remus ? 'Plans · People · Progress · Together' : 'Construction · Renovations · Maintenance · Electrical'}
         </p>
         {theme.loginPhoto
-          ? <span className="absolute right-4 bottom-3 text-[10px] text-white/40">{theme.loginPhoto.credit}</span>
+          ? <span className="absolute right-4 bottom-3 text-[10px] text-white/40">Photo: {loginPhoto?.credit} / Unsplash</span>
           : <div className="pointer-events-none absolute -right-24 -bottom-24 h-80 w-80 rounded-full bg-brand-500/15" />}
       </div>
       )}

@@ -32,7 +32,7 @@ export interface ThemeDefinition {
    * A dark photograph for the sign-in screen's left half (Platinum): the wordmark and words go white over it.
    * Served by Unsplash, credited under it.
    */
-  loginPhoto?: { url: string; credit: string }
+  loginPhoto?: boolean
   /** Three colours for the preview tile: ground (sidebar), surface (page), accent. */
   swatch: { ground: string; surface: string; accent: string }
 }
@@ -52,10 +52,8 @@ export const THEMES: ThemeDefinition[] = [
     name: 'Platinum',
     description: 'Black glass, brushed silver and white light, with construction photographs. Raptor\'s Platinum.',
     ...REMUS,
-    loginPhoto: {
-      url: 'https://images.unsplash.com/photo-1789871966074-f69a1606c3c4?auto=format&fit=crop&w=1600&q=70',
-      credit: 'Photo: KC Shum / Unsplash',
-    },
+    // The photograph itself is chosen on the Photos page (lib/brandPhotos.ts); this marks the skin as wearing one.
+    loginPhoto: true,
     swatch: { ground: '#111214', surface: '#f1f1ef', accent: '#c4c8cf' },
   },
   {

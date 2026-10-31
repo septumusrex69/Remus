@@ -88,14 +88,8 @@ export function Sidebar({ drawer, onNavigate }: { drawer?: boolean; onNavigate?:
           {collapsed ? (
             <img src={theme.icon} alt={theme.productName} className="h-8 w-8 rounded-md" />
           ) : theme.tagline ? (
-            // The app's wordmark, with the company it is running for underneath (the skin's
-            // default until Settings has loaded, then the company name from Settings).
-            <span className="block">
-              <img src={theme.lockupLight} alt={theme.productName} className="mx-auto h-5 w-auto object-contain" />
-              <span className="skin-eyebrow mt-1.5 block truncate text-[9.5px] font-medium text-white/55">
-                {settings?.name || theme.tagline}
-              </span>
-            </span>
+            // REMUS, alone and big (Stephan, 31 Oct: "Don't say ... Urban Haus Group. Just make it Remus and big").
+            <img src={theme.lockupLight} alt={theme.productName} className="mx-auto h-8 w-auto object-contain" data-testid="sidebar-wordmark" />
           ) : (
             <img src={theme.lockupLight} alt={settings?.name || 'Urban Haus Construction'} className="mx-auto max-h-11 w-auto object-contain" />
           )}

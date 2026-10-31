@@ -124,6 +124,8 @@ export interface CompanySettings {
   management_fee_pct: number
   /** How many jobs can run at once (0032); the jobs calendar warns above it. */
   max_jobs: number
+  /** Which photograph goes where (0033, lib/brandPhotos.ts). */
+  brand_photos: Partial<Record<'band' | 'login' | 'side', string>>
   /** Printed under the estimated timeline on every quote that shows one (migration 0015). */
   plan_disclaimer: string
   /** Claude credit bought, in US dollars, all purchases together (migration 0019). Left = this - ai_usage. */

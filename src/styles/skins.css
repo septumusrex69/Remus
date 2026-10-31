@@ -189,8 +189,9 @@ html[data-theme='platinum'] {
   /* Brushed silver: hair-fine horizontal grain and a slow diagonal sheen. */
   --skin-pattern: linear-gradient(115deg, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0) 38%, rgba(196, 200, 207, 0.12) 62%, rgba(255, 255, 255, 0) 100%),
     repeating-linear-gradient(180deg, rgba(74, 77, 84, 0.025) 0 1px, transparent 1px 3px);
-  --skin-photo-band: url('https://images.unsplash.com/photo-1748063578185-3d68121b11ff?auto=format&fit=crop&w=2000&q=70');
-  --skin-photo-side: url('https://images.unsplash.com/photo-1776514222617-cd3d0139c926?auto=format&fit=crop&w=600&q=60');
+  /* Defaults until the settings are read; lib/brandPhotos.ts puts the chosen ones on <html>. Black and white. */
+  --skin-photo-band: url('https://images.unsplash.com/photo-1587370153281-c8c87fa5caf1?auto=format&fit=crop&w=2000&q=70&sat=-100');
+  --skin-photo-side: url('https://images.unsplash.com/photo-1519143009590-e3800b9df468?auto=format&fit=crop&w=600&q=70&sat=-100');
 }
 /* The frame: black glass, a silver hairline on its edge, and the concrete photograph fading up from the foot. */
 html[data-theme='platinum'] aside.skin-frame {
