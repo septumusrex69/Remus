@@ -52,6 +52,9 @@ import { useVatRate } from '../BuildContext'
 import { ProjectFormModal } from './ProjectFormModal'
 import { PlanTab } from './PlanTab'
 import { JobScorecard } from './JobScorecard'
+import { ProgressDial } from '../../../components/ui/ProgressDial'
+import { projectProgress } from '../../../lib/projectProgress'
+import { workingDaysIn } from '../../../lib/workdays'
 import { QuoteDocument } from '../quotes/QuotePrint'
 import type { Quote } from '../../../types'
 import { projectCrewCost } from '../../../lib/crewDays'
@@ -198,6 +201,7 @@ function PlainOverview({ data, budget, quotes }: { data: Data; budget: boolean; 
   const p = data.project!
   return (
     <div className="space-y-4">
+      <HowFarAlong data={data} />
       {budget && <JobScorecard plain project={p} quote={data.quote} items={data.items} stages={data.stages} expenses={data.exp} crew={data.crew} variations={Number(data.fin?.approved_variations ?? 0)} />}
       <Card title="The job">
         <dl className="grid grid-cols-2 gap-y-2 text-sm sm:grid-cols-4">
@@ -234,6 +238,7 @@ function Overview({ data }: { data: Data }) {
         <StatTile label="Gross profit" value={formatZAR(profit, { decimals: 0 })} tone={profit < 0 ? 'bad' : 'good'} hint={`Margin ${formatPct(margin)}`} />
         <StatTile label="Received" value={formatZAR(f?.received ?? 0, { decimals: 0 })} hint={`Invoiced ${formatZAR(f?.invoiced_incl ?? 0, { decimals: 0 })} incl. VAT`} />
       </div>
+      <HowFarAlong data={data} />
       <JobScorecard project={p} quote={data.quote} items={data.items} stages={data.stages} expenses={data.exp} crew={data.crew} variations={Number(f?.approved_variations ?? 0)} />
       <div className="grid gap-4 lg:grid-cols-2">
         <Card title="Budget">
@@ -677,5 +682,33 @@ function QuoteTab({ data, editor, reload, act }: { data: Data; editor: boolean; 
         <QuoteDocument id={q.id} />
       </div>
     </div>
+  )
+}
+
+/**
+ * HOW FAR ALONG (Remus · Handover 6): the progress dial -- the stages' days behind us over all their days, the same
+ * figure the client sees in the portal -- with the stage under way and the working days left.
+ */
+function HowFarAlong({ data }: { data: Data }) {
+  const p = data.project!
+  const today = todayYmd()
+  const pct = projectProgress(p.status, data.stages, today)
+  const now = data.stages.find((s) => s.start_date && s.end_date && s.start_date <= today && s.end_date >= today)
+  const next = data.stages.filter((s) => s.start_date && s.start_date > today).sort((a, b) => a.start_date!.localeCompare(b.start_date!))[0]
+  const last = data.stages.reduce<string | null>((m, s) => (s.end_date && (!m || s.end_date > m) ? s.end_date : m), null) ?? p.end_date
+  const left = last && last >= today ? workingDaysIn(today, last).length : 0
+  const done = data.stages.filter((s) => s.end_date && s.end_date < today).length
+  return (
+    <Card>
+      <div className="flex flex-wrap items-center gap-6">
+        <ProgressDial value={pct} label="by the plan" />
+        <dl className="grid min-w-0 flex-1 grid-cols-2 gap-x-6 gap-y-3 text-sm sm:grid-cols-4">
+          <div><dt className="skin-eyebrow text-[10px] font-semibold text-slate-500">Now</dt><dd className="mt-0.5 font-medium text-slate-900">{p.status === 'completed' ? 'Finished' : now ? (now.name || 'General') : next ? 'Between stages' : 'Not started'}</dd></div>
+          <div><dt className="skin-eyebrow text-[10px] font-semibold text-slate-500">Next</dt><dd className="mt-0.5 font-medium text-slate-900">{next ? `${next.name || 'General'} · ${formatDate(next.start_date!, 'd MMM')}` : '—'}</dd></div>
+          <div><dt className="skin-eyebrow text-[10px] font-semibold text-slate-500">Stages done</dt><dd className="mt-0.5 font-medium text-slate-900">{data.stages.length ? `${done} of ${data.stages.length}` : 'No plan yet'}</dd></div>
+          <div><dt className="skin-eyebrow text-[10px] font-semibold text-slate-500">Working days left</dt><dd className="mt-0.5 font-medium text-slate-900">{p.status === 'completed' ? '0' : last ? `${left} · to ${formatDate(last, 'd MMM')}` : '—'}</dd></div>
+        </dl>
+      </div>
+    </Card>
   )
 }

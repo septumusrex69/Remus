@@ -96,6 +96,12 @@ Preview: https://remus-git-claude-new-session-umpip5-team-raptor.vercel.app
     2px corners everywhere (Tailwind's --radius-* overridden under Platinum; rounded-full stays round), hairline
     borders, no soft shadows, and draughtsman's corner ticks on every card and the photo band (skins.css
     `.card::after`). Raptor stays rounded; Remus is cut square. Other skins unchanged.
+25. **The progress dial** (Stephan sent a time-tracker ring: "full circle is 100% ... sometimes it could be like a
+    straight line"): `components/ui/ProgressDial.tsx` (ProgressDial + ProgressLine): a thick arc for done, fine ticks
+    for what is left, the figure in the middle. Figure = `lib/projectProgress.ts`, the portal's "by the plan" sum
+    (stages' days behind us / all their days; test holds it equal to api/_lib/portalRules). On every project's
+    Overview ("How far along": now, next, stages done, working days left), on each Projects card, on the dashboard's
+    Active projects; the straight line is today's stage on the dashboard's site cards.
 Photos stay as chosen until an Administrator changes them (same photo every day); Raptor-style "photo of the day"
 rotation offered, not built.
 Still to offer from Raptor S16: Mail's Archive ("inbox zero"), the portal signing in with a password instead of codes,

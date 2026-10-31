@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { loadScoreSources, scoreProject } from '../../../lib/projectScores'
 import { reportBudgetLevels } from '../../../lib/budgetAlerts'
 import { BudgetBar } from '../components/BudgetBar'
+import { ProgressDial } from '../../../components/ui/ProgressDial'
+import { projectProgress } from '../../../lib/projectProgress'
 import { editsQuotes, seesBudget, seesMoney, useAccess } from '../../../lib/access'
 import { Link, useSearchParams } from 'react-router-dom'
 import { FolderKanban, Plus } from 'lucide-react'
@@ -73,7 +75,11 @@ export function ProjectsList() {
                     <p className="truncate font-semibold text-slate-900">{p.name}</p>
                     <p className="truncate text-xs text-slate-500">{p.code ? `${p.code} · ` : ''}{clientLabel(data!.dir, p)}</p>
                   </div>
-                  <StatusBadge status={p.status} />
+                  <span className="flex shrink-0 items-center gap-2">
+                    <StatusBadge status={p.status} />
+                    {/* How far along by the plan (Remus · Handover 6). */}
+                    <ProgressDial size={52} value={projectProgress(p.status, data!.src.stages.filter((s) => s.project_id === p.id), todayYmd())} />
+                  </span>
                 </div>
                 {/* Rand for Administrators; a contractor sees the budget bar; a site manager the dates (lib/access.ts). */}
                 {!money && (

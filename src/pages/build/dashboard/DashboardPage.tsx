@@ -32,6 +32,8 @@ import { outstandingInvoices } from '../../../lib/finance'
 import { approvalCurrent } from '../../../lib/quoteMath'
 import { workingDaysIn } from '../../../lib/workdays'
 import { photoFor } from '../../../lib/brandPhotos'
+import { ProgressDial, ProgressLine } from '../../../components/ui/ProgressDial'
+import { projectProgress } from '../../../lib/projectProgress'
 import { useLoad } from '../../../hooks/useLoad'
 import { reportBudgetLevels } from '../../../lib/budgetAlerts'
 import { useAuth } from '../../../store/AuthContext'
@@ -445,6 +447,7 @@ export function DashboardPage() {
                 return (
                   <li key={p.id}>
                     <Link to={paths.project(p.id)} className="flex items-center justify-between gap-3 px-4 py-2.5 hover:bg-slate-50">
+                      <ProgressDial size={44} value={projectProgress(p.status, data.stages.filter((s) => s.project_id === p.id), today)} />
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-sm font-medium text-slate-800">{p.name}</span>
                         <span className="block text-xs text-slate-500">{p.end_date ? `Until ${formatDate(p.end_date, 'd MMM')}` : p.code ?? ''}</span>
@@ -569,7 +572,7 @@ function DayCard({ title, date, sites, crew, now, items, empty, accent, register
                             <span className="truncate font-semibold text-slate-700">{s.stage}</span>
                             {s.of > 0 && <span className="shrink-0 text-slate-500">day {Math.min(s.n, s.of) || 1} of {s.of}</span>}
                           </span>
-                          {s.of > 0 && <span className="mt-1 block h-1 overflow-hidden rounded-full bg-slate-100"><span className="block h-full rounded-full bg-emerald-500" style={{ width: `${Math.min(100, Math.round((Math.max(1, s.n) / s.of) * 100))}%` }} /></span>}
+                          {s.of > 0 && <ProgressLine className="mt-1" value={Math.min(100, Math.round((Math.max(1, s.n) / s.of) * 100))} />}
                         </span>
                       ) : p.site_address ? <span className="block truncate text-xs text-slate-500">{p.site_address}</span> : null}
                       {crew(p).length > 0 && <span className="mt-0.5 block truncate text-xs font-medium text-emerald-700">{crew(p).join(', ')}</span>}
