@@ -163,6 +163,15 @@
 @keyframes rmo-polish { from { opacity: 0; } to { opacity: 0.92; } }
 .is-pour .rmo-stage { animation: rmo-shake 0.3s linear 2.1s 2; }
 
+/* ---------------- 5. BUILD: Blueprint and Pour together, Pour's clock moved later ---------------- */
+.is-build .rmo-draw.is-form { stroke-width: 1.4; animation-duration: 0.7s; }
+.is-build .rmo-pour-fill { animation-delay: 1.25s; animation-duration: 1.3s; }
+.is-build .rmo-level { animation-delay: 1.25s, 2.55s; animation-duration: 1.3s, 0.35s; }
+.is-build .rmo-dims { animation: rmo-out 0.5s ease 2.6s forwards; }
+.is-build .rmo-pour-polish { animation-delay: 3.05s; }
+.is-build .rmo-stage { animation: rmo-shake 0.3s linear 2.65s 2; }
+.is-build .rmo-readout { animation-delay: 3.3s; }
+
 @keyframes rmo-in { to { opacity: 1; } }
 @keyframes rmo-out { to { opacity: 0; } }
 

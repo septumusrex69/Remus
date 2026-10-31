@@ -6,7 +6,7 @@ import { REMUS_OPENING_DEFAULT, type RemusVariant } from './RemusOpening'
  * sidebar. Nothing chosen: REMUS_OPENING_DEFAULT.
  */
 const KEY = 'remus.opening'
-const ALL: RemusVariant[] = ['stamp', 'slash', 'cut', 'pour']
+const ALL: RemusVariant[] = ['stamp', 'slash', 'cut', 'pour', 'build']
 
 export function chosenOpening(): RemusVariant {
   try {
