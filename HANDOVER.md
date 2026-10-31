@@ -1,17 +1,38 @@
-# Remus · Handover 6 (written 28–29 Oct 2026 by the Remus · Handover 5 session)
+# Remus · Handover 7 (written 31 Oct 2026 by the Remus · Handover 6 session)
 
 For the next Claude Code session on `septumusrex69/Remus`. Read `CLAUDE.md` (the standing rules),
 then this file, then do the Raptor check below **before** waiting for Stephan's instructions.
-**You are the Remus · Handover 6 session**: say so on every reply and commit (`Remus H6: ...`), and
-write Handover 7 at the top of this file before you finish (CLAUDE.md, "Say which project").
+**You are the Remus · Handover 7 session**: say so on every reply and commit (`Remus H7: ...`), and
+write Handover 8 at the top of this file before you finish (CLAUDE.md, "Say which project").
 
-**About the numbers:** the previous file said Handoff 2, but Stephan called that session "Remus ·
-Handoff 5" ("Call it 5"), so 2–4 were skipped. Numbering carries on from 5; there is no lost work.
+## Start here (31 Oct 2026, end of Remus · Handover 6)
 
-**Remus · Handover 6 session (29 Oct), in progress:** working branch `claude/new-session-umpip5`, fast-forwarded to
-`claude/bold-mayer-yncf1w` (87eac8f), so it carries everything waiting on the preview below (items 10-12).
-Preview: https://remus-git-claude-new-session-umpip5-team-raptor.vercel.app
+**EVERYTHING IS LIVE (Stephan: "Yeah, you can go live", 31 Oct).** `main` fast-forwarded to
+`claude/new-session-umpip5` at bd6e003 (it contained main). Live: https://remus-xi.vercel.app. Database parts
+(0031 budget alerts, 0032 demo_rows + max_jobs, 0033 brand_photos, and the year of demo data) were applied live
+during the session. Everything numbered 10-26 below is live, plus the sign-in openings from the other H6 session
+(`claude/pensive-ptolemy-z0uc1o`, merged twice; its section is further down).
 
+**Asked of Stephan, not answered yet:**
+- His photo picks at /photos (dashboard band, sign-in, sidebar); defaults are grinder / Bosch tool / stacked steel.
+  Offered: a photo of the day from his favourites (Raptor's portal does it).
+- Whether the corner ticks on the square Platinum cards stay (offered to keep only the square edges).
+- Raptor S16 items offered, not built: Mail's Archive ("inbox zero"), the client portal signing in with a password
+  instead of codes.
+- Still open from before: Big Boss, crew message cut off at "Should also be able to", overheads capture, Duplicate
+  quote, P-0005 at R 0, Supabase auth URLs (invite and reset links fail until Stephan sets them), Resend DNS.
+- Clearing the demo data before real use: every row made on 31 Oct is listed in `demo_rows` (see item 18).
+
+**Watch:** Snap slip's "Tell Claude" and the split slip have not been tried with a real slip; the Operations map's
+tiles (CARTO) and the Unsplash photos could not be loaded from the build container (its network refuses them), so
+they were checked by layout only -- ask Stephan what he sees.
+
+## What the Remus · Handover 6 session did (29-31 Oct)
+
+Working branch `claude/new-session-umpip5`, started by fast-forwarding to `claude/bold-mayer-yncf1w` (87eac8f).
+
+10-12. (From Handover 5, now live) Snap slip for contractors / ticked site managers; a reworded request tells its
+    sender; site diary photos and the phone schedule.
 13. **Raptor S15's email changes, copied (Stephan: "you can make the same updates that was made on Raptor"),
     preview only:**
     - **Drafts:** every compose box (Mail page and client Emails card) keeps what is typed in this browser
@@ -118,7 +139,7 @@ rotation offered, not built.
 Still to offer from Raptor S16: Mail's Archive ("inbox zero"), the portal signing in with a password instead of codes,
 the openings (animated start after sign-in).
 
-## Start here: where things stand (29 Oct 2026, end of Remus · Handover 5)
+## Where things stood at the end of Remus · Handover 5 (29 Oct 2026; history -- all of it is live now)
 
 **Working branch: `claude/bold-mayer-yncf1w`** (started from `claude/price-crawler`, which is all on `main`).
 Preview: https://remus-git-claude-bold-mayer-yncf1w-team-raptor.vercel.app · Live: https://remus-xi.vercel.app
@@ -735,7 +756,7 @@ what Raptor gained since the last one:
 4. Tick off the Raptor checklist in `CLAUDE.md` as features land, and update the "Raptor last
    checked" line below.
 
-**Raptor last checked:** 29 Oct 2026 (Remus · Handover 6) — `claude/sales-raptor-review-p1pzx2` at 04947bf, plus
+**Raptor last checked:** 31 Oct 2026 (Remus · Handover 6) — `claude/beautiful-curie-f7deq7` at 1d2f716 (S16: openings, Platinum, portal photographs of the day, Mail Archive, portal passwords); before that 29 Oct — `claude/sales-raptor-review-p1pzx2` at 04947bf, plus
 `claude/beautiful-curie-f7deq7` (7a13c74, S16) and `claude/s13-reino-campaigns` (48579a1, Ryno's PR #2, not merged).
 New since 524f0c6: **email** (b8f4023: a forward opens at once with the original in an editable box; Backspace
 never leaves a dialog; every compose box keeps a draft and Mail gets a Drafts list; a Sent copy that did not file
