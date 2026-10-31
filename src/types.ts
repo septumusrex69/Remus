@@ -122,6 +122,8 @@ export interface CompanySettings {
   markup_subcontractor: number
   /** Default management fee % for a new quote. */
   management_fee_pct: number
+  /** How many jobs can run at once (0032); the jobs calendar warns above it. */
+  max_jobs: number
   /** Printed under the estimated timeline on every quote that shows one (migration 0015). */
   plan_disclaimer: string
   /** Claude credit bought, in US dollars, all purchases together (migration 0019). Left = this - ai_usage. */

@@ -1,4 +1,7 @@
 import { useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
+import { JobsCalendar } from './JobsCalendar'
+import { useBuild } from '../BuildContext'
 import { Link } from 'react-router-dom'
 import { addDays, format, startOfWeek } from 'date-fns'
 import { AlertTriangle, CalendarRange, ChevronLeft, ChevronRight } from 'lucide-react'
@@ -6,7 +9,7 @@ import { projectStages, projects as projectsApi, stageBookings, workers as worke
 import { formatDate, todayYmd, ymd } from '../../../lib/format'
 import { workingDaysIn } from '../../../lib/workdays'
 import { useLoad } from '../../../hooks/useLoad'
-import { Button, Card, EmptyState, ErrorBanner, PageHeader, Spinner } from '../../../components/ui'
+import { Button, Card, EmptyState, ErrorBanner, PageHeader, Spinner, Tabs } from '../../../components/ui'
 import { paths } from '../paths'
 
 /**
@@ -23,8 +26,31 @@ async function load() {
 /** A steady colour per project, from the skin's palette, so a job reads the same across the grid. */
 const PALETTE = ['bg-brand-100 text-brand-800', 'bg-emerald-100 text-emerald-800', 'bg-sky-100 text-sky-800', 'bg-amber-100 text-amber-900', 'bg-violet-100 text-violet-800', 'bg-slate-200 text-slate-800']
 
+/**
+ * TWO VIEWS (Remus · Handover 6): the jobs, week by week against what the company can take on (JobsCalendar);
+ * and the crew, day by day (below). Stephan: "if we go to our schedule, I see there's a schedule for the people
+ * ... but I don't see what our schedule is." The jobs open first; ?view=crew for the people.
+ */
 export function SchedulePage() {
   const { data, error, loading } = useLoad(load, [], 'schedule')
+  const { settings } = useBuild()
+  const [params, setParams] = useSearchParams()
+  const view = params.get('view') === 'crew' ? 'crew' : 'jobs'
+  return (
+    <div className="space-y-4">
+      <PageHeader title="Schedule" subtitle={view === 'jobs' ? 'Which jobs run when, and whether there is room for more.' : 'Who is on which job, day by day. Book people in a project\'s Plan & crew tab.'} />
+      <Tabs<'jobs' | 'crew'> value={view} onChange={(v) => setParams(v === 'jobs' ? {} : { view: v }, { replace: true })}
+        tabs={[{ id: 'jobs', label: 'Jobs by week' }, { id: 'crew', label: 'Crew by day' }]} />
+      {loading && !data ? <Spinner page /> : !data ? <ErrorBanner error={error} />
+        : view === 'jobs' ? <JobsCalendar projects={data.projects} capacity={settings?.max_jobs ?? 4} />
+        : <CrewSchedule data={data} error={error} />}
+    </div>
+  )
+}
+
+type ScheduleData = Awaited<ReturnType<typeof load>>
+
+function CrewSchedule({ data, error }: { data: ScheduleData; error: unknown }) {
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date(), { weekStartsOn: 1 }))
   const today = todayYmd()
   const from = ymd(weekStart)
@@ -60,23 +86,17 @@ export function SchedulePage() {
     return { rows, cell, colour, uncrewed, clashes }
   }, [data, from, to, days])
 
-  if (loading && !data) return <Spinner page />
-  if (!data || !view) return <ErrorBanner error={error} />
+  if (!view) return <ErrorBanner error={error as string} />
 
   return (
     <div className="space-y-4">
-      <PageHeader
-        title="Schedule"
-        subtitle="Who is on which job, day by day. Book people in a project's Plan & crew tab."
-        actions={
-          <div className="flex items-center gap-1">
-            <Button size="sm" onClick={() => setWeekStart((d) => addDays(d, -14))} aria-label="Earlier"><ChevronLeft size={15} /></Button>
-            <Button size="sm" onClick={() => setWeekStart(startOfWeek(new Date(), { weekStartsOn: 1 }))}>This week</Button>
-            <Button size="sm" onClick={() => setWeekStart((d) => addDays(d, 14))} aria-label="Later"><ChevronRight size={15} /></Button>
-          </div>
-        }
-      />
-      <ErrorBanner error={error} />
+      <div className="flex justify-end">
+        <div className="flex items-center gap-1">
+          <Button size="sm" onClick={() => setWeekStart((d) => addDays(d, -14))} aria-label="Earlier"><ChevronLeft size={15} /></Button>
+          <Button size="sm" onClick={() => setWeekStart(startOfWeek(new Date(), { weekStartsOn: 1 }))}>This week</Button>
+          <Button size="sm" onClick={() => setWeekStart((d) => addDays(d, 14))} aria-label="Later"><ChevronRight size={15} /></Button>
+        </div>
+      </div>
 
       {view.clashes > 0 && (
         <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">

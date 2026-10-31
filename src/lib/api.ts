@@ -113,6 +113,7 @@ export async function getSettings(): Promise<CompanySettings> {
     markup_labour: 20,
     markup_subcontractor: 10,
     management_fee_pct: 0,
+    max_jobs: 4,
     plan_disclaimer: 'This timeline is an estimate and may change because of weather, site conditions and other circumstances outside our control.',
     ai_credit_usd: 0,
   }

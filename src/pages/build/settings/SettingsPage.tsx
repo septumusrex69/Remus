@@ -254,6 +254,14 @@ function CompanyTab() {
         <Field label="Address" className="sm:col-span-2"><textarea className="input" value={form.address ?? ''} onChange={(e) => set('address', e.target.value)} /></Field>
       </div>
 
+      <SectionLabel className="mt-6">How much work we take on</SectionLabel>
+      <div className="grid max-w-2xl gap-3 sm:grid-cols-2">
+        {/* Remus · Handover 6: the jobs calendar on the Schedule page warns when a week has more running than this. */}
+        <Field label="Jobs we can run at once" hint="The Schedule's jobs calendar shows a week as full at this number, and warns above it.">
+          <NumInput value={form.max_jobs ?? 4} onValue={(n) => set('max_jobs', n)} />
+        </Field>
+      </div>
+
       <SectionLabel className="mt-6">Logo</SectionLabel>
       <div className="max-w-2xl">
         <p className="mb-3 text-xs text-slate-400">Shown on printed quotes, quote PDFs and emails. PNG or JPG, up to 2 MB. This is the company's logo; the app's own look is under Appearance.</p>
@@ -279,6 +287,7 @@ function CompanyTab() {
             phone: form.phone || null,
             email: form.email || null,
             logo_url: form.logo_url || null,
+            max_jobs: Math.min(50, Math.max(1, Math.round(Number(form.max_jobs) || 4))),
           })
         }
       />
