@@ -112,7 +112,7 @@ export function OpsPage() {
   const capacity = settings?.max_jobs ?? 4
   const mapPoints: OpsPoint[] = live.flatMap((p) => {
     const pt = p.site_address ? points[p.site_address.trim()] : null
-    return pt ? [{ id: p.id, lat: pt.lat, lon: pt.lon, name: p.name, colour: COLOUR[view.colourOf(p)] }] : []
+    return pt ? [{ id: p.id, lat: pt.lat, lon: pt.lon, name: p.name, code: p.code, running: running(p), colour: COLOUR[view.colourOf(p)] }] : []
   })
   const sel = live.find((p) => p.id === selected) ?? null
   const unplaced = live.filter((p) => !p.site_address || points[p.site_address.trim()] === null)

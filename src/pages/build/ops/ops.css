@@ -60,3 +60,26 @@
 
 /* The street map in black and silver: OpenStreetMap's tiles turned negative, without colour, a little dimmed. */
 .ops-board .ops-tiles { filter: grayscale(1) invert(1) brightness(0.82) contrast(1.15); }
+/* The site pins: a bright core with a white ring and a glow, a slow pulse when the job is running, its code beside it. */
+.ops-pin { position: relative; width: 0; height: 0; cursor: pointer; }
+.ops-pin-dot {
+  position: absolute; left: -9px; top: -9px; width: 18px; height: 18px; border-radius: 999px;
+  background: var(--pin); border: 3px solid #f6f6f4;
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.6), 0 0 18px 4px rgba(246, 246, 244, 0.45), 0 0 32px 8px var(--pin);
+}
+.ops-pin-pulse {
+  position: absolute; left: -24px; top: -24px; width: 48px; height: 48px; border-radius: 999px;
+  border: 2px solid rgba(246, 246, 244, 0.7); opacity: 0;
+}
+.ops-pin.is-running .ops-pin-pulse { animation: ops-pulse 2.2s ease-out infinite; }
+@keyframes ops-pulse { 0% { transform: scale(0.35); opacity: 0.9; } 100% { transform: scale(1.35); opacity: 0; } }
+.ops-pin-label {
+  position: absolute; left: 16px; top: -11px; white-space: nowrap; padding: 2px 7px; border-radius: 3px;
+  font-size: 11px; font-weight: 600; letter-spacing: 0.03em; color: #f6f6f4;
+  background: rgba(8, 9, 10, 0.82); border: 1px solid rgba(246, 246, 244, 0.25);
+}
+.ops-pin.is-booked .ops-pin-dot { left: -6px; top: -6px; width: 12px; height: 12px; border-width: 2px; background: #5f636b; box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.6); }
+.ops-pin.is-booked .ops-pin-label { left: 11px; top: -9px; font-size: 10px; font-weight: 500; color: #a9adb4; }
+.ops-pin.is-selected .ops-pin-dot { left: -12px; top: -12px; width: 24px; height: 24px; border-width: 4px; }
+.ops-pin.is-selected .ops-pin-label { left: 20px; background: #f6f6f4; color: #08090a; }
+@media (prefers-reduced-motion: reduce) { .ops-pin.is-running .ops-pin-pulse { animation: none; } }

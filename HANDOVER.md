@@ -45,6 +45,13 @@ by `scripts/brand/night-city.py`), the band 300px tall with the words on dark gl
 plan is gone. Operations map: CARTO dark tiles replaced by OpenStreetMap's own tiles turned black-and-silver in CSS
 (`.ops-tiles` filter) -- the same tiles Find prices' map uses. Not yet confirmed by Stephan that he now sees it.
 
+**Then:** Stephan confirmed the Operations map shows ("Now the map shows very well"). Site pins made to stand out
+(`L.divIcon` pins in OpsMap.tsx + `.ops-pin` in ops.css): bright core in the budget colour, white ring, glow, a slow
+pulse on running jobs, the code always beside it; booked jobs smaller and grey; selected bigger with a white label. The
+city made "cooler": a faint city behind for depth, lit windows, mullions, a ring tower with a halo, a monorail with a
+train, flying craft on dashed paths, beacon lights, a faint reflection (all in scripts/brand/night-city.py). Stephan
+asked how to test Snap slip with Claude: it is live; told him the steps.
+
 **Watch:** Snap slip's "Tell Claude" and the split slip have not been tried with a real slip; the Operations map's
 tiles (CARTO) and the Unsplash photos could not be loaded from the build container (its network refuses them), so
 they were checked by layout only -- ask Stephan what he sees.
