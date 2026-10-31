@@ -87,8 +87,13 @@ Remus, and big" (so no Urban Haus line under the word in the openings either).
   a saturator and compressor; sledgehammers on steel, nail gun, angle grinder, the concrete mixer, timber knocks, a
   steel plate crash; rain under all of them, thunder on the big hits. Rendered offline in Chromium: every opening
   sounds for its whole length, peak ~0.6, nothing clips (no ears on it -- Stephan's are the test).
+- **The sound, round 3 (same day), WHERE IT STANDS:** of round 2, Stephan: *"that sounds like a rave club ... the
+  original music ... for Pour was good. Do something like that similar."* So round 2 is gone and all five are built
+  from the first Pour's palette (mixer rumble, slosh, deep drums, dull knocks, a plate's dark ring, the low swell, the
+  long echo) with soft rain and far-off thunder; Pour itself is its first sound plus rain and thunder. No beat grid,
+  no saw bass, no grinder, no saturation -- don't go back there.
 - **A fifth: Blueprint + Pour (`build`)** -- Stephan: *"combine the blueprint and the pour ... It looks really cool."*
-  Grid and dimensions, the letters drawn as formwork to nail-gun shots, concrete poured in the rain, thunder as the
+  Grid and dimensions, the letters drawn as formwork concrete poured in the rain, thunder as the
   shuttering is knocked off, polished. 4.5 s (the others 3.9 s).
 - **Ask Stephan:** which one he wants as the default for everybody (today Stamp), and whether the new sound is right.
 
