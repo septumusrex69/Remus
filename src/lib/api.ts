@@ -575,12 +575,12 @@ async function authHeader(): Promise<Record<string, string>> {
  * Asks the server to read a slip. Never throws for "AI not configured" or a failed read: the
  * capture flow must still work by hand, so both come back as `configured: false` with a message.
  */
-export async function extractReceipt(path: string): Promise<ExtractResponse> {
+export async function extractReceipt(path: string, note?: string): Promise<ExtractResponse> {
   try {
     const res = await fetch('/api/receipts/extract', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...(await authHeader()) },
-      body: JSON.stringify({ path }),
+      body: JSON.stringify({ path, ...(note?.trim() ? { note: note.trim() } : {}) }),
     })
     const body = (await res.json().catch(() => null)) as (ExtractResponse & { error?: string }) | null
     if (res.ok && body && 'configured' in body) return body
@@ -733,17 +733,19 @@ export async function downloadQuotePdf(quoteId: ID, beforeBuild?: () => Promise<
  * Where the browser has no share sheet for files (most desktops), or refuses because building the
  * PDF took too long after the tap, it downloads instead, so the press always gives you the file.
  */
-export async function shareQuotePdf(quoteId: ID, beforeBuild?: () => Promise<boolean>): Promise<void> {
-  if (beforeBuild && !(await beforeBuild())) return
+export async function shareQuotePdf(
+  quoteId: ID, beforeBuild?: () => Promise<boolean>, text?: string,
+): Promise<'shared' | 'cancelled' | 'downloaded' | 'not saved'> {
+  if (beforeBuild && !(await beforeBuild())) return 'not saved'
   const file = await fetchQuotePdf(quoteId)
   const nav = navigator as Navigator & { canShare?: (d: { files: File[] }) => boolean }
   if (typeof nav.share === 'function' && nav.canShare?.({ files: [file] })) {
     try {
-      await nav.share({ files: [file], title: file.name.replace(/\.pdf$/i, '') })
-      return
+      await nav.share({ files: [file], title: file.name.replace(/\.pdf$/i, ''), ...(text ? { text } : {}) })
+      return 'shared'
     } catch (e) {
       // Closing the share sheet is not a failure; a refusal (NotAllowedError) falls back to a download.
-      if (e instanceof DOMException && e.name === 'AbortError') return
+      if (e instanceof DOMException && e.name === 'AbortError') return 'cancelled'
     }
   }
   const url = URL.createObjectURL(file)
@@ -754,6 +756,7 @@ export async function shareQuotePdf(quoteId: ID, beforeBuild?: () => Promise<boo
   a.click()
   a.remove()
   setTimeout(() => URL.revokeObjectURL(url), 60_000)
+  return 'downloaded'
 }
 
 /** Can this device share a file (an iPad or phone can; most desktops cannot)? */

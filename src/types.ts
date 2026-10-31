@@ -587,6 +587,10 @@ export interface ReceiptExtraction {
 
 export interface ReceiptSuggestion {
   project_id: string | null
+  /** The stage of that project, when Claude could tell (Remus · Handover 6). */
+  stage_id?: string | null
+  /** What was bought and what for, in Claude's words (from the person's note where there is one). */
+  description?: string | null
   category: ExpenseCategory
   confidence: 'low' | 'medium' | 'high'
   reason: string

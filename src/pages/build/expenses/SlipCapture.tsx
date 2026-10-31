@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { seesMoney, useAccess } from '../../../lib/access'
 import { StageSelect } from '../components/StageSelect'
 import { NumInput } from '../../../components/ui/NumInput'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { ArrowLeft, Camera, CheckCircle2, FileText, Images, Loader2, Sparkles, X } from 'lucide-react'
+import { ArrowLeft, Camera, CheckCircle2, FileText, Images, Loader2, RefreshCw, Sparkles, X } from 'lucide-react'
+import { DictateButton } from '../../../components/ui/Dictate'
 import { expenses as expensesApi, extractReceipt, projects as projectsApi, uploadReceipt } from '../../../lib/api'
 import { RECEIPTS_BUCKET, supabase } from '../../../lib/supabase'
 import { formatZAR, labelize, round2, todayYmd } from '../../../lib/format'
@@ -29,6 +30,8 @@ interface Slip {
   extraction?: ReceiptExtraction | null
   suggestion?: ReceiptSuggestion | null
   aiNote?: string
+  /** What the person told Claude about this slip (typed or dictated); sent with the read. */
+  note?: string
   error?: string
 }
 
@@ -59,6 +62,12 @@ const blankForm = (projectId: string | null): FormState => ({
 })
 
 /**
+ * TELL CLAUDE (Remus · Handover 6). Stephan: "build in the AI so that Claude can send it to a project. Also put
+ * dictate in there so that I can dictate to Claude." Before snapping, one note for the slips about to be taken
+ * ("all of these are for the Brooklyn bathroom"); on each slip, its own note and "Ask Claude again". Claude
+ * follows the note for the project, the stage, the category and the description (api/receipts/extract.ts),
+ * and the person still checks it before it is saved.
+ *
  * Snap slip → upload to the private 'receipts' bucket → (optionally) AI reads it and suggests a
  * project and category → person reviews beside the image → save as an expense.
  * Works without AI: the form simply starts empty.
@@ -75,6 +84,11 @@ export function SlipCapture() {
   const [savedCount, setSavedCount] = useState(0)
   const [form, setForm] = useState<FormState>(blankForm(presetProject))
   const [suggested, setSuggested] = useState<Set<keyof FormState>>(new Set())
+  /* The note for the slips about to be snapped, and the one being written on the slip in review. */
+  const [batchNote, setBatchNote] = useState('')
+  const batchNoteRef = useRef(batchNote)
+  batchNoteRef.current = batchNote
+  const [slipNote, setSlipNote] = useState('')
   const cameraRef = useRef<HTMLInputElement>(null)
   const filesRef = useRef<HTMLInputElement>(null)
   const current = queue[0]
@@ -102,7 +116,8 @@ export function SlipCapture() {
 
   function addFiles(files: FileList | null) {
     if (!files?.length) return
-    const slips = Array.from(files).map((file) => ({ id: crypto.randomUUID(), file, previewUrl: URL.createObjectURL(file), stage: 'uploading' as Stage }))
+    const note = batchNoteRef.current.trim() || undefined
+    const slips = Array.from(files).map((file) => ({ id: crypto.randomUUID(), file, previewUrl: URL.createObjectURL(file), stage: 'uploading' as Stage, note }))
     setQueue((q) => [...q, ...slips])
   }
 
@@ -128,17 +143,18 @@ export function SlipCapture() {
         } else {
           updateSlip(id, { stage: 'reading' })
         }
-        const res = await extractReceipt(path)
+        const res = await extractReceipt(path, slip.note)
         if (removed.current.has(id)) return
         const isHead = queueRef.current[0]?.id === id
         if (res.configured) {
           updateSlip(id, { stage: 'review', extraction: res.extraction, suggestion: res.suggestion })
-          if (isHead) prefill(res.extraction, res.suggestion)
+          if (isHead) { prefill(res.extraction, res.suggestion); setSlipNote(slip.note ?? '') }
         } else {
           updateSlip(id, { stage: 'review', extraction: null, suggestion: null, aiNote: res.message })
           if (isHead) {
             setForm(blankForm(presetProject))
             setSuggested(new Set())
+            setSlipNote(slip.note ?? '')
           }
         }
       } catch (e) {
@@ -168,6 +184,15 @@ export function SlipCapture() {
       if (!presetProject && s.project_id && projectsRef.current?.some((p) => p.id === s.project_id)) {
         f.project_id = s.project_id
         marks.add('project_id')
+      }
+      // The stage only of the project the form is on (the server checks it belongs to the suggested one).
+      if (s.stage_id && f.project_id === s.project_id) {
+        f.stage_id = s.stage_id
+        marks.add('stage_id')
+      }
+      if (s.description) {
+        f.description = s.description
+        marks.add('description')
       }
     }
     setForm(f)
@@ -216,8 +241,15 @@ export function SlipCapture() {
     if (path) await supabase.storage.from(RECEIPTS_BUCKET).remove([path]).catch(() => {})
   }
 
+  /** Reads the slip again with what the person has now told Claude. The figures are read afresh too. */
+  function askAgain() {
+    if (!current) return
+    updateCurrent({ note: slipNote.trim() || undefined, stage: 'uploading', error: undefined })
+  }
+
   function next() {
     if (current) URL.revokeObjectURL(current.previewUrl)
+    setSlipNote('')
     setQueue((q) => q.slice(1))
     setForm(blankForm(presetProject))
     setSuggested(new Set())
@@ -255,6 +287,9 @@ export function SlipCapture() {
           </div>
         )}
         <div className="mx-auto flex max-w-md flex-col gap-3">
+          <TellClaude value={batchNote} onChange={setBatchNote}
+            label="Tell Claude about these slips (optional)"
+            placeholder="e.g. These are for the Brooklyn bathroom, the tiling. Paid with the company card." />
           <button
             onClick={() => cameraRef.current?.click()}
             className="flex flex-col items-center justify-center gap-3 rounded-2xl bg-brand-500 px-6 py-12 text-white shadow-lg shadow-brand-500/20 active:scale-[0.99]"
@@ -326,6 +361,14 @@ export function SlipCapture() {
                 <p className="text-xs text-slate-500">{current.aiNote}</p>
               ) : null}
 
+              <TellClaude value={slipNote} onChange={setSlipNote} label="Tell Claude about this slip"
+                placeholder="e.g. This is for the Mackenzie Street job, the plumbing stage."
+                action={
+                  <Button size="sm" onClick={askAgain} disabled={!slipNote.trim() || slipNote.trim() === (current.note ?? '')} data-testid="slip-ask-again">
+                    <RefreshCw size={13} /> Ask Claude again
+                  </Button>
+                } />
+
               <div className="grid grid-cols-2 gap-3">
                 <Field label="Supplier" className="col-span-2"><input className="input" value={form.supplier} onChange={(e) => set('supplier', e.target.value)} /></Field>
                 <Field label="Date"><input type="date" className="input" value={form.date} onChange={(e) => set('date', e.target.value)} /></Field>
@@ -344,7 +387,7 @@ export function SlipCapture() {
                   <ProjectSelect projects={projects ?? []} value={form.project_id} onChange={(v) => { set('project_id', v); set('stage_id', null) }} highlight={suggested.has('project_id')} />
                   <StageSelect className="mt-2" projectId={form.project_id} value={form.stage_id} onChange={(v) => set('stage_id', v)} />
                 </Field>
-                <Field label="Description" className="col-span-2"><input className="input" value={form.description} onChange={(e) => set('description', e.target.value)} /></Field>
+                <Field label="Description" className="col-span-2"><input className={`input ${hl('description')}`} value={form.description} onChange={(e) => set('description', e.target.value)} /></Field>
                 <label className="col-span-2 flex items-center gap-2 text-sm"><input type="checkbox" checked={form.paid} onChange={(e) => set('paid', e.target.checked)} /> Already paid</label>
               </div>
               {current.extraction?.card_last4 && (
@@ -360,6 +403,26 @@ export function SlipCapture() {
           )}
         </Card>
       </div>
+    </div>
+  )
+}
+
+/** A box to tell Claude about a slip, typed or spoken (the microphone is Remus's DictateButton). */
+function TellClaude({ value, onChange, label, placeholder, action }: {
+  value: string
+  onChange: (v: string) => void
+  label: string
+  placeholder: string
+  action?: ReactNode
+}) {
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white p-3" data-testid="tell-claude">
+      <div className="mb-1.5 flex items-center justify-between gap-2">
+        <span className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-700"><Sparkles size={14} className="text-brand-600" /> {label}</span>
+        <DictateButton size="small" value={value} onChange={onChange} />
+      </div>
+      <textarea className="input min-h-16 text-sm" rows={2} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} />
+      {action && <div className="mt-2 flex justify-end">{action}</div>}
     </div>
   )
 }

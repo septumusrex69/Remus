@@ -47,7 +47,7 @@ export function PdfMenu({ quoteId, beforeBuild, onError }: { quoteId: string; be
             <span className="ml-auto text-xs text-slate-400">to Downloads</span>
           </button>
           {share && (
-            <button className={item} onClick={() => run('Preparing…', () => shareQuotePdf(quoteId, beforeBuild))}>
+            <button className={item} onClick={() => run('Preparing…', async () => { await shareQuotePdf(quoteId, beforeBuild) })}>
               <Share size={16} className="text-slate-400" /> Share or save to Files
             </button>
           )}

@@ -61,6 +61,8 @@ import { SendQuoteModal } from './SendQuoteModal'
 import { QuotePlanCard } from './QuotePlan'
 import { AcceptQuoteModal } from './AcceptQuoteModal'
 import { PdfMenu } from './PdfMenu'
+import { WhatsAppQuoteButton } from './WhatsAppQuoteButton'
+import { quoteWhatsAppMessage } from '../../../lib/whatsapp'
 import { FindPricesModal } from './FindPricesModal'
 import { ShoppingListModal } from './ShoppingListModal'
 import { WhereToShopCard } from './WhereToShopCard'
@@ -477,6 +479,29 @@ export function QuoteEditor() {
     void run('convert', async () => navigate(paths.project((await convertQuoteToProject(quote!.id)).id)))
   }
 
+  /* WHATSAPP (Remus · Handover 6): the contact's cellphone first, then their phone, then the company's. */
+  const quoteContact = dir && quote.contact_id ? dir.contactById.get(quote.contact_id) ?? null : null
+  const quoteCompanyId = quote.company_id ?? quoteContact?.company_id ?? null
+  const quoteCompany = dir && quoteCompanyId ? dir.companyById.get(quoteCompanyId) ?? null : null
+  const whatsAppNumbers = [
+    ...(quoteContact?.mobile ? [{ label: `${quoteContact.first_name} · cellphone`, value: quoteContact.mobile }] : []),
+    ...(quoteContact?.phone ? [{ label: `${quoteContact.first_name} · phone`, value: quoteContact.phone }] : []),
+    ...(quoteCompany?.phone ? [{ label: quoteCompany.name, value: quoteCompany.phone }] : []),
+  ]
+  async function markSentVia(sentTo: string) {
+    if (!quote) return
+    setError(null)
+    try {
+      const now = new Date().toISOString()
+      setQuote(await quotesApi.update(quote.id, {
+        updated_at: now, sent_to: sentTo,
+        ...(quote.status === 'draft' ? { status: 'sent' as QuoteStatus } : {}), ...(!quote.sent_at ? { sent_at: now } : {}),
+      }))
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    }
+  }
+
   const clientEmail = (() => {
     if (!dir) return ''
     const contact = quote.contact_id ? dir.contactById.get(quote.contact_id) : null
@@ -513,6 +538,9 @@ export function QuoteEditor() {
               <Printer size={15} /> Print
             </Button>
             <PdfMenu quoteId={quote.id} beforeBuild={async () => (dirty ? save() : true)} onError={setError} />
+            <WhatsAppQuoteButton quoteId={quote.id} numbers={whatsAppNumbers} beforeBuild={async () => (dirty ? save() : true)}
+              message={quoteWhatsAppMessage({ firstName: quoteContact?.first_name, senderName: currentUser?.name?.split(' ')[0], companyName: settings?.name, quoteNumber: quote.number, title: quote.title })}
+              blocked={needsApproval} onSent={(to) => void markSentVia(to)} onError={setError} />
             {/* Internal: where to buy each material (ShoppingListModal). */}
             <Button onClick={() => setShopping(true)}>
               <ShoppingCart size={15} /> Shopping list
