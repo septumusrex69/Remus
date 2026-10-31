@@ -1,0 +1,172 @@
+/*
+ * REMUS'S OPENING (RemusOpening.tsx), Remus · Handoff 6. PLATINUM, as Raptor's is (raptorOpening.css, Raptor S16):
+ * black glass, brushed-silver lines and white light, nothing warm, no navy. The colours are Raptor's Platinum tokens,
+ * kept here (not in the skins) because the opening is the same whatever skin the person wears.
+ * One clock: the action until ~1.8 s (stamp, slash) / ~2.1 s (cut, pour), the light along the steel, held, then the fade.
+ * Just the word, big, no line under it (Stephan to the Platinum session, 31 Oct: "just Remus, and big").
+ */
+.remus-opening {
+  --rmo-rock: #09090b;
+  --rmo-stone: #1b1c1f;
+  --rmo-storm: #4a4d54;
+  --rmo-line: #c4c8cf;
+  --rmo-silver: #8b9098;
+  --rmo-snow: #f6f6f4;
+  position: fixed; inset: 0; z-index: 200; overflow: hidden; cursor: default;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  background: radial-gradient(ellipse at 50% 45%, var(--rmo-stone) 0%, #111214 55%, #050506 100%);
+  transition: opacity 0.55s ease;
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+}
+.remus-opening.is-leaving { opacity: 0; }
+.rmo-layer { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+
+.rmo-stage { position: relative; display: flex; flex-direction: column; align-items: center; }
+.rmo-word { position: relative; width: min(86vw, 640px); }
+.rmo-word > * { position: absolute; inset: 0; }
+.rmo-svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; display: block; }
+.rmo-readout {
+  position: absolute; bottom: 8vh; margin: 0; font: 600 11px/1 ui-monospace, 'SFMono-Regular', Menlo, monospace;
+  letter-spacing: 0.35em; text-transform: uppercase; color: var(--rmo-silver); opacity: 0;
+  animation: rmo-in 0.3s steps(3, end) 2.8s forwards;
+}
+
+/* The light along the steel: a skewed band crossing the letters (clipped to them in the SVG). */
+.rmo-shine { transform: translateX(0) skewX(-18deg); opacity: 0; animation: rmo-shine 0.95s ease-in-out forwards; }
+@keyframes rmo-shine { 0% { opacity: 1; transform: translateX(0) skewX(-18deg); } 100% { opacity: 1; transform: translateX(var(--rmo-shine-to, 760px)) skewX(-18deg); } }
+
+/* A jolt of the whole word, as if the floor took the weight. */
+@keyframes rmo-shake {
+  0% { transform: translate(0, 5px); }
+  18% { transform: translate(-2px, -3px); }
+  36% { transform: translate(2px, 1px); }
+  54% { transform: translate(0, -1px); }
+  70%, 100% { transform: none; }
+}
+
+/* ---------------- 1. STAMP: the letters slam down, doof, a puff of dust each ---------------- */
+.rmo-floor {
+  position: absolute; left: 0; right: 0; top: 50%; bottom: 0;
+  background: radial-gradient(ellipse 60% 40% at 50% 18%, rgba(196, 200, 207, 0.12) 0%, rgba(196, 200, 207, 0) 70%);
+}
+.is-stamp .rmo-stage { animation: rmo-shake 0.35s linear 0.37s 5; }
+.is-stamp .rmo-stamp-letter {
+  transform-box: fill-box; transform-origin: 50% 100%; opacity: 0;
+  animation: rmo-slam 0.55s linear both;
+}
+@keyframes rmo-slam {
+  0% { opacity: 0; transform: translateY(-70%) scale(2.6); animation-timing-function: cubic-bezier(.55, 0, 1, .45); }
+  10% { opacity: 1; }
+  40% { opacity: 1; transform: none; animation-timing-function: ease-out; }
+  52% { transform: scale(1.09, 0.86); }
+  72% { transform: scale(0.98, 1.03); }
+  100% { opacity: 1; transform: none; }
+}
+.rmo-impact { position: absolute; inset: auto; width: 0; height: 0; pointer-events: none; }
+.rmo-ring {
+  position: absolute; left: -60px; top: -9px; width: 120px; height: 18px; border-radius: 50%;
+  border: 1.5px solid rgba(246, 246, 244, 0.75); opacity: 0; animation: rmo-ring 0.65s ease-out both;
+}
+@keyframes rmo-ring { 0% { opacity: 0.9; transform: scale(0.15); } 100% { opacity: 0; transform: scale(1.9); } }
+.rmo-dust {
+  position: absolute; left: -16px; top: -16px; width: 32px; height: 32px; border-radius: 50%; opacity: 0;
+  background: radial-gradient(circle, rgba(214, 217, 222, 0.6) 0%, rgba(196, 200, 207, 0.25) 40%, rgba(196, 200, 207, 0) 70%);
+  filter: blur(2px); animation: rmo-dust 1.2s cubic-bezier(.15, .7, .3, 1) both;
+}
+@keyframes rmo-dust {
+  0% { opacity: 0; transform: translate(0, 0) scale(calc(var(--s) * 0.3)); }
+  8% { opacity: 0.95; }
+  100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(calc(var(--s) * 2.4)); }
+}
+
+/* ---------------- 2. SLASH: the logo's own cut line, a blade of light, split and clack together ---------------- */
+.rmo-blade-svg { filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.9)) drop-shadow(0 0 14px rgba(196, 200, 207, 0.6)); }
+.rmo-blade {
+  stroke: #ffffff; stroke-width: 1.6; stroke-linecap: round; stroke-dasharray: 0.22 1.5; stroke-dashoffset: 0.22; opacity: 0;
+  animation: rmo-blade 0.5s cubic-bezier(.6, 0, .4, 1) 0.55s both;
+}
+@keyframes rmo-blade { 0% { stroke-dashoffset: 0.22; opacity: 0; } 4% { opacity: 1; } 90% { opacity: 1; } 100% { stroke-dashoffset: -1.05; opacity: 0; } }
+.rmo-seam { stroke: #ffffff; stroke-width: 1.2; opacity: 0; animation: rmo-seam 0.7s ease-out 1.62s both; }
+@keyframes rmo-seam { 0% { opacity: 0; } 2% { opacity: 0.95; } 100% { opacity: 0; } }
+.is-slash .rmo-half { opacity: 0; animation: rmo-in 0.5s ease both; }
+.is-slash .rmo-half.is-top { animation: rmo-in 0.5s ease both, rmo-split-top 0.75s linear 0.95s both; }
+.is-slash .rmo-half.is-bottom { animation: rmo-in 0.5s ease both, rmo-split-bottom 0.75s linear 0.95s both; }
+@keyframes rmo-split-top {
+  0% { transform: none; animation-timing-function: cubic-bezier(.2, .8, .3, 1); }
+  30% { transform: translate(16px, -7px); }
+  72% { transform: translate(19px, -8px); animation-timing-function: cubic-bezier(.7, 0, 1, .6); }
+  88% { transform: translate(-1.5px, 0.6px); }
+  100% { transform: none; }
+}
+@keyframes rmo-split-bottom {
+  0% { transform: none; animation-timing-function: cubic-bezier(.2, .8, .3, 1); }
+  30% { transform: translate(-16px, 6px); }
+  72% { transform: translate(-19px, 7px); animation-timing-function: cubic-bezier(.7, 0, 1, .6); }
+  88% { transform: translate(1.5px, -0.6px); }
+  100% { transform: none; }
+}
+.rmo-light { opacity: 0; animation: rmo-in 0.45s ease 1.0s both; }
+.is-slash .rmo-stage { animation: rmo-shake 0.32s linear 1.62s 1; }
+
+/* ---------------- 3. CUT: the blueprint, the cut lines, the torch, the off-cut dropping away ---------------- */
+.remus-opening.is-cut { background: radial-gradient(ellipse at 50% 45%, #1e2024 0%, #121316 60%, #060708 100%); }
+.rmo-grid {
+  position: absolute; inset: 0; opacity: 0; animation: rmo-in 0.7s ease forwards;
+  background:
+    repeating-linear-gradient(0deg, rgba(196, 200, 207, 0.09) 0 1px, transparent 1px 120px),
+    repeating-linear-gradient(90deg, rgba(196, 200, 207, 0.09) 0 1px, transparent 1px 120px),
+    repeating-linear-gradient(0deg, rgba(196, 200, 207, 0.035) 0 1px, transparent 1px 24px),
+    repeating-linear-gradient(90deg, rgba(196, 200, 207, 0.035) 0 1px, transparent 1px 24px);
+}
+.rmo-draw { fill: none; stroke-dasharray: 1; stroke-dashoffset: 1; animation: rmo-draw 1s ease-in-out 0.3s both; }
+@keyframes rmo-draw { to { stroke-dashoffset: 0; } }
+.rmo-draw.is-dim { stroke: var(--rmo-silver); stroke-width: 0.7; animation-duration: 0.7s; animation-delay: 0.15s; }
+.rmo-dim-text { fill: var(--rmo-silver); font: 500 8px ui-monospace, Menlo, monospace; letter-spacing: 0.08em; opacity: 0; animation: rmo-in 0.4s ease 0.75s forwards; }
+.is-cut .rmo-dims { animation: rmo-out 0.5s ease 2.2s forwards; }
+.rmo-cut-before { opacity: 0; animation: rmo-in 0.4s ease forwards, rmo-cut-away 0.75s cubic-bezier(.45, .05, .55, .95) 1.35s both; }
+@keyframes rmo-cut-away { from { clip-path: inset(0 0 0 1%); } to { clip-path: inset(0 0 0 100%); } }
+.rmo-cut-after { animation: rmo-cut-in 0.75s cubic-bezier(.45, .05, .55, .95) 1.35s both; }
+@keyframes rmo-cut-in { from { clip-path: inset(0 99% 0 0); } to { clip-path: inset(0 0 0 0); } }
+.rmo-hot-edge { animation: rmo-out 1.1s ease 1.7s both; }
+.rmo-offcut { animation: rmo-drop 0.9s cubic-bezier(.5, 0, .9, .6) 2.2s both; }
+@keyframes rmo-drop { from { transform: none; opacity: 1; } to { transform: translateY(75vh) rotate(8deg); opacity: 0; } }
+.rmo-torch {
+  inset: 4% auto 4% 0 !important; width: 2px; opacity: 0; background: #ffffff;
+  box-shadow: 0 0 10px 2px rgba(255, 255, 255, 0.9), 0 0 36px 8px rgba(196, 200, 207, 0.55);
+  animation: rmo-torch 0.75s cubic-bezier(.45, .05, .55, .95) 1.35s both;
+}
+@keyframes rmo-torch { 0% { left: 1%; opacity: 0; } 5% { opacity: 1; } 94% { opacity: 1; } 100% { left: 100%; opacity: 0; } }
+.rmo-spark {
+  position: absolute; left: 0; bottom: 18%; width: 3px; height: 3px; border-radius: 50%; background: #ffffff; opacity: 0;
+  box-shadow: 0 0 6px 2px rgba(255, 255, 255, 0.8); animation: rmo-spark 0.42s ease-in infinite;
+}
+@keyframes rmo-spark { 0% { opacity: 1; transform: translate(0, 0); } 100% { opacity: 0; transform: translate(var(--dx), var(--dy)); } }
+
+/* ---------------- 4. POUR: formwork, concrete to the laser level, the shuttering struck, polished ---------------- */
+.rmo-site-glow {
+  position: absolute; left: -10%; right: -10%; bottom: -30%; height: 70%;
+  background: radial-gradient(ellipse at 50% 100%, rgba(196, 200, 207, 0.16) 0%, rgba(196, 200, 207, 0) 65%);
+}
+.rmo-draw.is-form { stroke: var(--rmo-line); stroke-width: 2.2; stroke-linejoin: miter; animation-duration: 0.6s; }
+.rmo-form { transform-box: fill-box; transform-origin: 50% 50%; animation: rmo-strike 0.45s cubic-bezier(.5, 0, .8, .5) both; }
+@keyframes rmo-strike { from { transform: none; opacity: 1; } to { transform: translate(var(--fx), 26px) rotate(4deg) scale(1.15); opacity: 0; } }
+.rmo-pour-fill { animation: rmo-rise 1.35s cubic-bezier(.4, .1, .3, 1) 0.65s both; }
+@keyframes rmo-rise { from { clip-path: inset(78% 0 0 0); } to { clip-path: inset(20% 0 0 0); } }
+.rmo-level {
+  left: 3% !important; right: 3% !important; top: 78% !important; bottom: auto !important; height: 1.5px; opacity: 0;
+  background: linear-gradient(90deg, rgba(246, 246, 244, 0) 0%, #f6f6f4 12%, #ffffff 50%, #f6f6f4 88%, rgba(246, 246, 244, 0) 100%);
+  box-shadow: 0 0 10px 1px rgba(255, 255, 255, 0.6);
+  animation: rmo-level 1.35s cubic-bezier(.4, .1, .3, 1) 0.65s both, rmo-out 0.35s ease 2s forwards;
+}
+@keyframes rmo-level { from { top: 78%; opacity: 1; } to { top: 21%; opacity: 1; } }
+.rmo-pour-polish { opacity: 0; animation: rmo-polish 0.8s ease 2.5s both; }
+@keyframes rmo-polish { from { opacity: 0; } to { opacity: 0.92; } }
+.is-pour .rmo-stage { animation: rmo-shake 0.3s linear 2.1s 2; }
+
+@keyframes rmo-in { to { opacity: 1; } }
+@keyframes rmo-out { to { opacity: 0; } }
+
+/* ---------------- still (reduced motion) ---------------- */
+@media (prefers-reduced-motion: reduce) {
+  .remus-opening.is-still * { animation: none !important; }
+}
