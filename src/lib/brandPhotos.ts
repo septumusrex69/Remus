@@ -72,7 +72,8 @@ export function rememberedLoginPhoto(): BrandPhoto {
 /*
  * THE NIGHT HERO DRAWINGS (Remus · Handover 6). Stephan: "Give me like 10 options to choose from." Line drawings in
  * public/brand/heroes (scripts/brand/heroes.py and night-city.py make them); Platinum Night draws the chosen one in
- * the dashboard band. 01, the first city, is the default ("the previous one looked a little bit better").
+ * the dashboard band. 10, the site contours, is the default (Stephan, 31 Oct: "the only one ... I actually like was
+ * the last one. That contours thing").
  */
 export const NIGHT_HEROES: { id: string; name: string }[] = [
   { id: 'hero-01', name: 'City skyline' },
@@ -87,7 +88,7 @@ export const NIGHT_HEROES: { id: string; name: string }[] = [
   { id: 'hero-10', name: 'Site: contours and setting-out grid' },
 ]
 export function heroFor(choice: BrandPhotoChoice | null | undefined): string {
-  return NIGHT_HEROES.some((h) => h.id === choice?.hero) ? choice!.hero! : 'hero-01'
+  return NIGHT_HEROES.some((h) => h.id === choice?.hero) ? choice!.hero! : 'hero-10'
 }
 export const heroUrl = (id: string) => `/brand/heroes/${id}.svg`
 
