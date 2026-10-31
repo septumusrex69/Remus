@@ -10,11 +10,11 @@ import { chooseOpening, chosenOpening } from '../components/opening/openingChoic
  * remembers the pick on this device (openingChoice.ts).
  */
 const OPENINGS: { id: RemusVariant; name: string; line: string }[] = [
-  { id: 'stamp', name: '1 · Stamp', line: 'R, E, M, U, S slam down one at a time: a kick and a sledgehammer on steel each, dust, the floor shakes, thunder on the last.' },
-  { id: 'slash', name: '2 · Cut line', line: 'The logo\'s own cut line: an angle grinder runs up the cut, the word splits on it, lights up silver and slams back together.' },
-  { id: 'cut', name: '3 · Blueprint', line: 'Cut lines on a steel plate to nail-gun shots, a grinder and torch through it, the off-cut crashes to the floor.' },
+  { id: 'stamp', name: '1 · Stamp', line: 'R, E, M, U, S slam down one at a time: a deep drum and a knock each, a puff of dust, the floor shakes, thunder rolls in.' },
+  { id: 'slash', name: '2 · Cut line', line: 'The logo\'s own cut line: a blade of light runs up the cut, the word splits on it, lights up silver and clacks back together.' },
+  { id: 'cut', name: '3 · Blueprint', line: 'Cut lines on a steel plate, a cutting torch runs along them, the off-cut drops away.' },
   { id: 'pour', name: '4 · Pour', line: 'Rain and the mixer: concrete up to the laser level, a thunderclap as the shuttering is knocked off, polished to silver.' },
-  { id: 'build', name: '5 · Blueprint + Pour', line: 'The drawing board, then the pour: the letters drawn as formwork to nail-gun shots, concrete poured in the rain, thunder, shuttering off.' },
+  { id: 'build', name: '5 · Blueprint + Pour', line: 'The drawing board, then the pour: the letters drawn as formwork, concrete poured in the rain, thunder, shuttering off.' },
 ]
 
 export default function OpeningPage() {
@@ -31,7 +31,7 @@ export default function OpeningPage() {
       <div className="w-full max-w-[560px]">
         <img src="/brand/remus-wordmark-white.png" alt="Remus" className="h-10 w-auto mx-auto" />
         <h1 className="mt-6 text-center text-2xl font-semibold text-white">Remus's opening</h1>
-        <p className="mt-2 text-center text-sm text-white/70">What plays after you sign in. A hard beat with the building site on top: hammers, a grinder, the mixer, rain and thunder. Tap one to play it, with sound; tap the screen to skip.</p>
+        <p className="mt-2 text-center text-sm text-white/70">What plays after you sign in. Each sounds like Pour: the concrete mixer, deep drums and knocks, rain and far-off thunder. Tap one to play it, with sound; tap the screen to skip.</p>
         <ul className="mt-8 space-y-3">
           {OPENINGS.map((o) => (
             <li key={o.id} className="rounded-2xl border border-white/15 bg-white/[0.06]">
