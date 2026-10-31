@@ -25,8 +25,30 @@ const isPlaceholder = (it: QuoteItem) => !it.description.trim() && !Number(it.un
 /** Client-facing quote. Browser Print → Save as PDF gives an A4 document (see print CSS). */
 export function QuotePrint() {
   const { id = '' } = useParams()
-  const { settings } = useBuild()
   const editor = editsQuotes(useAccess())
+  return (
+    <div className="min-h-dvh bg-slate-100 py-6 print:bg-white print:py-0">
+      <div className="no-print mx-auto mb-4 flex max-w-[210mm] items-center justify-between px-4">
+        {/* A contractor reads the quote here, as the client does (lib/access.ts): there is no editor to go back to. */}
+        <Link to={editor ? paths.quote(id) : paths.quotes()} className="inline-flex items-center gap-1 text-sm text-slate-600 hover:text-slate-900">
+          <ArrowLeft size={14} /> {editor ? 'Back to editor' : 'Quotes'}
+        </Link>
+        <Button variant="dark" onClick={() => window.print()}>
+          <Printer size={15} /> Print / Save as PDF
+        </Button>
+      </div>
+      <QuoteDocument id={id} setTitle />
+    </div>
+  )
+}
+
+/**
+ * THE QUOTE AS THE CLIENT GOT IT: letterhead, lines, totals, timeline, notes, terms. The print view, and
+ * (Remus · Handover 6) a project's Quote tab -- Stephan: "you need to see the original quote that was
+ * quoted when you go to a project, even when the project is completed."
+ */
+export function QuoteDocument({ id, setTitle }: { id: string; setTitle?: boolean }) {
+  const { settings } = useBuild()
   const { data, error, loading } = useLoad(async () => {
     const [quote, items, dir, attachments, stages] = await Promise.all([quotesApi.get(id), listQuoteItems(id), loadClientDirectory(), quoteAttachments.list({ quote_id: id }), listQuoteStages(id)])
     // HEIC/HEIF photos don't render in most browsers: leave them out rather than print a broken image.
@@ -37,11 +59,12 @@ export function QuotePrint() {
   }, [id])
 
   useEffect(() => {
+    if (!setTitle) return
     document.title = data?.quote ? `Quote ${data.quote.number ?? ''} – ${settings?.name ?? 'Urban Haus'}` : 'Urban Haus · Remus'
     return () => {
       document.title = 'Urban Haus · Remus'
     }
-  }, [data?.quote, settings?.name])
+  }, [data?.quote, settings?.name, setTitle])
 
   const groups = useMemo(() => {
     const g: { section: string | null; items: QuoteItem[] }[] = []
@@ -54,7 +77,7 @@ export function QuotePrint() {
     return g
   }, [data?.items])
 
-  if (loading && !data) return <Spinner page />
+  if (loading && !data) return <Spinner />
   if (!data?.quote) return <ErrorBanner error={error ?? 'Quote not found'} />
   const { quote, items, dir } = data
   const t = quoteTotals(items, quote.discount, quote.vat_rate, quote.management_fee_pct)
@@ -66,17 +89,6 @@ export function QuotePrint() {
   const plan = quote.show_plan !== false && planned.totalDays > 0 ? planned : null
 
   return (
-    <div className="min-h-dvh bg-slate-100 py-6 print:bg-white print:py-0">
-      <div className="no-print mx-auto mb-4 flex max-w-[210mm] items-center justify-between px-4">
-        {/* A contractor reads the quote here, as the client does (lib/access.ts): there is no editor to go back to. */}
-        <Link to={editor ? paths.quote(quote.id) : paths.quotes()} className="inline-flex items-center gap-1 text-sm text-slate-600 hover:text-slate-900">
-          <ArrowLeft size={14} /> {editor ? 'Back to editor' : 'Quotes'}
-        </Link>
-        <Button variant="dark" onClick={() => window.print()}>
-          <Printer size={15} /> Print / Save as PDF
-        </Button>
-      </div>
-
       <article className="print-page mx-auto max-w-[210mm] bg-white px-6 py-8 text-[13px] leading-relaxed text-slate-800 shadow-sm sm:px-12 sm:py-12">
         {/* Letterhead */}
         <header className="flex flex-col justify-between gap-6 border-b-4 border-brand-500 pb-6 sm:flex-row">
@@ -225,6 +237,5 @@ export function QuotePrint() {
           <div className="border-t border-slate-300 pt-1">Date</div>
         </section>
       </article>
-    </div>
   )
 }

@@ -51,6 +51,14 @@ Preview: https://remus-git-claude-new-session-umpip5-team-raptor.vercel.app
       site manager refused); tables left empty. NOTE: the preview uses the live database, so opening the
       preview's dashboard sends the first real alerts (demo job UHG-002 is at ~92%).
     - Fixed on the way: the bell's list opened BEHIND the dashboard's hero band (top bar now `relative z-30`).
+17. **The quote on the project** (Stephan: "you need to see the original quote that was quoted when you go to a
+    project, even when the project is completed"; preview only): a **Quote Q-xxxx** tab on every project (not for
+    site managers), any status, showing the quote exactly as the client got it -- the print view's article is now
+    `QuoteDocument` in `quotes/QuotePrint.tsx`, used by both. Print / PDF and (Administrators) Open the quote.
+    Which quote: the project's `quote_id`, else a quote naming the project (accepted first; "Make it this
+    project's quote"); none: an Administrator links one of the client's quotes. Live data, 31 Oct: only UHG-001
+    and P-0005 have a quote_id; UHG-003 has Q-0002 (sent) naming it; completed UHG-004 and UHG-002 have none
+    (demo data). Checked in Playwright, desktop and iPhone, no sideways scroll.
 
 ## Start here: where things stand (29 Oct 2026, end of Remus · Handover 5)
 

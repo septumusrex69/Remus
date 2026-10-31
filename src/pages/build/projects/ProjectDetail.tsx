@@ -1,9 +1,9 @@
 import { parseISO } from 'date-fns'
-import { seesBudget, seesMoney, seesQuotes, useAccess } from '../../../lib/access'
+import { editsQuotes, seesBudget, seesMoney, seesQuotes, useAccess } from '../../../lib/access'
 import { NumInput } from '../../../components/ui/NumInput'
 import { useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { ArrowLeft, Camera, Check, Pencil, Plus, Trash2 } from 'lucide-react'
+import { ArrowLeft, Camera, Check, ExternalLink, FileText, Pencil, Plus, Printer, Trash2 } from 'lucide-react'
 import {
   clientLabel,
   diaryEvents,
@@ -52,9 +52,11 @@ import { useVatRate } from '../BuildContext'
 import { ProjectFormModal } from './ProjectFormModal'
 import { PlanTab } from './PlanTab'
 import { JobScorecard } from './JobScorecard'
+import { QuoteDocument } from '../quotes/QuotePrint'
+import type { Quote } from '../../../types'
 import { projectCrewCost } from '../../../lib/crewDays'
 
-type Tab = 'overview' | 'plan' | 'expenses' | 'invoices' | 'variations' | 'diary' | 'schedule'
+type Tab = 'overview' | 'quote' | 'plan' | 'expenses' | 'invoices' | 'variations' | 'diary' | 'schedule'
 const MONEY_TABS: Tab[] = ['expenses', 'invoices', 'variations']
 
 /** Runs a click action, reporting any failure to the page's error banner. */
@@ -78,19 +80,26 @@ async function load(id: string) {
     projectsApi.list(),
   ])
   // For the scorecard: the quote's lines (quoted cost by kind) and the crew's booked days (actual labour).
-  const [quote, items, stages, allBookings, workerRows, register] = await Promise.all([
+  const [quote, items, stages, allBookings, workerRows, register, quotesHere] = await Promise.all([
     project?.quote_id ? quotesApi.get(project.quote_id) : Promise.resolve(null),
     project?.quote_id ? listQuoteItems(project.quote_id) : Promise.resolve([]),
     projectStages.list({ project_id: id }),
     stageBookings.list(),
     workersApi.list(),
     listCrewDays(project?.start_date ?? '2000-01-01', todayYmd()),
+    quotesApi.list({ project_id: id }).catch(() => [] as Quote[]),
   ])
+  /*
+   * THE QUOTE TO SHOW ON THE PROJECT (Remus · Handover 6): the one the project was made from; else a quote
+   * that names this project, accepted first. The scorecard keeps to the project's own quote_id.
+   */
+  const rank = (q: Quote) => ['accepted', 'sent', 'draft', 'expired', 'declined'].indexOf(q.status)
+  const shownQuote = quote ?? [...quotesHere].sort((a, b) => rank(a) - rank(b))[0] ?? null
   const stageIds = new Set(stages.map((st) => st.id))
   const bookings = allBookings.filter((b) => stageIds.has(b.stage_id))
   const workerMap = new Map(workerRows.map((w) => [w.id, w]))
   const crew = projectCrewCost({ bookings, register, stageProject: new Map(stages.map((st) => [st.id, st.project_id])), workers: workerMap }, id, todayYmd())
-  return { project, fin, dir, exp, inv, pay, vars, entries, events, linked, team, allProjects, quote, items, stages, crew }
+  return { project, fin, dir, exp, inv, pay, vars, entries, events, linked, team, allProjects, quote, items, stages, crew, shownQuote }
 }
 
 export function ProjectDetail() {
@@ -155,6 +164,7 @@ export function ProjectDetail() {
         onChange={(t) => setParams({ tab: t }, { replace: true })}
         tabs={([
           { id: 'overview', label: 'Overview' },
+          ...(seesQuotes(access) ? [{ id: 'quote' as Tab, label: data.shownQuote?.number ? `Quote ${data.shownQuote.number}` : 'Quote' }] : []),
           { id: 'plan', label: 'Plan & crew' },
           { id: 'expenses', label: `Expenses (${data.exp.length})` },
           { id: 'invoices', label: 'Invoices & payments' },
@@ -165,6 +175,7 @@ export function ProjectDetail() {
       />
 
       {tab === 'overview' && (money ? <Overview data={data} /> : <PlainOverview data={data} budget={seesBudget(access)} quotes={seesQuotes(access)} />)}
+      {tab === 'quote' && seesQuotes(access) && <QuoteTab data={data} editor={editsQuotes(access)} reload={reload} act={act} />}
       {tab === 'plan' && <PlanTab project={project} quote={data.quote} onProjectChanged={reload} />}
       {tab === 'expenses' && <ExpensesTab projectId={project.id} rows={data.exp} projects={data.allProjects} linked={data.linked} reload={reload} act={act} />}
       {tab === 'invoices' && <InvoicesTab data={data} reload={reload} act={act} />}
@@ -597,6 +608,74 @@ function ScheduleTab({ data, reload }: { data: Data; reload: () => void }) {
         onClose={() => setOpen(false)}
         onSaved={() => { setOpen(false); reload() }}
       />
+    </div>
+  )
+}
+
+/**
+ * THE QUOTE, ON THE PROJECT (Remus · Handover 6). Stephan: "you need to see the original quote that was quoted
+ * when you go to a project, even when the project is completed." The quote exactly as the client got it (the
+ * print view's QuoteDocument), whatever the project's status. A project with no quote: an Administrator links
+ * one of the client's quotes (which also gives the scorecard its quoted cost).
+ */
+function QuoteTab({ data, editor, reload, act }: { data: Data; editor: boolean; reload: () => void; act: Act }) {
+  const q = data.shownQuote
+  const p = data.project!
+  const { data: theirs } = useLoad(async () => {
+    if (q || !editor) return [] as Quote[]
+    const all = await quotesApi.list()
+    return all.filter((x) => (p.company_id && x.company_id === p.company_id) || (p.contact_id && x.contact_id === p.contact_id))
+  }, [q?.id, editor, p.id])
+  const [pick, setPick] = useState('')
+  const navigate = useNavigate()
+
+  if (!q) {
+    return (
+      <Card title="No quote on this project" subtitle="The project was not made from a quote, or the link was lost.">
+        {editor ? (
+          theirs && theirs.length > 0 ? (
+            <div className="flex flex-wrap items-end gap-2">
+              <Field label="Link one of the client's quotes" className="min-w-64 flex-1">
+                <select className="input" value={pick} onChange={(e) => setPick(e.target.value)}>
+                  <option value="">Choose a quote…</option>
+                  {theirs.map((x) => <option key={x.id} value={x.id}>{x.number} · {x.title || 'Untitled'} · {labelize(x.status)}</option>)}
+                </select>
+              </Field>
+              <Button variant="primary" disabled={!pick} onClick={() => act(async () => { await projectsApi.update(p.id, { quote_id: pick }); reload() })}>
+                Link it
+              </Button>
+            </div>
+          ) : <p className="text-sm text-slate-500">This client has no quotes in Remus to link.</p>
+        ) : <p className="text-sm text-slate-500">Ask an Administrator to link the quote.</p>}
+      </Card>
+    )
+  }
+  const linked = data.quote?.id === q.id
+  return (
+    <div className="space-y-4">
+      <Card>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-3">
+            <FileText size={22} className="shrink-0 text-brand-600" />
+            <div className="min-w-0">
+              <p className="truncate font-semibold text-slate-900">{q.number} · {q.title || 'Untitled quote'}</p>
+              <p className="text-xs text-slate-500">
+                <StatusBadge status={q.status} /> <span className="ml-1">Dated {formatDate(q.issue_date)}</span>
+                {q.sent_at && <> · sent {formatDate(q.sent_at)}</>}
+                {!linked && <> · names this project, but the project was not made from it</>}
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button onClick={() => navigate(paths.quotePrint(q.id))}><Printer size={14} /> Print / PDF</Button>
+            {editor && <Button onClick={() => navigate(paths.quote(q.id))}><ExternalLink size={14} /> Open the quote</Button>}
+            {editor && !linked && <Button onClick={() => act(async () => { await projectsApi.update(p.id, { quote_id: q.id }); reload() })}>Make it this project's quote</Button>}
+          </div>
+        </div>
+      </Card>
+      <div className="overflow-x-auto rounded-2xl bg-slate-100 p-2 sm:p-4" data-testid="project-quote">
+        <QuoteDocument id={q.id} />
+      </div>
     </div>
   )
 }
