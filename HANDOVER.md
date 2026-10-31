@@ -38,13 +38,19 @@ Preview: https://remus-git-claude-new-session-umpip5-team-raptor.vercel.app
     Snap slip has a "Tell Claude" box with the microphone before snapping (for the batch) and on each slip with
     "Ask Claude again". `api/receipts/extract.ts` takes `note`, now also gets each project's stages and returns
     `stage_id` + `description`; the note wins over other signals. Not yet tried with a real slip.
-16. **IN PROGRESS: the budget alert in colour** (Stephan: green, then yellow, then red, as a notification).
-    Plan: green under 75% of the quoted cost, yellow 75%, red 90%, plus "over"; the bar takes those colours; a bell
-    notification per level per job to Administrators and contractors, the bell's dot coloured by level.
-    `supabase/migrations/0031_budget_alerts.sql` is WRITTEN BUT NOT APPLIED (budget_alerts + `remus_budget_alert`).
-    Still to do: `lib/budgetLevel.ts` (+test), the bar colours, calling the function where jobs are scored
-    (dashboard, Projects list, JobScorecard), the bell's colours; apply 0031 and test it in a rolled-back
-    transaction. Stephan was asked whether 75/90 suit him.
+16. **The budget alert in colour** (Stephan: "beginning with green, moving to yellow, and then red"; 75/90 agreed
+    with his "go"; preview only for the screens, the database part is LIVE):
+    - `lib/budgetLevel.ts` (+test): a running job is green, yellow from 75% of its quoted cost used, red from 90%;
+      the verdict in words can only make it worse (spending ahead of the calendar = yellow). A finished job keeps
+      its verdict's colour. The budget bar uses it (dashboard, Projects, project page).
+    - **The bell:** 0031 (applied live, + wording fix 0031b): `budget_alerts` (no policies) and
+      `remus_budget_alert(project, level, pct)` -- once per job per level (yellow, red, over), never a level below
+      one already told, to every active Administrator and contractor, link `/projects/<id>` so one bell line per
+      job; the line's dot is yellow or red. `lib/budgetAlerts.ts` is called wherever jobs are scored (dashboard,
+      Projects list, JobScorecard). Tested in a rolled-back transaction (yellow once, red, no yellow after red, a
+      site manager refused); tables left empty. NOTE: the preview uses the live database, so opening the
+      preview's dashboard sends the first real alerts (demo job UHG-002 is at ~92%).
+    - Fixed on the way: the bell's list opened BEHIND the dashboard's hero band (top bar now `relative z-30`).
 
 ## Start here: where things stand (29 Oct 2026, end of Remus · Handover 5)
 

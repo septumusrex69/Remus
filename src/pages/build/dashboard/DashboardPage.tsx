@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { useEffect, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { addDays, addMonths, differenceInCalendarDays, endOfMonth, format, startOfDay, startOfMonth } from 'date-fns'
 import {
@@ -26,10 +26,11 @@ import {
   usdAndZar,
   USD_TO_ZAR,
 } from '../../../lib/api'
-import { formatDate, formatPct, formatZAR, labelize, ymd } from '../../../lib/format'
+import { formatDate, formatPct, formatZAR, labelize, todayYmd, ymd } from '../../../lib/format'
 import { outstandingInvoices } from '../../../lib/finance'
 import { approvalCurrent } from '../../../lib/quoteMath'
 import { useLoad } from '../../../hooks/useLoad'
+import { reportBudgetLevels } from '../../../lib/budgetAlerts'
 import { useAuth } from '../../../store/AuthContext'
 import { editsQuotes, seesBudget, seesMoney, seesQuotes, useAccess, useSnapsSlips } from '../../../lib/access'
 import { Card, EmptyState, ErrorBanner, Spinner } from '../../../components/ui'
@@ -123,6 +124,13 @@ export function DashboardPage() {
   const budget = seesBudget(access)
   const quotesToo = seesQuotes(access)
   const snaps = useSnapsSlips()
+  /* THE BELL'S BUDGET ALERTS (lib/budgetAlerts.ts): each running job's level, the same sums as below. */
+  useEffect(() => {
+    if (!data || !budget) return
+    const src = { fin: data.fin, stages: data.stages, crew: crewSources(data.stages, data.bookings, data.workers, data.register) }
+    const day = todayYmd()
+    reportBudgetLevels(data.projects.map((p) => ({ id: p.id, status: p.status, costPct: p.status === 'active' || p.status === 'on_hold' ? scoreProject(p, src, day).costPct : null })))
+  }, [data, budget])
 
   if (loading && !data) return <Spinner page />
   if (!data) return <ErrorBanner error={error} />

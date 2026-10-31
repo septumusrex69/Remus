@@ -61,8 +61,8 @@ begin
     return false;
   end if;
   v_msg := v_name || ': ' || case p_level
-    when 'yellow' then v_pct || '% of the budget used -- getting close'
-    when 'red' then v_pct || '% of the budget used -- nearly at the end'
+    when 'yellow' then v_pct || '% of the budget used · getting close'
+    when 'red' then v_pct || '% of the budget used · nearly at the end'
     else 'over budget (' || v_pct || '% of the budget used)'
   end;
   insert into public.notifications (user_id, type, message, link)

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { loadScoreSources, scoreProject } from '../../../lib/projectScores'
+import { reportBudgetLevels } from '../../../lib/budgetAlerts'
 import { BudgetBar } from '../components/BudgetBar'
 import { editsQuotes, seesBudget, seesMoney, useAccess } from '../../../lib/access'
 import { Link, useSearchParams } from 'react-router-dom'
@@ -31,6 +32,13 @@ export function ProjectsList() {
     const src = await loadScoreSources(list, '2000-01-01', todayYmd())
     return { list, fin: src.fin, dir, src }
   }, [], 'projects')
+
+  /* THE BELL'S BUDGET ALERTS (lib/budgetAlerts.ts), from the same scores as the bars below. */
+  useEffect(() => {
+    if (!data || !seesBudget(access)) return
+    const day = todayYmd()
+    reportBudgetLevels(data.list.map((p) => ({ id: p.id, status: p.status, costPct: p.status === 'active' || p.status === 'on_hold' ? scoreProject(p, data.src, day).costPct : null })))
+  }, [data, access])
 
   const rows = useMemo(() => {
     if (!data) return []
@@ -73,7 +81,7 @@ export function ProjectsList() {
                     {p.start_date ? `${formatDate(p.start_date, 'd MMM')} – ${formatDate(p.end_date, 'd MMM yyyy')}` : 'No dates yet'}{p.site_address ? ` · ${p.site_address}` : ''}
                   </p>
                 )}
-                {seesBudget(access) && <div className="mt-3"><BudgetBar score={scoreProject(p, data!.src, todayYmd())} /></div>}
+                {seesBudget(access) && <div className="mt-3"><BudgetBar score={scoreProject(p, data!.src, todayYmd())} running={p.status === 'active' || p.status === 'on_hold'} /></div>}
                 {money && <>
                 <div className="tabular mt-3 grid grid-cols-3 gap-2 text-xs">
                   <div><p className="text-slate-500">Contract</p><p className="font-medium text-slate-800">{formatZAR(f?.revised_contract ?? p.contract_value, { decimals: 0 })}</p></div>

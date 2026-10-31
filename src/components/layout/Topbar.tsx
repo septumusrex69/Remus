@@ -11,7 +11,7 @@ import { RequestChangeButton } from '../requests/RequestChangeButton'
  */
 export function Topbar({ title, onMenu }: { title: string; onMenu: () => void }) {
   return (
-    <header className="no-print flex h-16 shrink-0 items-center justify-between gap-3 border-b border-slate-200 bg-card/90 backdrop-blur px-4 sm:px-6">
+    <header className="no-print relative z-30 flex h-16 shrink-0 items-center justify-between gap-3 border-b border-slate-200 bg-card/90 backdrop-blur px-4 sm:px-6">
       <div className="flex min-w-0 items-center gap-2">
         <button onClick={onMenu} className="-ml-1 rounded-lg p-2 text-slate-600 hover:bg-slate-100 lg:hidden" aria-label="Open menu">
           <Menu size={20} />

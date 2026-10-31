@@ -4,6 +4,8 @@ import { Bell } from 'lucide-react'
 import { markAllNotificationsRead, markNotificationRead, useNotifications } from '../../lib/notifications'
 import { groupNotifications, linkIsOpen, notificationWhen, type NotificationGroup } from '../../lib/notificationGroups'
 
+const BUDGET_DOT: Record<string, string> = { 'budget.yellow': 'bg-amber-400', 'budget.red': 'bg-red-500', 'budget.over': 'bg-red-600' }
+
 /** Raptor's NotificationsMenu (H13: one line per thing, real times), reading Remus's own notifications. */
 export function NotificationsMenu() {
   const { notifications, refresh } = useNotifications()
@@ -73,7 +75,13 @@ export function NotificationsMenu() {
             groups.map((g) => (
               <button key={g.key} onClick={() => handleSelect(g)} className="flex w-full items-start gap-2 px-4 py-2.5 text-left hover:bg-slate-50"
                 data-testid="notification" data-unread={g.unread > 0 ? 'true' : 'false'}>
-                <span className={`mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full ${g.unread > 0 ? 'bg-brand-500' : 'bg-transparent'}`} />
+                {/* A budget alert carries its colour (Remus · Handover 6): yellow getting close, red nearly there or over. */}
+                {g.latest.type.startsWith('budget.') ? (
+                  <span className={`mt-1 h-2.5 w-2.5 shrink-0 rounded-full ${BUDGET_DOT[g.latest.type] ?? 'bg-slate-300'} ${g.unread > 0 ? '' : 'opacity-50'}`}
+                    data-testid="budget-dot" data-level={g.latest.type.slice(7)} />
+                ) : (
+                  <span className={`mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full ${g.unread > 0 ? 'bg-brand-500' : 'bg-transparent'}`} />
+                )}
                 <div className="min-w-0">
                   <p className={`text-[13px] leading-snug ${g.unread > 0 ? 'font-medium text-slate-800' : 'text-slate-600'}`}>{g.latest.message}</p>
                   <p className="mt-0.5 text-[11px] text-slate-400">

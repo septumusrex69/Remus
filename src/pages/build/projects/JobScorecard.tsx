@@ -1,5 +1,7 @@
 import { AlertTriangle, CheckCircle2, Info, TrendingDown } from 'lucide-react'
+import { useEffect } from 'react'
 import { Card } from '../../../components/ui'
+import { reportBudgetLevels } from '../../../lib/budgetAlerts'
 import { BudgetBar } from '../components/BudgetBar'
 import { formatZAR, round2, todayYmd } from '../../../lib/format'
 import { actualCost, quotedCost, scoreJob, type Tone } from '../../../lib/jobScore'
@@ -34,6 +36,9 @@ export function JobScorecard({ project, quote, items, stages, expenses, crew, va
   const quoted = quotedCost(quote, items, Number(project.budget), stages)
   const actual = actualCost(expenses, crew)
   const s = scoreJob({ quoted, actual, contract: Number(project.contract_value), variations, status: project.status, start: project.start_date, end: project.end_date, today })
+  const running = project.status === 'active' || project.status === 'on_hold'
+  /* The bell (lib/budgetAlerts.ts): this job's level, from the same score as the bar. */
+  useEffect(() => { reportBudgetLevels([{ id: project.id, status: project.status, costPct: s.costPct }]) }, [project.id, project.status, s.costPct])
   const fromBudget = !!quoted && !(quote && items.length) && quoted.material + quoted.labour + quoted.subcontractor === 0
   const Icon = TONE[s.tone].icon
   const rows: [string, number | null, number][] = fromBudget || !quoted
@@ -54,7 +59,7 @@ export function JobScorecard({ project, quote, items, stages, expenses, crew, va
           <Icon size={20} className="mt-0.5 shrink-0" />
           <p className="font-semibold">{s.plain}</p>
         </div>
-        <div className="mt-4"><BudgetBar score={s} /></div>
+        <div className="mt-4"><BudgetBar score={s} running={running} /></div>
       </Card>
     )
   }
@@ -68,7 +73,7 @@ export function JobScorecard({ project, quote, items, stages, expenses, crew, va
           {s.detail && <p className="text-sm opacity-90">{s.detail}</p>}
         </div>
       </div>
-      {s.costPct != null && <div className="mb-4"><BudgetBar score={s} /></div>}
+      {s.costPct != null && <div className="mb-4"><BudgetBar score={s} running={running} /></div>}
       {quoted && (
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
