@@ -86,6 +86,15 @@ export const NIGHT_HEROES: { id: string; name: string }[] = [
   { id: 'hero-08', name: 'Steel detail: beam to column, bolted' },
   { id: 'hero-09', name: 'Arena roof on a long-span truss arch' },
   { id: 'hero-10', name: 'Site: contours and setting-out grid' },
+  // Remus · Handover 6: more in the contour style Stephan liked (scripts/brand/heroes_contours.py).
+  { id: 'hero-11', name: 'Contours: a house on the slope, building line' },
+  { id: 'hero-12', name: 'Contours: a hill with spot heights' },
+  { id: 'hero-13', name: 'Contours: a road set out with chainages' },
+  { id: 'hero-14', name: 'Contours: a level survey on a grid' },
+  { id: 'hero-15', name: 'Contours: a stream and a culvert crossing' },
+  { id: 'hero-16', name: 'Contours: section A-A and the ground profile' },
+  { id: 'hero-17', name: 'Contours: map graticule, north arrow, scale' },
+  { id: 'hero-18', name: 'Contours: a township layout, erven numbered' },
 ]
 export function heroFor(choice: BrandPhotoChoice | null | undefined): string {
   return NIGHT_HEROES.some((h) => h.id === choice?.hero) ? choice!.hero! : 'hero-10'

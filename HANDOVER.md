@@ -68,6 +68,11 @@ asked how to test Snap slip with Claude: it is live; told him the steps.
   a quote, under Find prices' search box, and under each item Claude read off a slip (Snap slip), where "+ Products"
   adds the item to the book with its price, store and job.
 
+**Live again (31 Oct, Stephan: "You can go live"):** main fast-forwarded to fd4f242 -- the products book, Night as
+glass, the ten drawings, the pins, the Pour sign-in sound, the autofill fix. Stephan liked only the contours (hero 10):
+it is the default and set in company_settings.brand_photos.hero. **Preview only after that:** eight more contour heroes
+(11-18, `scripts/brand/heroes_contours.py`, real contours by marching squares) in the /photos chooser.
+
 **Watch:** Snap slip's "Tell Claude" and the split slip have not been tried with a real slip; the Operations map's
 tiles (CARTO) and the Unsplash photos could not be loaded from the build container (its network refuses them), so
 they were checked by layout only -- ask Stephan what he sees.
