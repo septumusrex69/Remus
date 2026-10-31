@@ -109,3 +109,16 @@ body {
     text-decoration: none;
   }
 }
+
+/* The browser's own yellow on a field it filled in (saved email and password): Stephan, 31 Oct, "yellow?". The browser
+   will not let a page change that colour, but it never gets to show it if the background change takes hours. */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+textarea:-webkit-autofill,
+select:-webkit-autofill {
+  -webkit-text-fill-color: currentColor;
+  caret-color: currentColor;
+  transition: background-color 600000s 0s, color 600000s 0s;
+}
+input:autofill { background-color: transparent; }
