@@ -23,6 +23,13 @@ during the session. Everything numbered 10-26 below is live, plus the sign-in op
   quote, P-0005 at R 0, Supabase auth URLs (invite and reset links fail until Stephan sets them), Resend DNS.
 - Clearing the demo data before real use: every row made on 31 Oct is listed in `demo_rows` (see item 18).
 
+**After going live (31 Oct, preview only, waiting for "go live"):** **Platinum Night** skin (`night`, end of
+skins.css, themes.ts; Stephan: "a night theme ... black glass, silver lights, but I didn't want any neon"): the dark
+recipe (grey ramp dark->light, pale tints dark, deep shades light), silver-light buttons with black words, Steel /
+Brass / Ember lifted for dark, square with faint silver ticks, photo band and sidebar photo as Platinum. Pick it in
+Settings -> Appearance. Also on the preview only: the openings session's softer Pour sound as the sign-in default
+(merged 81dd50d). Not on main yet.
+
 **Watch:** Snap slip's "Tell Claude" and the split slip have not been tried with a real slip; the Operations map's
 tiles (CARTO) and the Unsplash photos could not be loaded from the build container (its network refuses them), so
 they were checked by layout only -- ask Stephan what he sees.

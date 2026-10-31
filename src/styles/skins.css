@@ -300,3 +300,145 @@ html[data-theme='platinum'] .skin-band::after {
 }
 /* Section labels: tracked capitals with a hairline running out, like a title block. */
 html[data-theme='platinum'] .skin-eyebrow { letter-spacing: 0.24em; }
+
+/* ── Platinum Night (Remus · Handover 6) ──────────────────────────────────────────────────────────
+ * Stephan: "build a night theme that looked like the stuff that I used, like black glass, silver lights, but I
+ * didn't want any neon." Platinum after dark: near-black page, black-glass cards with a silver top-light, white
+ * words, buttons in silver light with black words, and the Platinum signals lifted to read on dark (Steel, Brass,
+ * Ember). No colour of its own. Square, like Platinum, with faint silver drawing ticks.
+ * A dark skin turns the recipe round: the grey ramp runs dark to light, pale tints become dark tints and the deep
+ * text shades become light ones, so every screen built for the light skins reads here too.
+ */
+html[data-theme='night'] {
+  --skin-ground: #050506;
+  --skin-accent: #e6e8eb;
+  --skin-neutral: #9aa0a8;
+  --skin-positive: #8fa6b5;
+  --skin-negative: #c8553f;
+  --skin-surface: #08090a;
+  --skin-card: #111214;
+  --card-border: rgba(255, 255, 255, 0.08);
+  --card-radius: 2px;
+  --card-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 24px 48px -28px rgba(0, 0, 0, 0.9);
+  --radius-xs: 1px; --radius-sm: 1px; --radius-md: 2px; --radius-lg: 2px; --radius-xl: 2px; --radius-2xl: 3px; --radius-3xl: 3px;
+  --skin-pattern: radial-gradient(1200px 600px at 75% -10%, rgba(230, 232, 235, 0.07), transparent 60%),
+    radial-gradient(900px 500px at 0% 100%, rgba(255, 255, 255, 0.035), transparent 60%);
+  color-scheme: dark;
+
+  --color-ink-950: #050506;
+  --color-ink-900: #0e0f11;
+  /* Silver light: pale tints are dark tints of it, deep shades are light ones. */
+  --color-brand-50: color-mix(in oklab, #e6e8eb 6%, #111214);
+  --color-brand-100: color-mix(in oklab, #e6e8eb 11%, #111214);
+  --color-brand-200: color-mix(in oklab, #e6e8eb 20%, #111214);
+  --color-brand-300: color-mix(in oklab, #e6e8eb 40%, #111214);
+  --color-brand-400: color-mix(in oklab, #e6e8eb 70%, #111214);
+  --color-brand-500: #e6e8eb;
+  --color-brand-600: #c4c8cf;
+  --color-brand-700: #e6e8eb;
+  --color-brand-800: #f1f2f4;
+  --color-brand-900: #f8f9fa;
+  --color-slate-50: #17181b;
+  --color-slate-100: #1d1f22;
+  --color-slate-200: #2a2c31;
+  --color-slate-300: #3b3e44;
+  --color-slate-400: #5f636b;
+  --color-slate-500: #8b9098;
+  --color-slate-600: #a9adb4;
+  --color-slate-700: #c4c8cf;
+  --color-slate-800: #dfe1e5;
+  --color-slate-900: #eff1f3;
+  --color-slate-950: #f8f9fa;
+  /* Steel, Brass, Ember, lifted for dark. */
+  --color-emerald-50: color-mix(in oklab, #8fa6b5 10%, #111214);
+  --color-emerald-100: color-mix(in oklab, #8fa6b5 18%, #111214);
+  --color-emerald-200: color-mix(in oklab, #8fa6b5 30%, #111214);
+  --color-emerald-500: #8fa6b5;
+  --color-emerald-600: #a3b6c3;
+  --color-emerald-700: #b9c8d2;
+  --color-emerald-800: #d0dae1;
+  --color-amber-50: color-mix(in oklab, #c9a35c 10%, #111214);
+  --color-amber-100: color-mix(in oklab, #c9a35c 18%, #111214);
+  --color-amber-200: color-mix(in oklab, #c9a35c 30%, #111214);
+  --color-amber-300: color-mix(in oklab, #c9a35c 50%, #111214);
+  --color-amber-400: #c9a35c;
+  --color-amber-500: #c9a35c;
+  --color-amber-600: #d4b47a;
+  --color-amber-700: #dec495;
+  --color-amber-800: #e8d5b1;
+  --color-amber-900: #f1e5cd;
+  --color-red-50: color-mix(in oklab, #c8553f 10%, #111214);
+  --color-red-100: color-mix(in oklab, #c8553f 18%, #111214);
+  --color-red-200: color-mix(in oklab, #c8553f 30%, #111214);
+  --color-red-500: #c8553f;
+  --color-red-600: #d4705d;
+  --color-red-700: #df8c7c;
+  --color-sky-100: #1b2026;
+  --color-sky-300: #5f6f7c;
+  --color-sky-400: #72828f;
+  --color-sky-700: #b9c4cd;
+}
+/* Things written as plain white in the light skins are black glass here. */
+html[data-theme='night'] .bg-white { background-color: var(--color-card); }
+html[data-theme='night'] .input { background-color: #0d0e10; border-color: #2a2c31; color: #eff1f3; }
+html[data-theme='night'] .card {
+  position: relative;
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0) 45%);
+}
+/* Faint silver drawing ticks, as Platinum's graphite ones. */
+html[data-theme='night'] .card::after {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  pointer-events: none;
+  --tick: rgba(196, 200, 207, 0.45);
+  background:
+    linear-gradient(var(--tick), var(--tick)) top left / 10px 1px no-repeat,
+    linear-gradient(var(--tick), var(--tick)) top left / 1px 10px no-repeat,
+    linear-gradient(var(--tick), var(--tick)) top right / 10px 1px no-repeat,
+    linear-gradient(var(--tick), var(--tick)) top right / 1px 10px no-repeat,
+    linear-gradient(var(--tick), var(--tick)) bottom left / 10px 1px no-repeat,
+    linear-gradient(var(--tick), var(--tick)) bottom left / 1px 10px no-repeat,
+    linear-gradient(var(--tick), var(--tick)) bottom right / 10px 1px no-repeat,
+    linear-gradient(var(--tick), var(--tick)) bottom right / 1px 10px no-repeat;
+}
+/* Buttons in silver light carry black words. */
+html[data-theme='night'] .bg-brand-500,
+html[data-theme='night'] .bg-brand-600 { color: #08090a; }
+html[data-theme='night'] button.bg-brand-500,
+html[data-theme='night'] a.bg-brand-500 { background-image: linear-gradient(180deg, #f6f6f4 0%, #c4c8cf 100%); }
+/* Deep fills that carry white words stay deep. */
+html[data-theme='night'] .bg-emerald-700 { background-color: color-mix(in oklab, #8fa6b5 20%, #111214); }
+html[data-theme='night'] .bg-red-700 { background-color: color-mix(in oklab, #c8553f 22%, #111214); }
+html[data-theme='night'] .bg-amber-700 { background-color: color-mix(in oklab, #c9a35c 22%, #111214); }
+html[data-theme='night'] .bg-brand-600.text-white { color: #08090a; }
+/* The frame: black glass with a silver hairline, the photograph faint at the foot. */
+html[data-theme='night'] aside.skin-frame {
+  background-color: #050506;
+  background-image: linear-gradient(180deg, rgba(5, 5, 6, 0.97) 0%, rgba(5, 5, 6, 0.92) 55%, rgba(5, 5, 6, 0.6) 100%), var(--skin-photo-side);
+  background-size: cover;
+  background-position: center bottom;
+  box-shadow: inset -1px 0 0 rgba(196, 200, 207, 0.14);
+}
+html[data-theme='night'] aside .bg-brand-500 { background-color: rgba(246, 246, 244, 0.1); background-image: none; color: #f6f6f4; box-shadow: inset 2px 0 0 #c4c8cf; }
+html[data-theme='night'] aside a.skin-cta { background-image: linear-gradient(180deg, #f6f6f4 0%, #c4c8cf 100%); color: #111214; }
+html[data-theme='night'] header.bg-card\/90 { background-color: rgba(8, 9, 10, 0.82); border-color: rgba(255, 255, 255, 0.06); }
+/* The dashboard band: the photograph under black glass, as Platinum. */
+html[data-theme='night'] .skin-band {
+  background-color: #0b0b0d;
+  background-image: linear-gradient(100deg, rgba(5, 5, 6, 0.94) 0%, rgba(5, 5, 6, 0.74) 45%, rgba(5, 5, 6, 0.4) 100%), var(--skin-photo-band);
+  background-size: cover;
+  background-position: center 62%;
+  box-shadow: inset 0 -1px 0 rgba(196, 200, 207, 0.25);
+}
+html[data-theme='night'] .skin-band .skin-band-credit { display: block; }
+/* The menu was written for light-on-dark greys that this skin turns dark: give it back its silver. */
+html[data-theme='night'] aside.skin-frame { color: #a9adb4; }
+html[data-theme='night'] aside .text-slate-300,
+html[data-theme='night'] aside .text-slate-400 { color: #a9adb4; }
+html[data-theme='night'] aside .text-slate-500 { color: #8b9098; }
+html[data-theme='night'] aside a:hover { color: #f6f6f4; }
+/* Words on a silver header are dark, the small ones a softer dark. */
+html[data-theme='night'] .bg-brand-600 .text-white\/70,
+html[data-theme='night'] .bg-brand-500 .text-white\/70 { color: rgba(8, 9, 10, 0.6); }
+html[data-theme='night'] .bg-brand-600 .bg-white\/15 { background-color: rgba(8, 9, 10, 0.12); }
