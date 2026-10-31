@@ -142,5 +142,5 @@ svg=f'''<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1
 {chr(10).join(x for x in o if x.startswith('<text'))}
   </g>
 </svg>'''
-open(__import__('os').path.join(__import__('os').path.dirname(__file__), '../../public/brand/night-city.svg'),'w').write(svg)
+open(__import__('os').path.join(__import__('os').path.dirname(__file__), '../../public/brand/heroes/hero-02.svg'),'w').write(svg)
 print(len(svg))

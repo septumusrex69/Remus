@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Check } from 'lucide-react'
 import { clsx } from 'clsx'
 import { updateSettings } from '../../../lib/api'
-import { BRAND_PHOTOS, PHOTO_PLACES, applyBrandPhotos, photoFor, photoUrl, type BrandPhotoChoice, type PhotoPlace } from '../../../lib/brandPhotos'
+import { BRAND_PHOTOS, NIGHT_HEROES, PHOTO_PLACES, applyBrandPhotos, heroFor, heroUrl, photoFor, photoUrl, type BrandPhotoChoice, type PhotoPlace } from '../../../lib/brandPhotos'
 import { Card, ErrorBanner, PageHeader } from '../../../components/ui'
 import { useBuild } from '../BuildContext'
 import { useAccess } from '../../../lib/access'
@@ -21,7 +21,7 @@ export function PhotosPage() {
   const [error, setError] = useState<string | null>(null)
   const current = choice ?? settings?.brand_photos ?? {}
 
-  async function use(place: PhotoPlace, id: string) {
+  async function use(place: PhotoPlace | 'hero', id: string) {
     const next = { ...current, [place]: id }
     setChoice(next)
     applyBrandPhotos(next)
@@ -44,6 +44,29 @@ export function PhotosPage() {
         </div>
         {!admin && <p className="mt-2 text-xs text-slate-500">Only an Administrator can change them.</p>}
       </Card>
+      {/* PLATINUM NIGHT'S DRAWING (Remus · Handover 6): ten line drawings for the dashboard band under Night. */}
+      <Card title="Platinum Night: the drawing in the dashboard band" subtitle="Ten drawings to choose from. Shown here as the band draws them; everybody using Night sees the choice.">
+        <div className="grid gap-3 sm:grid-cols-2" data-testid="hero-candidates">
+          {NIGHT_HEROES.map((h, i) => {
+            const on = heroFor(current) === h.id
+            return (
+              <button key={h.id} type="button" disabled={!admin || on} onClick={() => void use('hero', h.id)} data-testid="hero-candidate"
+                className={clsx('overflow-hidden rounded-xl border text-left', on ? 'border-slate-900 ring-2 ring-slate-900' : 'border-slate-200 hover:border-slate-400')}>
+                <span className="relative block h-40 bg-[#060607]"
+                  style={{ backgroundImage: `linear-gradient(95deg, rgba(6,6,7,0.85) 0%, rgba(6,6,7,0.4) 40%, rgba(6,6,7,0) 70%), url('${heroUrl(h.id)}')`, backgroundSize: 'auto, auto 112%', backgroundPosition: 'center, right -20px bottom -4px', backgroundRepeat: 'no-repeat' }}>
+                  <span className="absolute left-3 top-2.5 rounded bg-white/90 px-1.5 text-[11px] font-bold text-slate-900">{i + 1}</span>
+                  <span className="absolute bottom-3 left-4 text-white"><span className="block text-[10px] font-bold tracking-[0.1em] text-white/60 uppercase">Saturday 31 October</span><span className="block text-base font-extrabold">Good afternoon</span></span>
+                </span>
+                <span className="flex items-center justify-between gap-2 px-3 py-2 text-sm">
+                  <span className="text-slate-800">{h.name}</span>
+                  {on ? <span className="inline-flex items-center gap-1 text-xs font-semibold text-slate-900"><Check size={13} /> In use</span> : admin ? <span className="text-xs text-slate-500">Use this one</span> : null}
+                </span>
+              </button>
+            )
+          })}
+        </div>
+      </Card>
+
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3" data-testid="photo-candidates">
         {BRAND_PHOTOS.map((p, i) => {
           const usedFor = PHOTO_PLACES.filter((pl) => photoFor(pl.id, current).id === p.id)

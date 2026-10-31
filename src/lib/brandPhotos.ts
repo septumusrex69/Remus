@@ -34,7 +34,8 @@ export const BRAND_PHOTOS: BrandPhoto[] = [
 ]
 
 export type PhotoPlace = 'band' | 'login' | 'side'
-export type BrandPhotoChoice = Partial<Record<PhotoPlace, string>>
+/** Photographs by place, and (Platinum Night) which drawing is in the dashboard band. */
+export type BrandPhotoChoice = Partial<Record<PhotoPlace | 'hero', string>>
 
 export const PHOTO_PLACES: { id: PhotoPlace; label: string }[] = [
   { id: 'band', label: 'Dashboard band' },
@@ -68,11 +69,34 @@ export function rememberedLoginPhoto(): BrandPhoto {
   return photoFor('login', id ? { login: id } : null)
 }
 
+/*
+ * THE NIGHT HERO DRAWINGS (Remus · Handover 6). Stephan: "Give me like 10 options to choose from." Line drawings in
+ * public/brand/heroes (scripts/brand/heroes.py and night-city.py make them); Platinum Night draws the chosen one in
+ * the dashboard band. 01, the first city, is the default ("the previous one looked a little bit better").
+ */
+export const NIGHT_HEROES: { id: string; name: string }[] = [
+  { id: 'hero-01', name: 'City skyline' },
+  { id: 'hero-02', name: 'City skyline, busy (monorail, craft, lit windows)' },
+  { id: 'hero-03', name: 'A steel-frame tower going up, two cranes' },
+  { id: 'hero-04', name: 'Cable-stayed bridge' },
+  { id: 'hero-05', name: 'Modern cantilevered house' },
+  { id: 'hero-06', name: 'Isometric wireframe tower' },
+  { id: 'hero-07', name: 'A street between towers, in perspective' },
+  { id: 'hero-08', name: 'Steel detail: beam to column, bolted' },
+  { id: 'hero-09', name: 'Arena roof on a long-span truss arch' },
+  { id: 'hero-10', name: 'Site: contours and setting-out grid' },
+]
+export function heroFor(choice: BrandPhotoChoice | null | undefined): string {
+  return NIGHT_HEROES.some((h) => h.id === choice?.hero) ? choice!.hero! : 'hero-01'
+}
+export const heroUrl = (id: string) => `/brand/heroes/${id}.svg`
+
 /** Puts the chosen band and sidebar photographs on the page (skins.css draws them under Platinum). */
 export function applyBrandPhotos(choice: BrandPhotoChoice | null | undefined): void {
   const root = document.documentElement
   root.style.setProperty('--skin-photo-band', `url('${photoUrl(photoFor('band', choice), 2000)}')`)
   root.style.setProperty('--skin-photo-side', `url('${photoUrl(photoFor('side', choice), 600)}')`)
   root.dataset.bandCredit = `Photo: ${photoFor('band', choice).credit} / Unsplash`
+  root.style.setProperty('--skin-night-hero', `url('${heroUrl(heroFor(choice))}')`)
   rememberLoginPhoto(photoFor('login', choice).id)
 }

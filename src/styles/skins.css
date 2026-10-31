@@ -501,7 +501,7 @@ html[data-theme='night'] .skin-band {
   background-image:
     linear-gradient(95deg, rgba(6, 6, 7, 0.9) 0%, rgba(6, 6, 7, 0.62) 36%, rgba(6, 6, 7, 0.1) 70%, rgba(6, 6, 7, 0) 100%),
     radial-gradient(600px 300px at 70% 20%, rgba(230, 232, 235, 0.12), transparent 70%),
-    url('/brand/night-city.svg');
+    var(--skin-night-hero, url('/brand/heroes/hero-01.svg'));
   background-size: auto, auto, auto 112%;
   background-position: center, center, right -30px bottom -6px;
   background-repeat: no-repeat;
