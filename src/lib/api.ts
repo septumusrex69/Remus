@@ -775,6 +775,11 @@ export function canShareFiles(): boolean {
 export const diaryEvents = crud<DiaryEvent>('diary_events', [], 'start_at', true)
 export const siteDiary = crud<SiteDiaryEntry>('site_diary_entries', ['workers_on_site'], 'date')
 
+/** The site diary from a day on, newest first (the dashboard's "what is happening on site", Remus · Handover 6). */
+export async function listDiarySince(from: string): Promise<SiteDiaryEntry[]> {
+  return unwrap<SiteDiaryEntry[]>(await supabase.from('site_diary_entries').select('*').gte('date', from).order('date', { ascending: false }).limit(300))
+}
+
 // ---------- Site diary photos (0030) ----------
 
 export const SITE_PHOTOS_BUCKET = 'site-photos'

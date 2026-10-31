@@ -12,6 +12,7 @@ import {
   listCrewDays,
   listPaymentsBetween,
   listProjectFinancials,
+  listDiarySince,
   listQuoteTotals,
   listRecentExpenses,
   loadBankBalances,
@@ -29,6 +30,7 @@ import {
 import { formatDate, formatPct, formatZAR, labelize, todayYmd, ymd } from '../../../lib/format'
 import { outstandingInvoices } from '../../../lib/finance'
 import { approvalCurrent } from '../../../lib/quoteMath'
+import { workingDaysIn } from '../../../lib/workdays'
 import { useLoad } from '../../../hooks/useLoad'
 import { reportBudgetLevels } from '../../../lib/budgetAlerts'
 import { useAuth } from '../../../store/AuthContext'
@@ -57,7 +59,7 @@ async function load() {
   const to = ymd(endOfMonth(now))
   // Six months of slips for "What the company made" (this month's are a subset of them).
   const sixFrom = ymd(startOfMonth(addMonths(now, -5)))
-  const [projects, fin, quotes, totals, invoices, allPayments, monthPayments, sixMonthExpenses, events, recent, bank, claude, stages, bookings, workers] = await Promise.all([
+  const [projects, fin, quotes, totals, invoices, allPayments, monthPayments, sixMonthExpenses, events, recent, bank, claude, stages, bookings, workers, diary] = await Promise.all([
     projectsApi.list(),
     listProjectFinancials(),
     quotesApi.list(),
@@ -75,13 +77,14 @@ async function load() {
     projectStages.list().catch(() => []),
     stageBookings.list().catch(() => []),
     workersApi.list().catch(() => []),
+    listDiarySince(ymd(addDays(now, -14))).catch(() => []),
   ])
   // The crew register from the earliest of six months ago and the start of any job still open.
   const open = projects.filter((p) => p.status === 'active' || p.status === 'on_hold').map((p) => p.start_date).filter((d): d is string => !!d)
   const registerFrom = [sixFrom, ...open].sort()[0]
   const register = await listCrewDays(registerFrom, to).catch(() => [])
   const monthExpenses = sixMonthExpenses.filter((e) => e.date >= from)
-  return { projects, fin, quotes, totals, invoices, allPayments, monthPayments, monthExpenses, sixMonthExpenses, events, recent, bank, claude, stages, bookings, workers, register }
+  return { projects, fin, quotes, totals, invoices, allPayments, monthPayments, monthExpenses, sixMonthExpenses, events, recent, bank, claude, stages, bookings, workers, register, diary }
 }
 
 /** Is the project on site that day: active, and the day inside its dates (or it has none). */
@@ -198,6 +201,19 @@ export function DashboardPage() {
   const crewOn = (projectId: string, day: string) =>
     data.bookings.filter((b) => stageProject.get(b.stage_id) === projectId && b.start_date <= day && b.end_date >= day).map((b) => workerName.get(b.worker_id) ?? 'Worker')
   const bookedOn = (day: string) => new Set(data.bookings.filter((b) => b.start_date <= day && b.end_date >= day).map((b) => stageProject.get(b.stage_id)))
+  /*
+   * WHAT IS HAPPENING ON EACH SITE (Remus · Handover 6). Stephan: "you would know what's happening today on site,
+   * Naidoo bathroom remodel, Smith house renovation ... what part is that ready? And then as well, we need to see
+   * the diary." The stage under way that day (from Plan & crew), how far through it by working days, and the
+   * newest site diary note.
+   */
+  const siteNow = (projectId: string, day: string): SiteNow => {
+    const st = data.stages.find((x) => x.project_id === projectId && x.start_date && x.end_date && x.start_date <= day && x.end_date >= day)
+    const days = st ? workingDaysIn(st.start_date!, st.end_date!) : []
+    const n = st ? workingDaysIn(st.start_date!, day).length : 0
+    const note = data.diary.find((e) => e.project_id === projectId && e.date <= day && e.work_done?.trim())
+    return { stage: st ? (st.name || 'General') : null, n, of: days.length, note: note ? { date: note.date, text: note.work_done!.trim() } : null }
+  }
   const sitesToday = data.projects.filter((p) => onSite(p, today) || bookedOn(today).has(p.id))
   const sitesTomorrow = data.projects.filter((p) => onSite(p, tomorrow) || bookedOn(tomorrow).has(p.id))
   const later = data.events.filter((e) => ymd(new Date(e.start_at)) > tomorrow).slice(0, 5)
@@ -285,8 +301,8 @@ export function DashboardPage() {
       {/* ---------- Today, tomorrow, next job ---------- */}
       <SectionLabel>What is happening</SectionLabel>
       <div className="grid gap-4 lg:grid-cols-3">
-        <DayCard register title="Today" date={now} sites={sitesToday} crew={(p) => crewOn(p.id, today)} items={dayItems(today)} empty="Nothing booked for today." accent="bg-brand-600" />
-        <DayCard title="Tomorrow" date={addDays(now, 1)} sites={sitesTomorrow} crew={(p) => crewOn(p.id, tomorrow)} items={dayItems(tomorrow)} empty="Nothing booked for tomorrow." accent="bg-ink-900" />
+        <DayCard register title="Today" date={now} sites={sitesToday} crew={(p) => crewOn(p.id, today)} now={(p) => siteNow(p.id, today)} items={dayItems(today)} empty="Nothing booked for today." accent="bg-brand-600" />
+        <DayCard title="Tomorrow" date={addDays(now, 1)} sites={sitesTomorrow} crew={(p) => crewOn(p.id, tomorrow)} now={(p) => ({ ...siteNow(p.id, tomorrow), note: null })} items={dayItems(tomorrow)} empty="Nothing booked for tomorrow." accent="bg-ink-900" />
         <section className="card overflow-hidden">
           <header className="flex items-center justify-between bg-emerald-700 px-5 py-3 text-white">
             <span>
@@ -517,7 +533,9 @@ function MoneyTile({ label, icon, chip, value, valueClass, hint, to }: { label: 
 }
 
 /** One day: the jobs on site, then what is booked or due, each with a coloured tag. */
-function DayCard({ title, date, sites, crew, items, empty, accent, register }: { title: string; date: Date; sites: Project[]; crew: (p: Project) => string[]; items: DayItem[]; empty: string; accent: string; register?: boolean }) {
+interface SiteNow { stage: string | null; n: number; of: number; note: { date: string; text: string } | null }
+
+function DayCard({ title, date, sites, crew, now, items, empty, accent, register }: { title: string; date: Date; sites: Project[]; crew: (p: Project) => string[]; now: (p: Project) => SiteNow; items: DayItem[]; empty: string; accent: string; register?: boolean }) {
   const count = sites.length + items.length
   return (
     <section className="card overflow-hidden">
@@ -538,10 +556,29 @@ function DayCard({ title, date, sites, crew, items, empty, accent, register }: {
                 <span className={`mt-0.5 inline-flex w-[5.5rem] shrink-0 items-center justify-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-semibold ring-1 ${TONE.site}`}>
                   <HardHat size={12} /> On site
                 </span>
-                <span className="min-w-0">
+                <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm font-medium text-slate-800">{p.name}</span>
-                  {p.site_address && <span className="block truncate text-xs text-slate-500">{p.site_address}</span>}
-                  {crew(p).length > 0 && <span className="block truncate text-xs font-medium text-emerald-700">{crew(p).join(', ')}</span>}
+                  {(() => {
+                    const s = now(p)
+                    return <>
+                      {s.stage ? (
+                        <span className="mt-0.5 block" data-testid="site-stage">
+                          <span className="flex items-center justify-between gap-2 text-xs">
+                            <span className="truncate font-semibold text-slate-700">{s.stage}</span>
+                            {s.of > 0 && <span className="shrink-0 text-slate-500">day {Math.min(s.n, s.of) || 1} of {s.of}</span>}
+                          </span>
+                          {s.of > 0 && <span className="mt-1 block h-1 overflow-hidden rounded-full bg-slate-100"><span className="block h-full rounded-full bg-emerald-500" style={{ width: `${Math.min(100, Math.round((Math.max(1, s.n) / s.of) * 100))}%` }} /></span>}
+                        </span>
+                      ) : p.site_address ? <span className="block truncate text-xs text-slate-500">{p.site_address}</span> : null}
+                      {crew(p).length > 0 && <span className="mt-0.5 block truncate text-xs font-medium text-emerald-700">{crew(p).join(', ')}</span>}
+                      {s.note && (
+                        <span className="mt-1 block text-xs leading-snug text-slate-600" data-testid="site-diary">
+                          <span className="text-slate-400">Diary {s.note.date === ymd(date) ? 'today' : formatDate(s.note.date, 'd MMM')}: </span>
+                          <span className="line-clamp-2">{s.note.text}</span>
+                        </span>
+                      )}
+                    </>
+                  })()}
                 </span>
               </Link>
             </li>
