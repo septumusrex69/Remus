@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="theme-color" content="#3e4448" />
+    <meta name="theme-color" content="#111214" />
     <!-- Installable: "Add to Home Screen" opens Remus full screen with its own icon. -->
     <link rel="manifest" href="/manifest.webmanifest" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -20,8 +20,8 @@
       // The skin before first paint, so nobody sees a flash of the other one. This repeats a few
       // lines of src/lib/themes.ts (a module can't run this early): change the key and ids together.
       ;(function () {
-        var ids = ['urban-haus', 'remus', 'oxblood', 'sage', 'blueprint', 'teal', 'concrete']
-        var id = 'remus'
+        var ids = ['urban-haus', 'platinum', 'remus', 'oxblood', 'sage', 'blueprint', 'teal', 'concrete']
+        var id = 'platinum'
         try {
           var saved = localStorage.getItem('remus.theme')
           if (saved && ids.indexOf(saved) >= 0) id = saved

@@ -10,7 +10,7 @@
  * person picks (a skin is how the app looks to you, not what clients receive).
  */
 
-export type ThemeId = 'urban-haus' | 'remus' | 'oxblood' | 'sage' | 'blueprint' | 'teal' | 'concrete'
+export type ThemeId = 'urban-haus' | 'platinum' | 'remus' | 'oxblood' | 'sage' | 'blueprint' | 'teal' | 'concrete'
 
 export interface ThemeDefinition {
   id: ThemeId
@@ -28,6 +28,11 @@ export interface ThemeDefinition {
   tagline: string
   /** A light, full-panel picture for the sign-in screen (it carries its own wordmark). */
   loginArt?: string
+  /**
+   * A dark photograph for the sign-in screen's left half (Platinum): the wordmark and words go white over it.
+   * Served by Unsplash, credited under it.
+   */
+  loginPhoto?: { url: string; credit: string }
   /** Three colours for the preview tile: ground (sidebar), surface (page), accent. */
   swatch: { ground: string; surface: string; accent: string }
 }
@@ -41,6 +46,18 @@ const REMUS = {
 }
 
 export const THEMES: ThemeDefinition[] = [
+  {
+    // Remus · Handover 6: Raptor's Platinum, Stephan's pick ("that platinum look ... we should go for").
+    id: 'platinum',
+    name: 'Platinum',
+    description: 'Black glass, brushed silver and white light, with construction photographs. Raptor\'s Platinum.',
+    ...REMUS,
+    loginPhoto: {
+      url: 'https://images.unsplash.com/photo-1789871966074-f69a1606c3c4?auto=format&fit=crop&w=1600&q=70',
+      credit: 'Photo: KC Shum / Unsplash',
+    },
+    swatch: { ground: '#111214', surface: '#f1f1ef', accent: '#c4c8cf' },
+  },
   {
     id: 'remus',
     name: 'Remus',
@@ -97,8 +114,8 @@ export const THEMES: ThemeDefinition[] = [
   },
 ]
 
-/** What someone gets before they've ever chosen a skin: the new brand. */
-export const DEFAULT_THEME: ThemeId = 'remus'
+/** What someone gets before they've ever chosen a skin: Platinum (Remus · Handover 6). */
+export const DEFAULT_THEME: ThemeId = 'platinum'
 
 /**
  * The skin the stylesheet renders with no attribute set: index.css's own tokens are the Urban

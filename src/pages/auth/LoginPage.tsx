@@ -64,7 +64,9 @@ export function LoginPage() {
           </div>
         </div>
       ) : (
-      <div className="relative hidden w-1/2 flex-col justify-between overflow-hidden bg-ink-950 p-10 text-white lg:flex">
+      <div className="relative hidden w-1/2 flex-col justify-between overflow-hidden bg-ink-950 bg-cover bg-center p-10 text-white lg:flex"
+        // Platinum (Remus · Handover 6): a construction photograph under black glass, graded so the words read.
+        style={theme.loginPhoto ? { backgroundImage: `linear-gradient(160deg, rgba(9,9,11,0.88) 0%, rgba(9,9,11,0.55) 55%, rgba(9,9,11,0.85) 100%), url('${theme.loginPhoto.url}')` } : undefined}>
         {remus ? (
           <div className="self-start">
             <img src={theme.lockupLight} alt={theme.productName} className="h-12 w-auto object-contain" />
@@ -84,7 +86,9 @@ export function LoginPage() {
         <p className={remus ? 'skin-eyebrow text-[11px] text-white/40' : 'text-xs text-white/40'}>
           {remus ? 'Plans · People · Progress · Together' : 'Construction · Renovations · Maintenance · Electrical'}
         </p>
-        <div className="pointer-events-none absolute -right-24 -bottom-24 h-80 w-80 rounded-full bg-brand-500/15" />
+        {theme.loginPhoto
+          ? <span className="absolute right-4 bottom-3 text-[10px] text-white/40">{theme.loginPhoto.credit}</span>
+          : <div className="pointer-events-none absolute -right-24 -bottom-24 h-80 w-80 rounded-full bg-brand-500/15" />}
       </div>
       )}
 

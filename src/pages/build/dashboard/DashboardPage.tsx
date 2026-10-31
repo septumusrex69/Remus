@@ -2,7 +2,7 @@ import { useEffect, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { addDays, addMonths, differenceInCalendarDays, endOfMonth, format, startOfDay, startOfMonth } from 'date-fns'
 import {
-  AlertCircle, AlertTriangle, Camera, CheckCircle2, ChevronRight, FileText, HardHat, Receipt, Wallet,
+  AlertCircle, Camera, CheckCircle2, ChevronRight, FileText, HardHat, Receipt, Wallet,
   Bot, ClipboardCheck,
 } from 'lucide-react'
 import {
@@ -251,7 +251,9 @@ export function DashboardPage() {
   return (
     <div className="space-y-4">
       {/* ---------- Hero ---------- */}
-      <section className="relative overflow-hidden rounded-2xl bg-ink-950 px-6 py-6 text-white sm:px-7 sm:py-7">
+      {/* skin-band: Platinum lays a construction photograph under black glass here (skins.css). */}
+      <section className="skin-band relative overflow-hidden rounded-2xl bg-ink-950 px-6 py-6 text-white sm:px-7 sm:py-7">
+        <span className="skin-band-credit absolute right-3 bottom-1.5 hidden text-[9px] text-white/40">Photo: Arthur Baudry / Unsplash</span>
         <div className="relative z-[1] flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="mb-1 text-[11px] font-bold tracking-[0.1em] text-brand-300 uppercase">{format(now, 'EEEE d MMMM')}</p>
@@ -581,21 +583,27 @@ interface AttentionItem {
  * Raptor's "Needs attention": everything waiting on us, worst first, each a link to the list.
  * Late items (past a date) are red and lead; waiting ones are amber; clear ones are left out.
  */
+/*
+ * NEEDS ATTENTION, COMPACT (Remus · Handover 6). Stephan: "make that a little bit smaller. Make it look better ...
+ * look at the Bredell Ferreira client login page" -- Raptor's portal, whose "What would you like to do?" is a list
+ * of compact rows: a pale icon square, the words, a small arrow (PortalDashboard's Action). Here the square is red
+ * for late and amber for waiting, with the count in it.
+ */
 function NeedsAttention({ items }: { items: AttentionItem[] }) {
   const problems = items.filter((i) => i.count > 0).sort((a, b) => (a.severity === 'late' ? 0 : 1) - (b.severity === 'late' ? 0 : 1) || b.count - a.count)
   return (
-    <section className="card p-5">
-      <div className="mb-3 flex items-baseline justify-between gap-3">
-        <h2 className="text-[15px] font-semibold text-slate-800">Needs attention</h2>
+    <section className="card px-4 py-3.5 sm:px-5" data-testid="needs-attention">
+      <div className="mb-2.5 flex items-baseline justify-between gap-3">
+        <h2 className="text-[14px] font-semibold text-slate-800">Needs attention</h2>
         {problems.length > 0 && <span className="text-xs text-slate-500">{problems.length} thing{problems.length === 1 ? '' : 's'} waiting on you</span>}
       </div>
       {problems.length === 0 ? (
-        <div className="flex items-center gap-2.5 rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-          <CheckCircle2 size={20} className="shrink-0" />
+        <div className="flex items-center gap-2 rounded-lg bg-emerald-50 px-3 py-2 text-[13px] text-emerald-800">
+          <CheckCircle2 size={16} className="shrink-0" />
           All clear. Nothing is late or waiting on you.
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-[repeat(auto-fill,minmax(12.5rem,1fr))] sm:gap-3">
+        <div className="grid gap-1.5 sm:grid-cols-2 xl:grid-cols-3">
           {problems.map((item) => (
             <AttentionTile key={item.label} item={item} />
           ))}
@@ -608,18 +616,16 @@ function NeedsAttention({ items }: { items: AttentionItem[] }) {
 function AttentionTile({ item }: { item: AttentionItem }) {
   const late = item.severity === 'late'
   return (
-    <Link
-      to={item.to}
-      className={`group flex flex-col rounded-xl border-l-4 p-3 transition sm:p-3.5 hover:shadow-sm ${late ? 'border-red-500 bg-red-50 hover:bg-red-100/70' : 'border-amber-400 bg-amber-50 hover:bg-amber-100/70'}`}
-    >
-      <span className="flex items-center gap-2">
-        <span className={late ? 'text-red-600' : 'text-amber-600'}>{late ? <AlertCircle size={18} /> : <AlertTriangle size={17} />}</span>
-        <span className="text-2xl leading-none font-extrabold text-slate-900 tabular-nums">{item.count}</span>
+    <Link to={item.to} data-testid="attention-row"
+      className="group flex items-center gap-2.5 rounded-lg border border-slate-200 px-2.5 py-2 transition-colors hover:border-slate-300 hover:bg-slate-50">
+      <span className={`flex h-8 min-w-8 shrink-0 items-center justify-center rounded-md px-1.5 text-[13px] font-bold tabular-nums ${late ? 'bg-red-50 text-red-700' : 'bg-amber-50 text-amber-800'}`}>
+        {item.count}
       </span>
-      <span className="mt-1.5 text-[13px] leading-snug text-slate-700 sm:text-sm">{item.label}</span>
-      <span className={`mt-2 inline-flex items-center gap-0.5 text-xs font-semibold ${late ? 'text-red-700' : 'text-amber-800'}`}>
-        {item.detail} <ChevronRight size={13} className="transition-transform group-hover:translate-x-0.5" />
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-[13px] font-medium leading-tight text-slate-800">{item.label}</span>
+        <span className={`block truncate text-[11.5px] ${late ? 'text-red-700' : 'text-slate-500'}`}>{item.detail}</span>
       </span>
+      <ChevronRight size={15} className="shrink-0 text-slate-300 transition-colors group-hover:text-slate-600" />
     </Link>
   )
 }

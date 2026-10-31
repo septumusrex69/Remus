@@ -168,3 +168,61 @@ html[data-theme='concrete'] {
 html[data-theme='concrete'] aside .bg-brand-500 {
   background-color: #4a4a4a;
 }
+
+/* ── Platinum (Remus · Handover 6): Raptor's Platinum, the default ──────────────────────────────
+ * Stephan, 31 Oct: "that platinum look ... this is the kind of look we should go for, Remus". Raptor's
+ * Platinum (its opening, raptorOpening.css): black glass, brushed-silver lines, white light, no navy, one
+ * warm thing only. Here the frame is black glass with a silver hairline, the page a cool white with a faint
+ * brushed grain, buttons graphite, and the construction photographs (Unsplash, served by Unsplash) graded
+ * cool and dark so the words stay readable. */
+html[data-theme='platinum'] {
+  --skin-ground: #111214;
+  --skin-accent: #2b2d32;
+  --skin-neutral: #4a4d54;
+  --skin-positive: #5f7d6c;
+  --skin-negative: #a8473d;
+  --skin-surface: #f1f1ef;
+  --skin-card: #ffffff;
+  --card-border: #dcdee2;
+  --card-radius: 0.75rem;
+  --card-shadow: 0 1px 2px rgba(9, 9, 11, 0.04), 0 6px 18px -12px rgba(9, 9, 11, 0.18);
+  /* Brushed silver: hair-fine horizontal grain and a slow diagonal sheen. */
+  --skin-pattern: linear-gradient(115deg, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0) 38%, rgba(196, 200, 207, 0.12) 62%, rgba(255, 255, 255, 0) 100%),
+    repeating-linear-gradient(180deg, rgba(74, 77, 84, 0.025) 0 1px, transparent 1px 3px);
+  --skin-photo-band: url('https://images.unsplash.com/photo-1748063578185-3d68121b11ff?auto=format&fit=crop&w=2000&q=70');
+  --skin-photo-side: url('https://images.unsplash.com/photo-1776514222617-cd3d0139c926?auto=format&fit=crop&w=600&q=60');
+}
+/* The frame: black glass, a silver hairline on its edge, and the concrete photograph fading up from the foot. */
+html[data-theme='platinum'] aside.skin-frame {
+  background-color: #0b0b0d;
+  background-image: linear-gradient(180deg, rgba(11, 11, 13, 0.96) 0%, rgba(11, 11, 13, 0.9) 55%, rgba(11, 11, 13, 0.55) 100%), var(--skin-photo-side);
+  background-size: cover;
+  background-position: center bottom;
+  box-shadow: inset -1px 0 0 rgba(196, 200, 207, 0.22);
+}
+/* The active menu item on black glass: white light, not a graphite block that disappears. */
+html[data-theme='platinum'] aside .bg-brand-500 {
+  background-color: rgba(246, 246, 244, 0.12);
+  box-shadow: inset 2px 0 0 #c4c8cf;
+}
+html[data-theme='platinum'] aside .bg-brand-500:hover { background-color: rgba(246, 246, 244, 0.18); }
+/* Snap slip on the frame: brushed silver with graphite words. */
+html[data-theme='platinum'] aside a.skin-cta {
+  background-image: linear-gradient(180deg, #f6f6f4 0%, #c4c8cf 100%);
+  color: #111214;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.4) inset, 0 6px 16px -8px rgba(196, 200, 207, 0.6);
+}
+/* The dashboard's band: the photograph under black glass, a silver rule along its foot. */
+html[data-theme='platinum'] .skin-band {
+  background-color: #111214;
+  background-image: linear-gradient(100deg, rgba(9, 9, 11, 0.92) 0%, rgba(9, 9, 11, 0.72) 45%, rgba(9, 9, 11, 0.35) 100%), var(--skin-photo-band);
+  background-size: cover;
+  background-position: center 62%;
+  box-shadow: inset 0 -1px 0 rgba(196, 200, 207, 0.35);
+}
+html[data-theme='platinum'] .skin-band .skin-band-credit { display: block; }
+/* Primary buttons: graphite with a faint top light, the way the opening's silver catches. */
+html[data-theme='platinum'] button.bg-brand-500,
+html[data-theme='platinum'] a.bg-brand-500 {
+  background-image: linear-gradient(180deg, #3a3d43 0%, #2b2d32 100%);
+}

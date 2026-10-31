@@ -75,28 +75,29 @@ export function Sidebar({ drawer, onNavigate }: { drawer?: boolean; onNavigate?:
   return (
     <aside
       className={clsx(
-        'flex h-full shrink-0 flex-col bg-ink-950 text-slate-300',
+        'skin-frame flex h-full shrink-0 flex-col bg-ink-950 text-slate-300',
         // Animated, as in Raptor: a 176px snap reads as the page breaking, the same move animated reads as a drawer.
         'transition-[width] duration-200 ease-out',
         drawer ? 'w-72 max-w-[85vw]' : collapsed ? 'w-16' : 'w-60',
       )}
     >
-      <div className={clsx('flex h-16 items-center border-b border-white/10', collapsed ? 'justify-center px-2' : 'px-5')}>
+      {/* Centred, folded or open (Stephan, 31 Oct: "the logo there, it's not completely centered"). */}
+      <div className={clsx('flex h-16 items-center justify-center border-b border-white/10', collapsed ? 'px-2' : 'px-5')}>
         {/* Folded, the wordmark would smear into 48px, so the rail shows the icon alone. */}
-        <Link to={paths.dashboard()} onClick={onNavigate} aria-label="Dashboard" className="min-w-0">
+        <Link to={paths.dashboard()} onClick={onNavigate} aria-label="Dashboard" className="min-w-0 text-center">
           {collapsed ? (
             <img src={theme.icon} alt={theme.productName} className="h-8 w-8 rounded-md" />
           ) : theme.tagline ? (
             // The app's wordmark, with the company it is running for underneath (the skin's
             // default until Settings has loaded, then the company name from Settings).
             <span className="block">
-              <img src={theme.lockupLight} alt={theme.productName} className="h-5 w-auto object-contain" />
+              <img src={theme.lockupLight} alt={theme.productName} className="mx-auto h-5 w-auto object-contain" />
               <span className="skin-eyebrow mt-1.5 block truncate text-[9.5px] font-medium text-white/55">
                 {settings?.name || theme.tagline}
               </span>
             </span>
           ) : (
-            <img src={theme.lockupLight} alt={settings?.name || 'Urban Haus Construction'} className="max-h-11 w-auto object-contain" />
+            <img src={theme.lockupLight} alt={settings?.name || 'Urban Haus Construction'} className="mx-auto max-h-11 w-auto object-contain" />
           )}
         </Link>
       </div>
@@ -107,7 +108,7 @@ export function Sidebar({ drawer, onNavigate }: { drawer?: boolean; onNavigate?:
           onClick={onNavigate}
           title={collapsed ? 'Snap slip' : undefined}
           className={clsx(
-            'flex items-center justify-center gap-2 rounded-lg bg-brand-500 py-2.5 text-sm font-semibold text-white shadow-sm shadow-brand-500/30 hover:bg-brand-600',
+            'skin-cta flex items-center justify-center gap-2 rounded-lg bg-brand-500 py-2.5 text-sm font-semibold text-white shadow-sm shadow-brand-500/30 hover:bg-brand-600',
             collapsed ? 'px-0' : 'px-3',
           )}
         >
