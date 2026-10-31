@@ -30,6 +30,21 @@ Preview: https://remus-git-claude-new-session-umpip5-team-raptor.vercel.app
     - Checked in Playwright with fixtures (forward, type, Backspace on the heading keeps the box, Cancel, Drafts
       lists it, carry on, send: "Forwarded. But your mailbox would not take a copy...", draft gone). The real
       send and Sent list can only be tried live (service key is Production only).
+14. **WhatsApp a quote** (decided option 3, now built; preview only): `quotes/WhatsAppQuoteButton.tsx`, `lib/whatsapp.ts`
+    (+test, from Raptor's). Phone/iPad: the PDF FILE through the share sheet with the message. Computer: PDF
+    downloaded, WhatsApp opened on the client's cellphone (contact mobile, phone, company phone) with the message.
+    Gated by approval like Send; afterwards "mark it sent" (sent_to "WhatsApp <number>").
+15. **Tell Claude about a slip** (Stephan: "Claude can send it to a project ... dictate to Claude"; preview only):
+    Snap slip has a "Tell Claude" box with the microphone before snapping (for the batch) and on each slip with
+    "Ask Claude again". `api/receipts/extract.ts` takes `note`, now also gets each project's stages and returns
+    `stage_id` + `description`; the note wins over other signals. Not yet tried with a real slip.
+16. **IN PROGRESS: the budget alert in colour** (Stephan: green, then yellow, then red, as a notification).
+    Plan: green under 75% of the quoted cost, yellow 75%, red 90%, plus "over"; the bar takes those colours; a bell
+    notification per level per job to Administrators and contractors, the bell's dot coloured by level.
+    `supabase/migrations/0031_budget_alerts.sql` is WRITTEN BUT NOT APPLIED (budget_alerts + `remus_budget_alert`).
+    Still to do: `lib/budgetLevel.ts` (+test), the bar colours, calling the function where jobs are scored
+    (dashboard, Projects list, JobScorecard), the bell's colours; apply 0031 and test it in a rolled-back
+    transaction. Stephan was asked whether 75/90 suit him.
 
 ## Start here: where things stand (29 Oct 2026, end of Remus · Handover 5)
 
