@@ -24,12 +24,13 @@ import './remusOpening.css'
  *                cool"): the drawing-office grid and dimensions, the letters drawn as formwork, concrete poured to the
  *                laser level, the shuttering struck, polished to silver.
  *
- * /opening plays any of them on demand; the sign-in plays REMUS_OPENING_DEFAULT. It covers the app as it loads underneath
+ * /opening plays any of them on demand; the sign-in plays REMUS_OPENING_DEFAULT (Pour). It covers the app as it loads underneath
  * and dissolves into it; a tap skips it; Reduced motion gets the still word (unless `force`, the replay page). It never
  * waits on anything: the app is already drawing under it.
  */
 export type RemusVariant = 'stamp' | 'slash' | 'cut' | 'pour' | 'build'
-export const REMUS_OPENING_DEFAULT: RemusVariant = 'stamp'
+/* Stephan, 31 Oct: "Use pour. For the login." */
+export const REMUS_OPENING_DEFAULT: RemusVariant = 'pour'
 
 const FULL_MS = 3900
 /* Build tells two stories, so it holds a little longer. */

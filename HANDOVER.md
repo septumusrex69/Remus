@@ -72,7 +72,7 @@ Remus, and big" (so no Urban Haus line under the word in the openings either).
 - **The letters are the real wordmark**, traced from `public/brand/remus-wordmark-white.png` into `remusLetters.ts`
   (one path per letter, split at the four gaps; how to redo it is in the file), cut line included.
 - **Four openings (five since round 2), each with its own sound** (`remusSound.ts`, drawn by the browser, nothing high -- Raptor's rule):
-  1 Stamp (the letters slam down: doof + a puff of dust each, the floor shakes; the default), 2 Cut line (a blade of
+  1 Stamp (the letters slam down: doof + a puff of dust each, the floor shakes), 2 Cut line (a blade of
   light runs up the logo's own cut, the word splits on it, lights up silver and clacks back), 3 Blueprint (cut lines on
   a steel plate, a torch with sparks, the off-cut drops away), 4 Pour (formwork, concrete up to a laser level,
   shuttering knocked off, polished).
@@ -92,10 +92,14 @@ Remus, and big" (so no Urban Haus line under the word in the openings either).
   from the first Pour's palette (mixer rumble, slosh, deep drums, dull knocks, a plate's dark ring, the low swell, the
   long echo) with soft rain and far-off thunder; Pour itself is its first sound plus rain and thunder. No beat grid,
   no saw bass, no grinder, no saturation -- don't go back there.
+- **DECIDED (31 Oct): Pour plays at sign-in, with its first sound exactly** -- Stephan: *"the sounds for pour, the
+  original one, that was good. Use that. Exactly like it was. Use pour. For the login."* `REMUS_OPENING_DEFAULT` is
+  `'pour'`; `pour()` in remusSound.ts is byte-for-byte the first version (no rain, no thunder) -- leave it alone. The
+  other four stay on /opening; a device that picked one there ("Play this one when I sign in") keeps its pick.
 - **A fifth: Blueprint + Pour (`build`)** -- Stephan: *"combine the blueprint and the pour ... It looks really cool."*
   Grid and dimensions, the letters drawn as formwork concrete poured in the rain, thunder as the
   shuttering is knocked off, polished. 4.5 s (the others 3.9 s).
-- **Ask Stephan:** which one he wants as the default for everybody (today Stamp), and whether the new sound is right.
+- Sign-in default answered (Pour). Nothing open on the openings.
 
 ## Who sees the money, and the budget warning (28 Oct 2026, Remus · Handoff 5)
 

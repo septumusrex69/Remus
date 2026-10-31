@@ -284,16 +284,33 @@ function cut(c: AudioContext, t0: number) {
   horn(c, out, t0 + 2.5, 2.0, [98, 146.83, 196], 0.05)
 }
 
-/* POUR -- the one Stephan liked, kept as it was: the mixer turning (a low rumble that throbs), the concrete going in,
-   the shuttering knocked off -- five dull knocks, one per letter -- and the swell as it is polished. Plus the rain and
-   a roll of thunder he asked for ("like rain ... and thunder"). */
+/* POUR -- THE ONE THAT PLAYS AT SIGN-IN, exactly its first sound (Stephan, 31 Oct: "the sounds for pour, the original one,
+   that was good. Use that. Exactly like it was. Use pour. For the login."). Do not add to it. The mixer turning (a low rumble that throbs), the concrete going in, the shuttering knocked off -- five dull
+   knocks, one per letter -- and the horn as it is polished. */
 function pour(c: AudioContext, t0: number) {
   const out = softBus(c, t0, t0 + 4.6, 0.65)
-  rain(c, out, t0, 4.5)
-  mixer(c, out, t0, 2.3, 0.6)
-  slosh(c, out, t0 + 0.65, 1.4)
-  for (let i = 0; i < 5; i++) knock(c, out, t0 + 2.05 + i * 0.12, 120 - i * 6)
-  thunder(c, out, t0 + 2.05, 2.4, 0.35)
+  const rumble = noiseSource(c, 2.3)
+  const lp = c.createBiquadFilter()
+  lp.type = 'lowpass'
+  lp.frequency.value = 220
+  const throb = c.createGain()
+  throb.gain.setValueAtTime(0.0001, t0)
+  throb.gain.exponentialRampToValueAtTime(0.6, t0 + 0.5)
+  throb.gain.setValueAtTime(0.6, t0 + 1.8)
+  throb.gain.exponentialRampToValueAtTime(0.0001, t0 + 2.3)
+  const lfo = c.createOscillator()
+  const depth = c.createGain()
+  lfo.frequency.value = 6.5
+  depth.gain.value = 0.3
+  lfo.connect(depth); depth.connect(throb.gain)
+  rumble.connect(lp); lp.connect(throb); throb.connect(out.master)
+  rumble.start(t0); rumble.stop(t0 + 2.3); lfo.start(t0); lfo.stop(t0 + 2.3)
+  breath(c, out, t0 + 0.65, 1.4, { type: 'bandpass', from: 300, to: 520, q: 0.8, level: 0.3, attack: 0.5 })
+  for (let i = 0; i < 5; i++) {
+    const at = t0 + 2.05 + i * 0.12
+    drum(c, out, at, 120 - i * 6, 0.28, 0.35)
+    breath(c, out, at, 0.08, { from: 900, level: 0.18, attack: 0.003 })
+  }
   horn(c, out, t0 + 2.5, 2.0, [98, 146.83, 196], 0.05)
 }
 
