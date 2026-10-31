@@ -37,6 +37,14 @@ over it; the dashboard band is the same plan, larger. Signals calmed everywhere 
 Ember #b65a48). Ring figures sized to the ring's hole, % smaller (ProgressDial + ops Ring): "91% ... over the line".
 Also merged from the openings session: the autofill-yellow fix (src/index.css).
 
+**Then (Stephan: "I don't see the glass ... only in the hero ... a couple of lines ... something cool like a futuristic
+city"; "I can't see the map"):** Night redone -- black page with three pools of white light and a few setting-out lines
+(`public/brand/night-lines.svg`); strong glass on cards, frame and top bar (white 4.5% fill, blur 22px, bright hairline,
+lit top edge, diagonal sheen); the hero alone carries a futuristic city elevation (`public/brand/night-city.svg`, made
+by `scripts/brand/night-city.py`), the band 300px tall with the words on dark glass at the bottom left. The bedroom
+plan is gone. Operations map: CARTO dark tiles replaced by OpenStreetMap's own tiles turned black-and-silver in CSS
+(`.ops-tiles` filter) -- the same tiles Find prices' map uses. Not yet confirmed by Stephan that he now sees it.
+
 **Watch:** Snap slip's "Tell Claude" and the split slip have not been tried with a real slip; the Operations map's
 tiles (CARTO) and the Unsplash photos could not be loaded from the build container (its network refuses them), so
 they were checked by layout only -- ask Stephan what he sees.

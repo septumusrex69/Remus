@@ -57,3 +57,6 @@
 .ops-board .leaflet-control-attribution a { color: #8b9098 !important; }
 .ops-board .leaflet-tooltip { background: #17181b; color: #eff1f3; border: 1px solid rgba(255, 255, 255, 0.1); box-shadow: none; }
 .ops-board .leaflet-tooltip-top::before { border-top-color: #17181b; }
+
+/* The street map in black and silver: OpenStreetMap's tiles turned negative, without colour, a little dimmed. */
+.ops-board .ops-tiles { filter: grayscale(1) invert(1) brightness(0.82) contrast(1.15); }

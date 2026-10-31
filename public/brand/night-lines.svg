@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000" preserveAspectRatio="xMidYMid slice">
+  <!-- Remus · Handover 6: "only in the hero section. Maybe a couple of lines going through the rest at the back." A few setting-out lines across the page, nothing more. -->
+  <g fill="none" stroke="#c4c8cf">
+    <path d="M0 210H1600" stroke-opacity=".10"/>
+    <path d="M140 196V224M540 196V224M940 196V224M1340 196V224" stroke-opacity=".16"/>
+    <path d="M132 218L148 202M532 218L548 202M932 218L948 202M1332 218L1348 202" stroke-opacity=".22"/>
+    <path d="M1190 0V1000" stroke-opacity=".07" stroke-dasharray="14 8 2 8"/>
+    <circle cx="1190" cy="120" r="16" stroke-opacity=".14"/>
+    <path d="M-40 980L1640 360" stroke-opacity=".055"/>
+    <path d="M0 760H1600" stroke-opacity=".045" stroke-dasharray="2 10"/>
+  </g>
+  <g fill="#c4c8cf" fill-opacity=".2" font-family="Inter, Arial, sans-serif" font-size="11" letter-spacing="3">
+    <text x="320" y="200">4 000</text><text x="720" y="200">4 000</text><text x="1120" y="200">4 000</text>
+    <text x="1185" y="124">C</text>
+  </g>
+</svg>

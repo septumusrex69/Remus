@@ -23,9 +23,12 @@ function Fit({ points, selected }: { points: OpsPoint[]; selected: string | null
 export default function OpsMap({ points, selected, onSelect }: { points: OpsPoint[]; selected: string | null; onSelect: (id: string) => void }) {
   return (
     <MapContainer center={[-25.75, 28.23]} zoom={11} zoomControl={false} scrollWheelZoom className="h-full w-full" style={{ background: '#0b0c0e', zIndex: 0 }}>
+      {/* OpenStreetMap's own tiles (the ones Find prices' map already uses), turned dark silver by ops.css
+          (Stephan, 31 Oct: "I can't see the map" with the CARTO dark tiles). */}
       <TileLayer
-        url="https://{s}.basemap.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
+        className="ops-tiles"
+        url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
       />
       <Fit points={points} selected={selected} />
       {points.map((p) => (

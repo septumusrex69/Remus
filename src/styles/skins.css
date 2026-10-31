@@ -444,56 +444,71 @@ html[data-theme='night'] .bg-brand-500 .text-white\/70 { color: rgba(8, 9, 10, 0
 html[data-theme='night'] .bg-brand-600 .bg-white\/15 { background-color: rgba(8, 9, 10, 0.12); }
 
 /* ── Platinum Night, glass (Remus · Handover 6) ──────────────────────────────────────────────────
- * Stephan: "the night, it should be glass ... dark architectural drawings in the back ... of plans and stuff ...
- * maybe even the hero picture". The page is a ground-floor plan drawn in silver on black (public/brand/night-plan.svg),
- * fixed behind everything; every card, the frame and the top bar are frosted glass over it, so the drawing shows
- * through, softened. The dashboard band is the same drawing, larger and brighter, under black glass.
+ * Stephan, second look: "I don't see the glass stuff anywhere ... the architectural drawing to be ... only in the hero
+ * section. Maybe a couple of lines going through the rest at the back." So: the page is black with soft white light
+ * pooled in three places and a few setting-out lines across it (public/brand/night-lines.svg); the plan drawing
+ * is ONLY in the dashboard band -- a futuristic city elevation (night-city.svg, scripts/brand/night-city.py; Stephan:
+ * "something cool like a futuristic city"); and every card is unmistakable glass -- see-through, frosted, a
+ * bright hairline edge, a light catching its top and a diagonal sheen.
  */
 html[data-theme='night'] body {
-  background-color: #060607;
+  background-color: #050506;
   background-image:
-    radial-gradient(1100px 650px at 70% 0%, rgba(230, 232, 235, 0.06), transparent 65%),
-    radial-gradient(900px 600px at 0% 100%, rgba(0, 0, 0, 0.6), transparent 70%),
-    url('/brand/night-plan.svg');
-  background-size: auto, auto, 1600px 1000px;
-  background-position: center, center, 30% 20%;
-  background-repeat: no-repeat, no-repeat, repeat;
+    url('/brand/night-lines.svg'),
+    radial-gradient(700px 480px at 82% 12%, rgba(230, 232, 235, 0.13), transparent 70%),
+    radial-gradient(620px 520px at 18% 62%, rgba(230, 232, 235, 0.08), transparent 70%),
+    radial-gradient(760px 520px at 70% 100%, rgba(230, 232, 235, 0.07), transparent 70%);
+  background-size: cover, auto, auto, auto;
+  background-repeat: no-repeat;
   background-attachment: fixed;
 }
 html[data-theme='night'] .card,
 html[data-theme='night'] .bg-white {
-  background-color: rgba(22, 23, 26, 0.52);
-  background-image: linear-gradient(160deg, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0.015) 38%, rgba(255, 255, 255, 0) 60%);
-  -webkit-backdrop-filter: blur(16px) saturate(115%);
-  backdrop-filter: blur(16px) saturate(115%);
-  border-color: rgba(255, 255, 255, 0.1);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.09), inset 0 0 0 1px rgba(255, 255, 255, 0.015), 0 30px 60px -36px rgba(0, 0, 0, 0.95);
+  background-color: rgba(255, 255, 255, 0.045);
+  background-image:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.13) 0%, rgba(255, 255, 255, 0.035) 32%, rgba(255, 255, 255, 0) 55%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0) 30%);
+  -webkit-backdrop-filter: blur(22px) saturate(140%);
+  backdrop-filter: blur(22px) saturate(140%);
+  border-color: rgba(255, 255, 255, 0.15);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    inset 1px 0 0 rgba(255, 255, 255, 0.06),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.35),
+    0 30px 60px -30px rgba(0, 0, 0, 0.9);
 }
-/* Pop-ups and menus stay solid enough to read. */
-html[data-theme='night'] [role='dialog'].bg-white,
-html[data-theme='night'] [role='dialog'] { background-color: rgba(20, 21, 24, 0.92); }
+/* Rows and tiles inside a glass card are lighter glass, not solid grey. */
+html[data-theme='night'] .card .bg-slate-50,
+html[data-theme='night'] .card .bg-slate-100 { background-color: rgba(255, 255, 255, 0.05); }
+/* Pop-ups stay solid enough to read. */
+html[data-theme='night'] [role='dialog'] { background-color: rgba(18, 19, 22, 0.94); }
 html[data-theme='night'] aside.skin-frame {
-  background-color: rgba(5, 5, 6, 0.62);
-  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0) 30%);
-  -webkit-backdrop-filter: blur(18px);
-  backdrop-filter: blur(18px);
-  box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.08);
+  background-color: rgba(255, 255, 255, 0.03);
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0) 28%);
+  -webkit-backdrop-filter: blur(24px) saturate(140%);
+  backdrop-filter: blur(24px) saturate(140%);
+  box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.12);
 }
 html[data-theme='night'] header.bg-card\/90 {
-  background-color: rgba(8, 9, 10, 0.55);
-  -webkit-backdrop-filter: blur(18px);
-  backdrop-filter: blur(18px);
+  background-color: rgba(255, 255, 255, 0.03);
+  -webkit-backdrop-filter: blur(24px) saturate(140%);
+  backdrop-filter: blur(24px) saturate(140%);
+  border-color: rgba(255, 255, 255, 0.1);
 }
-/* The band: the plan, larger and lit, under a black-glass wash; the words sit on the dark side. */
+/* The band: the plan drawing, clear on the right, the words on a dark glass panel on the left. */
 html[data-theme='night'] .skin-band {
-  background-color: rgba(6, 6, 7, 0.6);
-  background-image: linear-gradient(100deg, rgba(6, 6, 7, 0.92) 0%, rgba(6, 6, 7, 0.55) 48%, rgba(6, 6, 7, 0.15) 100%), url('/brand/night-plan.svg');
-  background-size: auto, 1150px 720px;
-  background-position: center, 85% 38%;
+  background-color: #060607;
+  background-image:
+    linear-gradient(95deg, rgba(6, 6, 7, 0.9) 0%, rgba(6, 6, 7, 0.62) 36%, rgba(6, 6, 7, 0.1) 70%, rgba(6, 6, 7, 0) 100%),
+    radial-gradient(600px 300px at 70% 20%, rgba(230, 232, 235, 0.12), transparent 70%),
+    url('/brand/night-city.svg');
+  background-size: auto, auto, auto 112%;
+  background-position: center, center, right -30px bottom -6px;
   background-repeat: no-repeat;
-  -webkit-backdrop-filter: blur(6px);
-  backdrop-filter: blur(6px);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+  min-height: 300px;
+  display: flex;
+  align-items: flex-end;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), inset 0 0 0 1px rgba(255, 255, 255, 0.1), 0 30px 60px -30px rgba(0, 0, 0, 0.9);
 }
 html[data-theme='night'] .skin-band .skin-band-credit { display: none; }
 /* Calmer signals (Stephan: "the orange and the light blue ... pay attention"): greyer steel, quieter brass and ember. */
@@ -516,3 +531,4 @@ html[data-theme='night'] .ops-board {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), inset 0 0 0 1px rgba(255, 255, 255, 0.06);
 }
 html[data-theme='night'] .ops-panel { background-color: rgba(18, 19, 21, 0.6); }
+html[data-theme='night'] .skin-band > div { width: 100%; }
