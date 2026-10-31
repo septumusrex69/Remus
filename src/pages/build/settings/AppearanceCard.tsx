@@ -55,6 +55,7 @@ export function AppearanceCard() {
         })}
       </div>
       <Link to={paths.photos()} className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-brand-700 hover:underline"><Image size={15} /> Choose the photographs (Platinum)</Link>
+      <Link to={paths.brand()} className="mt-4 ml-5 inline-flex items-center gap-1.5 text-sm font-medium text-brand-700 hover:underline">See the brand board</Link>
     </Card>
   )
 }

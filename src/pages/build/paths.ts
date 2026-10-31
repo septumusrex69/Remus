@@ -32,5 +32,7 @@ export const paths = {
   /** Settings, optionally on one tab (Raptor's ?tab= links), e.g. paths.settings('Integrations'). */
   /** The Unsplash photographs and where each is used (Remus · Handover 6). */
   photos: () => p('/photos'),
+  /** The Platinum brand board (Remus · Handover 6). */
+  brand: () => p('/brand'),
   settings: (tab?: string) => p(tab ? `/settings?tab=${encodeURIComponent(tab)}` : '/settings'),
 }

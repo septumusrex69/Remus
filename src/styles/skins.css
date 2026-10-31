@@ -175,17 +175,52 @@ html[data-theme='concrete'] aside .bg-brand-500 {
  * warm thing only. Here the frame is black glass with a silver hairline, the page a cool white with a faint
  * brushed grain, buttons graphite, and the construction photographs (Unsplash, served by Unsplash) graded
  * cool and dark so the words stay readable. */
+/*
+ * THE PLATINUM BOARD (Remus · Handover 6; drawn out at /brand). Stephan: "the green in there ... I don't think you
+ * moved all of the colours to be over with the real brand board ... build out the brand board a little bit better".
+ * Nine metals and three signals, nothing else:
+ *   Obsidian #0b0b0d · Graphite #16171a · Gunmetal #2b2d32 · Storm #4a4d54 · Pewter #8b9098 · Silver #c4c8cf
+ *   Mist #e4e6e9 · Bone #f1f1ef · Snow #ffffff
+ *   Steel #5a7282 (on track, paid, progress -- replaces green) · Brass #a8843f (getting close, waiting -- replaces
+ *   amber) · Ember #a33a30 (late, over budget -- replaces red)
+ * And the shape, so Remus is not Raptor: SQUARE. Corners of 2px, hairline borders, no soft shadows, and a
+ * draughtsman's corner tick on every card -- a construction drawing, not a rounded app.
+ */
 html[data-theme='platinum'] {
-  --skin-ground: #111214;
+  --skin-ground: #16171a;
   --skin-accent: #2b2d32;
   --skin-neutral: #4a4d54;
-  --skin-positive: #5f7d6c;
-  --skin-negative: #a8473d;
+  --skin-positive: #5a7282;
+  --skin-negative: #a33a30;
   --skin-surface: #f1f1ef;
   --skin-card: #ffffff;
-  --card-border: #dcdee2;
-  --card-radius: 0.75rem;
-  --card-shadow: 0 1px 2px rgba(9, 9, 11, 0.04), 0 6px 18px -12px rgba(9, 9, 11, 0.18);
+  --card-border: #d9dbdf;
+  --card-radius: 2px;
+  --card-shadow: none;
+  /* Square: every rounded-* in the app reads these (Tailwind 4); rounded-full (dots, pills) stays round. */
+  --radius-xs: 1px;
+  --radius-sm: 1px;
+  --radius-md: 2px;
+  --radius-lg: 2px;
+  --radius-xl: 2px;
+  --radius-2xl: 3px;
+  --radius-3xl: 3px;
+  /* Brass for warnings and "getting close", in place of Tailwind's amber. */
+  --color-amber-50: color-mix(in oklab, #a8843f 8%, white);
+  --color-amber-100: color-mix(in oklab, #a8843f 16%, white);
+  --color-amber-200: color-mix(in oklab, #a8843f 30%, white);
+  --color-amber-300: color-mix(in oklab, #a8843f 50%, white);
+  --color-amber-400: color-mix(in oklab, #a8843f 80%, white);
+  --color-amber-500: #a8843f;
+  --color-amber-600: color-mix(in oklab, #a8843f, black 12%);
+  --color-amber-700: color-mix(in oklab, #a8843f, black 28%);
+  --color-amber-800: color-mix(in oklab, #a8843f, black 42%);
+  --color-amber-900: color-mix(in oklab, #a8843f, black 55%);
+  /* Planned work in Pewter-blue, not a bright sky. */
+  --color-sky-100: #e4e8ec;
+  --color-sky-300: #9aa8b4;
+  --color-sky-400: #7d8c99;
+  --color-sky-700: #3f4c57;
   /* Brushed silver: hair-fine horizontal grain and a slow diagonal sheen. */
   --skin-pattern: linear-gradient(115deg, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0) 38%, rgba(196, 200, 207, 0.12) 62%, rgba(255, 255, 255, 0) 100%),
     repeating-linear-gradient(180deg, rgba(74, 77, 84, 0.025) 0 1px, transparent 1px 3px);
@@ -227,3 +262,41 @@ html[data-theme='platinum'] button.bg-brand-500,
 html[data-theme='platinum'] a.bg-brand-500 {
   background-image: linear-gradient(180deg, #3a3d43 0%, #2b2d32 100%);
 }
+
+/* The draughtsman's corner ticks: two short graphite strokes at each corner of a card, as on a drawing sheet. */
+html[data-theme='platinum'] .card { position: relative; }
+html[data-theme='platinum'] .card::after {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  pointer-events: none;
+  --tick: #2b2d32;
+  background:
+    linear-gradient(var(--tick), var(--tick)) top left / 10px 1.5px no-repeat,
+    linear-gradient(var(--tick), var(--tick)) top left / 1.5px 10px no-repeat,
+    linear-gradient(var(--tick), var(--tick)) top right / 10px 1.5px no-repeat,
+    linear-gradient(var(--tick), var(--tick)) top right / 1.5px 10px no-repeat,
+    linear-gradient(var(--tick), var(--tick)) bottom left / 10px 1.5px no-repeat,
+    linear-gradient(var(--tick), var(--tick)) bottom left / 1.5px 10px no-repeat,
+    linear-gradient(var(--tick), var(--tick)) bottom right / 10px 1.5px no-repeat,
+    linear-gradient(var(--tick), var(--tick)) bottom right / 1.5px 10px no-repeat;
+}
+/* On the photo band the ticks are silver light. */
+html[data-theme='platinum'] .skin-band::after {
+  content: '';
+  position: absolute;
+  inset: 8px;
+  pointer-events: none;
+  --tick: rgba(196, 200, 207, 0.7);
+  background:
+    linear-gradient(var(--tick), var(--tick)) top left / 18px 1px no-repeat,
+    linear-gradient(var(--tick), var(--tick)) top left / 1px 18px no-repeat,
+    linear-gradient(var(--tick), var(--tick)) top right / 18px 1px no-repeat,
+    linear-gradient(var(--tick), var(--tick)) top right / 1px 18px no-repeat,
+    linear-gradient(var(--tick), var(--tick)) bottom left / 18px 1px no-repeat,
+    linear-gradient(var(--tick), var(--tick)) bottom left / 1px 18px no-repeat,
+    linear-gradient(var(--tick), var(--tick)) bottom right / 18px 1px no-repeat,
+    linear-gradient(var(--tick), var(--tick)) bottom right / 1px 18px no-repeat;
+}
+/* Section labels: tracked capitals with a hairline running out, like a title block. */
+html[data-theme='platinum'] .skin-eyebrow { letter-spacing: 0.24em; }

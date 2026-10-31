@@ -89,6 +89,15 @@ Preview: https://remus-git-claude-new-session-umpip5-team-raptor.vercel.app
     ask for hotlinking anyway). Page **/photos** (link in Settings -> Appearance): an Administrator picks the photo for
     the dashboard band, sign-in and sidebar; kept for everybody in `company_settings.brand_photos` (0033, live). The
     sign-in remembers the last choice in the browser. **Waiting on Stephan's pick.**
+24. **The Platinum board, square** (Stephan: logo "a little bit smaller"; "the green ... not over with the real brand
+    board"; "more blocks ... with sharper edges ... unique compared to Raptor"). Sidebar REMUS at h-6. Platinum now
+    has its own board (page **/brand**, linked from Settings -> Appearance): nine metals (Obsidian #0b0b0d .. Snow) and
+    three signals -- Steel #5a7282 replaces green, Brass #a8843f replaces amber, Ember #a33a30 replaces red. Shape:
+    2px corners everywhere (Tailwind's --radius-* overridden under Platinum; rounded-full stays round), hairline
+    borders, no soft shadows, and draughtsman's corner ticks on every card and the photo band (skins.css
+    `.card::after`). Raptor stays rounded; Remus is cut square. Other skins unchanged.
+Photos stay as chosen until an Administrator changes them (same photo every day); Raptor-style "photo of the day"
+rotation offered, not built.
 Still to offer from Raptor S16: Mail's Archive ("inbox zero"), the portal signing in with a password instead of codes,
 the openings (animated start after sign-in).
 

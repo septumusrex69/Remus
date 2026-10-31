@@ -89,7 +89,7 @@ export function Sidebar({ drawer, onNavigate }: { drawer?: boolean; onNavigate?:
             <img src={theme.icon} alt={theme.productName} className="h-8 w-8 rounded-md" />
           ) : theme.tagline ? (
             // REMUS, alone and big (Stephan, 31 Oct: "Don't say ... Urban Haus Group. Just make it Remus and big").
-            <img src={theme.lockupLight} alt={theme.productName} className="mx-auto h-8 w-auto object-contain" data-testid="sidebar-wordmark" />
+            <img src={theme.lockupLight} alt={theme.productName} className="mx-auto h-6 w-auto object-contain" data-testid="sidebar-wordmark" />
           ) : (
             <img src={theme.lockupLight} alt={settings?.name || 'Urban Haus Construction'} className="mx-auto max-h-11 w-auto object-contain" />
           )}

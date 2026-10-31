@@ -54,7 +54,7 @@ export const THEMES: ThemeDefinition[] = [
     ...REMUS,
     // The photograph itself is chosen on the Photos page (lib/brandPhotos.ts); this marks the skin as wearing one.
     loginPhoto: true,
-    swatch: { ground: '#111214', surface: '#f1f1ef', accent: '#c4c8cf' },
+    swatch: { ground: '#16171a', surface: '#f1f1ef', accent: '#c4c8cf' },
   },
   {
     id: 'remus',
