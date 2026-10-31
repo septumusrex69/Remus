@@ -593,6 +593,8 @@ export interface ReceiptSuggestion {
   stage_id?: string | null
   /** What was bought and what for, in Claude's words (from the person's note where there is one). */
   description?: string | null
+  /** One slip for several projects or stages (Remus · Handover 6): the parts, amounts incl. VAT. */
+  split?: { project_id: string | null; stage_id: string | null; category: ExpenseCategory; description: string; amount_incl: number }[]
   category: ExpenseCategory
   confidence: 'low' | 'medium' | 'high'
   reason: string

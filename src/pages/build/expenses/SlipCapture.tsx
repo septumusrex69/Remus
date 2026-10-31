@@ -3,7 +3,7 @@ import { seesMoney, useAccess } from '../../../lib/access'
 import { StageSelect } from '../components/StageSelect'
 import { NumInput } from '../../../components/ui/NumInput'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { ArrowLeft, Camera, CheckCircle2, FileText, Images, Loader2, RefreshCw, Sparkles, X } from 'lucide-react'
+import { ArrowLeft, Camera, CheckCircle2, FileText, Images, Loader2, Plus, RefreshCw, Sparkles, Split, X } from 'lucide-react'
 import { DictateButton } from '../../../components/ui/Dictate'
 import { expenses as expensesApi, extractReceipt, projects as projectsApi, uploadReceipt } from '../../../lib/api'
 import { RECEIPTS_BUCKET, supabase } from '../../../lib/supabase'
@@ -12,7 +12,7 @@ import { splitInclusive } from '../../../lib/quoteMath'
 import { compressImage, inferFileType } from '../../../lib/image'
 import { useLoad } from '../../../hooks/useLoad'
 import { Button, Card, Field, PageHeader } from '../../../components/ui'
-import { EXPENSE_CATEGORIES, type ExpenseCategory, type ReceiptExtraction, type ReceiptSuggestion } from '../../../types'
+import { EXPENSE_CATEGORIES, type ExpenseCategory, type Project, type ReceiptExtraction, type ReceiptSuggestion } from '../../../types'
 import { ProjectSelect } from '../components/ProjectSelect'
 import { paths } from '../paths'
 import { useVatRate } from '../BuildContext'
@@ -47,6 +47,17 @@ interface FormState {
   description: string
   paid: boolean
 }
+
+/** One part of a split slip (Remus · Handover 6): where it goes, and how much of the slip, incl. VAT. */
+interface Part {
+  key: string
+  project_id: string | null
+  stage_id: string | null
+  category: ExpenseCategory
+  description: string
+  amount: number | null
+}
+const newPart = (p: Partial<Part> = {}): Part => ({ key: crypto.randomUUID(), project_id: null, stage_id: null, category: 'materials', description: '', amount: null, ...p })
 
 const blankForm = (projectId: string | null): FormState => ({
   supplier: '',
@@ -89,6 +100,13 @@ export function SlipCapture() {
   const batchNoteRef = useRef(batchNote)
   batchNoteRef.current = batchNote
   const [slipNote, setSlipNote] = useState('')
+  /*
+   * SPLIT ACROSS PROJECTS (Remus · Handover 6). Stephan: "R10,000 of cement, but R5,000 is for one project and
+   * R5,000 for the other ... you should be able to split the slip. And also dictate that." Null: the slip goes to
+   * one place (the form below). Parts: one expense each, all on the same slip photo, VAT shared pro rata.
+   */
+  const [parts, setParts] = useState<Part[] | null>(null)
+  const setPart = (key: string, patch: Partial<Part>) => setParts((ps) => ps && ps.map((x) => (x.key === key ? { ...x, ...patch } : x)))
   const cameraRef = useRef<HTMLInputElement>(null)
   const filesRef = useRef<HTMLInputElement>(null)
   const current = queue[0]
@@ -178,6 +196,9 @@ export function SlipCapture() {
     if (total !== null) f.total_incl = String(total)
     if (vat !== null) f.vat = String(vat)
     if (x.line_items?.length) f.description = x.line_items.slice(0, 4).map((l) => l.description).join(', ').slice(0, 200)
+    setParts(s?.split && s.split.length >= 2
+      ? s.split.map((x) => newPart({ project_id: x.project_id, stage_id: x.stage_id, category: x.category, description: x.description, amount: x.amount_incl }))
+      : null)
     if (s) {
       f.category = s.category
       marks.add('category')
@@ -207,8 +228,41 @@ export function SlipCapture() {
     }
     const total = Number(form.total_incl || 0)
     const vat = form.vat === '' ? splitInclusive(total, vatRate).vat : Number(form.vat)
+    if (parts) {
+      const placed = round2(parts.reduce((t, x) => t + (x.amount ?? 0), 0))
+      if (parts.some((x) => !(x.amount && x.amount > 0))) { updateCurrent({ error: 'Give every part an amount, or remove it.' }); return }
+      if (Math.abs(placed - total) > 0.01) { updateCurrent({ error: `The parts add up to ${formatZAR(placed)}, the slip is ${formatZAR(total)}.` }); return }
+    }
     updateCurrent({ stage: 'saving' })
     try {
+      if (parts) {
+        // VAT shared by each part's share of the total; the last part takes the cents left by rounding.
+        let vatLeft = round2(vat)
+        for (const [i, x] of parts.entries()) {
+          const amt = round2(x.amount ?? 0)
+          const v = i === parts.length - 1 ? vatLeft : round2(total ? (vat * amt) / total : 0)
+          vatLeft = round2(vatLeft - v)
+          await expensesApi.create({
+            date: form.date,
+            supplier: form.supplier || null,
+            description: [x.description, `part ${i + 1} of ${parts.length}`].filter(Boolean).join(' · ') || null,
+            receipt_number: form.receipt_number || null,
+            category: x.category,
+            project_id: x.project_id,
+            stage_id: x.project_id ? x.stage_id : null,
+            amount_excl: round2(amt - v),
+            vat: v,
+            paid: form.paid,
+            receipt_path: current.path,
+            ai_extracted: current.extraction ?? null,
+            ai_suggestion: current.suggestion ?? null,
+            source: 'receipt',
+          })
+        }
+        setSavedCount((n) => n + 1)
+        next()
+        return
+      }
       await expensesApi.create({
         date: form.date,
         supplier: form.supplier || null,
@@ -250,6 +304,7 @@ export function SlipCapture() {
   function next() {
     if (current) URL.revokeObjectURL(current.previewUrl)
     setSlipNote('')
+    setParts(null)
     setQueue((q) => q.slice(1))
     setForm(blankForm(presetProject))
     setSuggested(new Set())
@@ -362,7 +417,7 @@ export function SlipCapture() {
               ) : null}
 
               <TellClaude value={slipNote} onChange={setSlipNote} label="Tell Claude about this slip"
-                placeholder="e.g. This is for the Mackenzie Street job, the plumbing stage."
+                placeholder="e.g. The cement is for the Smith job, the nails for Naidoo's bathroom, the tiling stage."
                 action={
                   <Button size="sm" onClick={askAgain} disabled={!slipNote.trim() || slipNote.trim() === (current.note ?? '')} data-testid="slip-ask-again">
                     <RefreshCw size={13} /> Ask Claude again
@@ -378,6 +433,12 @@ export function SlipCapture() {
                   <NumInput allowEmpty prefix="R" value={form.vat === '' ? null : Number(form.vat)} placeholder={String(splitInclusive(totalNum, vatRate).vat)} onValue={(n) => set('vat', n === null ? '' : String(n))} />
                 </Field>
                 <p className="col-span-2 -mt-1 text-xs text-slate-500">Excl. VAT {formatZAR(totalNum - vatNum)}</p>
+                {parts ? (
+                  <SplitParts parts={parts} projects={projects ?? []} total={totalNum} setPart={setPart}
+                    onAdd={() => setParts((ps) => ps && [...ps, newPart({ amount: Math.max(0, round2(totalNum - ps.reduce((t, x) => t + (x.amount ?? 0), 0))) || null })])}
+                    onRemove={(key) => setParts((ps) => { const left = (ps ?? []).filter((x) => x.key !== key); return left.length < 2 ? null : left })}
+                    onCancel={() => setParts(null)} />
+                ) : <>
                 <Field label="Category">
                   <select className={`input ${hl('category')}`} value={form.category} onChange={(e) => set('category', e.target.value as ExpenseCategory)}>
                     {EXPENSE_CATEGORIES.map((c) => <option key={c} value={c}>{labelize(c)}</option>)}
@@ -388,6 +449,14 @@ export function SlipCapture() {
                   <StageSelect className="mt-2" projectId={form.project_id} value={form.stage_id} onChange={(v) => set('stage_id', v)} />
                 </Field>
                 <Field label="Description" className="col-span-2"><input className={`input ${hl('description')}`} value={form.description} onChange={(e) => set('description', e.target.value)} /></Field>
+                <button type="button" data-testid="slip-split" className="col-span-2 -mt-1 inline-flex items-center gap-1.5 justify-self-start text-xs font-medium text-brand-700 hover:underline"
+                  onClick={() => setParts([
+                    newPart({ project_id: form.project_id, stage_id: form.stage_id, category: form.category, description: form.description, amount: totalNum ? round2(totalNum / 2) : null }),
+                    newPart({ category: form.category, amount: totalNum ? round2(totalNum - round2(totalNum / 2)) : null }),
+                  ])}>
+                  <Split size={13} /> Split this slip across projects
+                </button>
+                </>}
                 <label className="col-span-2 flex items-center gap-2 text-sm"><input type="checkbox" checked={form.paid} onChange={(e) => set('paid', e.target.checked)} /> Already paid</label>
               </div>
               {current.extraction?.card_last4 && (
@@ -423,6 +492,53 @@ function TellClaude({ value, onChange, label, placeholder, action }: {
       </div>
       <textarea className="input min-h-16 text-sm" rows={2} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} />
       {action && <div className="mt-2 flex justify-end">{action}</div>}
+    </div>
+  )
+}
+
+/** The parts of a split slip: each a project, stage, kind and amount; what is left to place under them. */
+function SplitParts({ parts, projects, total, setPart, onAdd, onRemove, onCancel }: {
+  parts: Part[]
+  projects: Project[]
+  total: number
+  setPart: (key: string, patch: Partial<Part>) => void
+  onAdd: () => void
+  onRemove: (key: string) => void
+  onCancel: () => void
+}) {
+  const placed = round2(parts.reduce((t, x) => t + (x.amount ?? 0), 0))
+  const left = round2(total - placed)
+  return (
+    <div className="col-span-2 space-y-2 rounded-xl border border-brand-200 bg-brand-50/40 p-3" data-testid="split-parts">
+      <div className="flex items-center justify-between gap-2">
+        <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-800"><Split size={14} /> Split across {parts.length} parts</span>
+        <button type="button" onClick={onCancel} className="text-xs text-slate-500 hover:underline">Don't split</button>
+      </div>
+      {parts.map((x, i) => (
+        <div key={x.key} className="rounded-lg border border-slate-200 bg-white p-2.5" data-testid="split-part">
+          <div className="mb-1.5 flex items-center justify-between text-xs text-slate-500">
+            <span>Part {i + 1}</span>
+            <button type="button" onClick={() => onRemove(x.key)} aria-label={`Remove part ${i + 1}`} className="rounded p-0.5 hover:bg-slate-100"><X size={13} /></button>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="col-span-2">
+              <ProjectSelect projects={projects} value={x.project_id} onChange={(v) => setPart(x.key, { project_id: v, stage_id: null })} />
+              <StageSelect className="mt-1.5" projectId={x.project_id} value={x.stage_id} onChange={(v) => setPart(x.key, { stage_id: v })} />
+            </div>
+            <input className="input col-span-2" placeholder="What it covers, e.g. cement" value={x.description} onChange={(e) => setPart(x.key, { description: e.target.value })} />
+            <select className="input" value={x.category} onChange={(e) => setPart(x.key, { category: e.target.value as ExpenseCategory })}>
+              {EXPENSE_CATEGORIES.map((c) => <option key={c} value={c}>{labelize(c)}</option>)}
+            </select>
+            <NumInput allowEmpty prefix="R" value={x.amount} onValue={(n) => setPart(x.key, { amount: n })} />
+          </div>
+        </div>
+      ))}
+      <div className="flex items-center justify-between gap-2 text-xs">
+        <button type="button" onClick={onAdd} className="inline-flex items-center gap-1 font-medium text-brand-700 hover:underline"><Plus size={13} /> Add a part</button>
+        <span className={Math.abs(left) <= 0.01 ? 'text-emerald-700' : 'font-semibold text-red-700'} data-testid="split-left">
+          {Math.abs(left) <= 0.01 ? 'Adds up to the slip' : left > 0 ? `${formatZAR(left)} still to place` : `${formatZAR(-left)} too much`}
+        </span>
+      </div>
     </div>
   )
 }
