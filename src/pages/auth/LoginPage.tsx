@@ -5,6 +5,8 @@ import { useAuth } from '../../store/AuthContext'
 import { isSupabaseConfigured, supabase } from '../../lib/supabase'
 import { useTheme } from '../../store/ThemeContext'
 import { photoUrl, rememberedLoginPhoto } from '../../lib/brandPhotos'
+import { queueRemusOpening } from '../../components/opening/openingQueue'
+import { primeOpeningAudio } from '../../components/opening/remusSound'
 
 export function LoginPage() {
   const { session, loading, signIn, needsPassword } = useAuth()
@@ -29,9 +31,12 @@ export function LoginPage() {
     e.preventDefault()
     setError(null)
     setSubmitting(true)
+    /* The press is what lets the opening's sound play on an iPad, so the audio is woken here, inside it. */
+    primeOpeningAudio()
     const { error: err } = await signIn(email, password)
     setSubmitting(false)
     if (err) setError(err)
+    else queueRemusOpening()
   }
 
   async function handleReset() {

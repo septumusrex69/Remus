@@ -172,6 +172,31 @@ database level; learning from finished jobs; later, multi-company.
 answered from fixtures; supabase-js `maybeSingle()` fetches an ARRAY). The portal was checked the same way
 with `/api/portal/*` answered from fixtures, desktop 1280 and iPhone 390, no sideways scroll.
 
+## The sign-in openings (31 Oct 2026, Remus · Handoff 6, a second session alongside the Platinum one)
+
+Stephan: *"when you log into Remus, then it like does something cool, like a video with like sound effects, like one
+of the letters just like hit out like poof, poof, poof ... Doof, doof, doof ... Or like ... how the Remus is constructed
+and the cut lines are cut out ... just make different ones. But use the platinum ... speak to the other session."*
+Branch `claude/pensive-ptolemy-z0uc1o` (from `main`); the Platinum session (`claude/new-session-umpip5`) agreed to merge
+it into its branch so both are on one preview. Talked to it by send_message: no warm accent (oxblood dropped), "just
+Remus, and big" (so no Urban Haus line under the word in the openings either).
+- **Copied from Raptor S16** (`claude/beautiful-curie-f7deq7`, checked 31 Oct 12:20): `src/components/opening/*`
+  (opening over the app after a sign-in, above `<Routes>` so it is never restarted; a tap skips; Reduced motion gets the
+  still word; sound woken by the Sign in press so it plays on an iPad) and the replay page **/opening** (no sign-in).
+  Raptor's Platinum tokens (#09090b, #1b1c1f, #4a4d54, #c4c8cf, #8b9098, #f6f6f4) live in `remusOpening.css`.
+- **The letters are the real wordmark**, traced from `public/brand/remus-wordmark-white.png` into `remusLetters.ts`
+  (one path per letter, split at the four gaps; how to redo it is in the file), cut line included.
+- **Four openings, each with its own sound** (`remusSound.ts`, drawn by the browser, nothing high -- Raptor's rule):
+  1 Stamp (the letters slam down: doof + a puff of dust each, the floor shakes; the default), 2 Cut line (a blade of
+  light runs up the logo's own cut, the word splits on it, lights up silver and clacks back), 3 Blueprint (cut lines on
+  a steel plate, a torch with sparks, the off-cut drops away), 4 Pour (formwork, concrete up to a laser level,
+  shuttering knocked off, polished).
+- **DIFFERENT FROM RAPTOR:** /opening has "Play this one when I sign in", remembered per device (`openingChoice.ts`,
+  localStorage `remus.opening`), because Stephan asked for several. Raptor plays one fixed in code.
+- Checked with Playwright (fake Supabase): every opening frame by frame at 1280 and 390 wide, and a real Sign in
+  (token answered from a fixture) plays Stamp and leaves you on the dashboard. No sound check is possible headless.
+- **Ask Stephan:** which one he wants as the default for everybody (today Stamp), and whether the sound is right.
+
 ## Who sees the money, and the budget warning (28 Oct 2026, Remus · Handoff 5)
 
 Stephan: "administrators can see it. Contractors can't see the finances, but everything else they should know
