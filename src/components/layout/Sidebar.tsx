@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, NavLink } from 'react-router-dom'
 import { clsx } from 'clsx'
 import {
-  Banknote, CalendarDays, CalendarRange, Camera, ChevronDown, FileText, FolderKanban, HardHat, Inbox, LayoutDashboard, LineChart, LogOut,
+  Banknote, CalendarDays, Radar, CalendarRange, Camera, ChevronDown, FileText, FolderKanban, HardHat, Inbox, LayoutDashboard, LineChart, LogOut,
   Lightbulb, PanelLeftClose, PanelLeftOpen, Receipt, Settings, Users, UsersRound, type LucideIcon, ClipboardCheck,
 } from 'lucide-react'
 import { useAuth } from '../../store/AuthContext'
@@ -25,6 +25,8 @@ type Badge = 'mail' | 'bank' | 'requests'
 /** `when`: who sees the item (lib/access.ts); everybody when absent. */
 const NAV: { to: string; label: string; icon: LucideIcon; end?: boolean; badge?: Badge; when?: (a: Access) => boolean }[] = [
   { to: paths.dashboard(), label: 'Dashboard', icon: LayoutDashboard, end: true },
+  // Remus · Handover 6: the dark Operations board, every site on a map.
+  { to: paths.ops(), label: 'Operations', icon: Radar },
   // Second, under Dashboard, as in Raptor: client mail is the first thing to check.
   { to: paths.mail(), label: 'Mail', icon: Inbox, badge: 'mail' },
   { to: paths.quotes(), label: 'Quotes', icon: FileText, when: seesQuotes },

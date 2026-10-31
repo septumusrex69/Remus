@@ -1,0 +1,59 @@
+/*
+ * THE OPERATIONS BOARD (Remus · Handover 6). Always dark, whatever the skin, as the three boards Stephan sent:
+ * black glass panels, soft light from above, white words, and one colour -- hi-vis. Its own tokens live here,
+ * scoped to the board; under Remus Night they are the skin's own colours.
+ */
+.ops-board {
+  --ops-bg: #08090a;
+  --ops-panel: #121315;
+  --ops-panel-2: #17181b;
+  --ops-line: rgba(255, 255, 255, 0.07);
+  --ops-text: #eff1f3;
+  --ops-dim: #8b9098;
+  --ops-faint: #3b3e44;
+  --ops-accent: #d4f24a;
+  --ops-good: #8fd14f;
+  --ops-warn: #f5b544;
+  --ops-bad: #ff6b4a;
+  color: var(--ops-text);
+  background:
+    radial-gradient(900px 420px at 80% -8%, rgba(212, 242, 74, 0.08), transparent 60%),
+    radial-gradient(700px 400px at 0% 110%, rgba(255, 255, 255, 0.04), transparent 60%),
+    var(--ops-bg);
+  border-radius: 1.25rem;
+  padding: 1.25rem;
+}
+.ops-panel {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0) 40%), var(--ops-panel);
+  border: 1px solid var(--ops-line);
+  border-radius: 1rem;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 24px 48px -28px rgba(0, 0, 0, 0.9);
+}
+.ops-glass {
+  background: rgba(18, 19, 21, 0.78);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 1rem;
+  backdrop-filter: blur(14px);
+  box-shadow: 0 20px 40px -20px rgba(0, 0, 0, 0.8);
+}
+.ops-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border-radius: 999px;
+  border: 1px solid var(--ops-line);
+  background: var(--ops-panel);
+  padding: 0.35rem 0.75rem;
+  font-size: 12px;
+  color: var(--ops-dim);
+  white-space: nowrap;
+}
+.ops-pill b { color: var(--ops-text); font-weight: 600; }
+.ops-dim { color: var(--ops-dim); }
+.ops-accent { color: var(--ops-accent); }
+.ops-label { font-size: 11px; color: var(--ops-dim); letter-spacing: 0.02em; }
+.ops-board .leaflet-container { font-family: inherit; }
+.ops-board .leaflet-control-attribution { background: rgba(8, 9, 10, 0.7) !important; color: #5f636b !important; font-size: 9px; }
+.ops-board .leaflet-control-attribution a { color: #8b9098 !important; }
+.ops-board .leaflet-tooltip { background: #17181b; color: #eff1f3; border: 1px solid rgba(255, 255, 255, 0.1); box-shadow: none; }
+.ops-board .leaflet-tooltip-top::before { border-top-color: #17181b; }

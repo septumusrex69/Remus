@@ -34,5 +34,7 @@ export const paths = {
   photos: () => p('/photos'),
   /** The Platinum brand board (Remus · Handover 6). */
   brand: () => p('/brand'),
+  /** The Operations board: every site on a dark map (Remus · Handover 6). */
+  ops: () => p('/ops'),
   settings: (tab?: string) => p(tab ? `/settings?tab=${encodeURIComponent(tab)}` : '/settings'),
 }

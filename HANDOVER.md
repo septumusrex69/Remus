@@ -102,6 +102,19 @@ Preview: https://remus-git-claude-new-session-umpip5-team-raptor.vercel.app
     (stages' days behind us / all their days; test holds it equal to api/_lib/portalRules). On every project's
     Overview ("How far along": now, next, stages done, working days left), on each Projects card, on the dashboard's
     Active projects; the straight line is today's stage on the dashboard's site cards.
+26. **Remus Night + the Operations board** (Stephan sent three dark boards -- a fleet map with a vehicle card and
+    gauges, a finance board with capsule bars and a heat grid, a fitness board with a big gauge: "build me ... a new
+    dashboard ... I like the one with ... the map ... a new skin that looks like this"):
+    - Skin `night` ("Remus Night", skins.css end, themes.ts): near-black, black-glass cards, white words, ONE colour
+      hi-vis #d4f24a. A dark skin turns the recipe round (grey ramp dark->light, pale tints dark, deep shades light);
+      `.bg-white` -> card, inputs dark, words on the accent black. Platinum stays the default.
+    - **Operations** page `/ops` (menu, under Dashboard; `ops/OpsPage.tsx`, `ops/OpsMap.tsx`, `ops/ops.css`), always
+      dark whatever the skin: running jobs + those starting within 45 days on a dark map (CARTO dark OpenStreetMap
+      tiles, credited; sites geocoded with placeAddress, kept in localStorage `remus.sitePoints`, suburb as fallback),
+      a job card over the map (start -> finish line, progress ring, budget speedometer, budget warning, crew today),
+      a compass, a sites list with rings, and panels: budget capsules per job, crew-days grid (4 weeks), money in
+      (6 months), "how full we are" (running / max_jobs). Same sums as the rest (projectScores, projectProgress,
+      crewDays); money panels follow access. Checked in Playwright with fixtures (desktop in Night and Platinum, iPhone).
 Photos stay as chosen until an Administrator changes them (same photo every day); Raptor-style "photo of the day"
 rotation offered, not built.
 Still to offer from Raptor S16: Mail's Archive ("inbox zero"), the portal signing in with a password instead of codes,

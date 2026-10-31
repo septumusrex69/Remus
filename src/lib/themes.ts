@@ -10,7 +10,7 @@
  * person picks (a skin is how the app looks to you, not what clients receive).
  */
 
-export type ThemeId = 'urban-haus' | 'platinum' | 'remus' | 'oxblood' | 'sage' | 'blueprint' | 'teal' | 'concrete'
+export type ThemeId = 'urban-haus' | 'platinum' | 'night' | 'remus' | 'oxblood' | 'sage' | 'blueprint' | 'teal' | 'concrete'
 
 export interface ThemeDefinition {
   id: ThemeId
@@ -55,6 +55,14 @@ export const THEMES: ThemeDefinition[] = [
     // The photograph itself is chosen on the Photos page (lib/brandPhotos.ts); this marks the skin as wearing one.
     loginPhoto: true,
     swatch: { ground: '#16171a', surface: '#f1f1ef', accent: '#c4c8cf' },
+  },
+  {
+    // Remus · Handover 6: the dark operations look Stephan sent (fleet map, finance board, fitness board).
+    id: 'night',
+    name: 'Remus Night',
+    description: 'Black glass, white light and one hi-vis colour. The dark operations look.',
+    ...REMUS,
+    swatch: { ground: '#050506', surface: '#08090a', accent: '#d4f24a' },
   },
   {
     id: 'remus',

@@ -28,6 +28,7 @@ const pages = {
   RequestsPage: () => import('../requests/RequestsPage'),
   PhotosPage: () => import('./photos/PhotosPage'),
   BrandBoardPage: () => import('./brand/BrandBoardPage'),
+  OpsPage: () => import('./ops/OpsPage'),
 }
 
 const DashboardPage = lazy(() => pages.DashboardPage().then((x) => ({ default: x.DashboardPage })))
@@ -39,6 +40,7 @@ const ClientDetail = lazy(() => pages.ClientDetail().then((x) => ({ default: x.C
 const SubcontractorsPage = lazy(() => pages.SubcontractorsPage().then((x) => ({ default: x.SubcontractorsPage })))
 const WorkersPage = lazy(() => pages.WorkersPage().then((x) => ({ default: x.WorkersPage })))
 const CrewRegisterPage = lazy(() => pages.CrewRegisterPage().then((x) => ({ default: x.CrewRegisterPage })))
+const OpsPage = lazy(() => pages.OpsPage().then((x) => ({ default: x.OpsPage })))
 const BrandBoardPage = lazy(() => pages.BrandBoardPage().then((x) => ({ default: x.BrandBoardPage })))
 const PhotosPage = lazy(() => pages.PhotosPage().then((x) => ({ default: x.PhotosPage })))
 const SchedulePage = lazy(() => pages.SchedulePage().then((x) => ({ default: x.SchedulePage })))
@@ -102,6 +104,8 @@ export const buildRoutes = (
     {/* Remus · Handover 6: choosing the Unsplash photographs (anybody may look; Administrators choose). */}
     <Route path="photos" element={<PhotosPage />} />
     <Route path="brand" element={<BrandBoardPage />} />
+    {/* Remus · Handover 6: the dark Operations board (map, job card, gauges). Everybody; money parts follow access. */}
+    <Route path="ops" element={<OpsPage />} />
     {/* WHO SEES WHAT (lib/access.ts): money pages for Administrators; quotes not for site managers. */}
     {/* CHANGE REQUESTS (copied from Raptor): open to everybody -- "anyone can see requests". */}
     <Route path="requests" element={<RequestsPage />} />
