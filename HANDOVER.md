@@ -1,10 +1,42 @@
 # Remus · Handover 8 (written 2 Nov 2026 by the Remus · Handover 7 session)
 
-For the next session on `septumusrex69/Remus`: you are the **Remus · Handover 8** session (`Remus H8: ...`); write Handover 9 here before you finish.
+For the next Claude Code session on `septumusrex69/Remus`. Read `CLAUDE.md` (the standing rules), then this file, then do the
+Raptor check ("Start of every session: check Raptor first", further down) **before** waiting for Stephan's instructions.
+**You are the Remus · Handover 8 session**: say so on every reply and commit (`Remus H8: ...`), and write Handover 9 at the top
+of this file before you finish.
+
+Gotcha from this session: Stephan may open the session on **Sales-Raptor** with this file as a PDF. Then add Remus to the session
+(`add_repo septumusrex69/Remus`, push access), clone it to `/home/user/remus`, and work there; Raptor stays read-only.
+
+## Start here (2 Nov 2026, end of Remus · Handover 7)
+
+**Live:** https://remus-xi.vercel.app -- `main` at fd4f242, unchanged this session. Sign in at /login.
+**Work from branch `claude/slip-reader-haiku`** (preview https://remus-git-claude-slip-reader-haiku-team-raptor.vercel.app, built READY).
+It is `claude/new-session-umpip5` (contour heroes 11-18, the test slip, Handover 6's preview) PLUS the cheap slip reader below,
+so it is the one branch ahead of main. Everything is committed and pushed.
+**Database:** migrations up to **0035** applied live (0035 = `slip_reader_trials`, the slip test's results). Demo data as before (`demo_rows`).
+
+**Waiting on Stephan:**
+1. **The slip test.** He is getting 20 real slips ready (clear, faded, crumpled, one long till slip). He runs them on the preview at
+   Settings -> Integrations -> Claude credit -> "Old against new reader" (`/slip-test`), or sends the photos in the chat so you can
+   fill in the right answers. Then show him the score table (accuracy per field, cost per slip, old Sonnet vs new Haiku) and ask
+   for his approval. **Only after "go live" for this:** fast-forward main to the branch, then remove the test (delete
+   `api/_lib/slipReaderBaseline.ts`, `api/receipts/compare.ts`, `src/pages/build/slips/SlipTestPage.tsx` + its route/path/link,
+   the `vercel.json` entry; empty `slip_reader_trials` with a DELETE, not a DROP). If Haiku falls short on some field, say which and
+   offer options (e.g. a higher effort, or 1600px) before changing anything.
+2. Whether the audit copy of a slip stays the phone's 2000px JPEG (today's behaviour, assumed) or the true full-size photo is kept.
+3. Raptor items offered this session, not built: the photo of the day approved a month at a time (Raptor `/portal-looks`); the
+   Unsplash-down alarm (dashboard notice + one bell line a day + morning check). Remus's photos are hotlinked from Unsplash too.
+4. Still open from Handover 7: contour hero 11-18 instead of 10 (then "go live" for them); his Unsplash photo picks at /photos;
+   corner ticks on Platinum's cards; Mail's Archive and the portal password sign-in (Raptor S16); and the older list (Big Boss,
+   the crew message cut off, overheads, Duplicate quote, P-0005 at R 0, Supabase auth URLs, Resend DNS, clearing demo data).
+
+**Done:** his Snap slip test with Claude went well ("Went very good") -- but he does not want Claude choosing the project
+any more (built: the screen asks). Treat the old "Tell Claude"/dictated-split items in Handover 7's log as superseded.
 
 ## Remus · Handover 7 (2 Nov 2026)
 
-- Started in a Sales-Raptor session; Remus was added to it and cloned. Working branch: `claude/new-session-umpip5` (the preview), unchanged in code.
+- Started in a Sales-Raptor session; Remus was added to it and cloned. New branch `claude/slip-reader-haiku` off `claude/new-session-umpip5`.
 - Raptor check done (see "Raptor last checked" below): two things offered to Stephan -- Raptor's photo of the day approved a month at a time, and the Unsplash-down alarm. Nothing built yet.
 - Everything under "Waiting on Stephan" in Handover 7 below is still open.
 - **Slip reading made cheap (branch `claude/slip-reader-haiku`, PREVIEW ONLY; live keeps the old reader until Stephan approves the test).**
