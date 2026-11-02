@@ -1,3 +1,15 @@
+# Remus · Handover 8 (written 2 Nov 2026 by the Remus · Handover 7 session)
+
+For the next session on `septumusrex69/Remus`: you are the **Remus · Handover 8** session (`Remus H8: ...`); write Handover 9 here before you finish.
+
+## Remus · Handover 7 (2 Nov 2026)
+
+- Started in a Sales-Raptor session; Remus was added to it and cloned. Working branch: `claude/new-session-umpip5` (the preview), unchanged in code.
+- Raptor check done (see "Raptor last checked" below): two things offered to Stephan -- Raptor's photo of the day approved a month at a time, and the Unsplash-down alarm. Nothing built yet.
+- Everything under "Waiting on Stephan" in Handover 7 below is still open.
+
+---
+
 # Remus · Handover 7 (written 31 Oct 2026 by the Remus · Handover 6 session)
 
 For the next Claude Code session on `septumusrex69/Remus`. Read `CLAUDE.md` (the standing rules),
@@ -832,7 +844,9 @@ what Raptor gained since the last one:
 4. Tick off the Raptor checklist in `CLAUDE.md` as features land, and update the "Raptor last
    checked" line below.
 
-**Raptor last checked:** 31 Oct 2026 (Remus · Handover 6) — `claude/beautiful-curie-f7deq7` at 1d2f716 (S16: openings, Platinum, portal photographs of the day, Mail Archive, portal passwords); before that 29 Oct — `claude/sales-raptor-review-p1pzx2` at 04947bf, plus
+**Raptor last checked:** 2 Nov 2026 (Remus · Handover 7) — `claude/beautiful-curie-f7deq7` at 8296885 (Raptor · Handover 16). New since 1d2f716: the portal's photograph of the day approved a month at a time (`/portal-looks`, table `portal_day_looks`, the sign-in panel previewed with real words); an Unsplash-down alarm (Administrators' dashboards, one bell line a day, morning cron `/api/portal/photo-check`). Offered to Stephan for Remus: both (Remus's brand photos are hotlinked from Unsplash too). Not for Remus: the "Bredell Ferreira" skin as Raptor's default, the portal handovers' test history, payover runs, R-12/R-14/R-15 (debt collection).
+
+Before that: 31 Oct 2026 (Remus · Handover 6) — `claude/beautiful-curie-f7deq7` at 1d2f716 (S16: openings, Platinum, portal photographs of the day, Mail Archive, portal passwords); before that 29 Oct — `claude/sales-raptor-review-p1pzx2` at 04947bf, plus
 `claude/beautiful-curie-f7deq7` (7a13c74, S16) and `claude/s13-reino-campaigns` (48579a1, Ryno's PR #2, not merged).
 New since 524f0c6: **email** (b8f4023: a forward opens at once with the original in an editable box; Backspace
 never leaves a dialog; every compose box keeps a draft and Mail gets a Drafts list; a Sent copy that did not file
