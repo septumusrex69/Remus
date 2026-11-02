@@ -5,23 +5,40 @@ then this file, then do the Raptor check below **before** waiting for Stephan's 
 **You are the Remus · Handover 7 session**: say so on every reply and commit (`Remus H7: ...`), and
 write Handover 8 at the top of this file before you finish (CLAUDE.md, "Say which project").
 
-## Start here (31 Oct 2026, end of Remus · Handover 6)
+## Start here (2 Nov 2026, end of Remus · Handover 6)
 
-**EVERYTHING IS LIVE (Stephan: "Yeah, you can go live", 31 Oct).** `main` fast-forwarded to
-`claude/new-session-umpip5` at bd6e003 (it contained main). Live: https://remus-xi.vercel.app. Database parts
-(0031 budget alerts, 0032 demo_rows + max_jobs, 0033 brand_photos, and the year of demo data) were applied live
-during the session. Everything numbered 10-26 below is live, plus the sign-in openings from the other H6 session
-(`claude/pensive-ptolemy-z0uc1o`, merged twice; its section is further down).
+**Live:** https://remus-xi.vercel.app -- `main` at fd4f242 (Stephan's "You can go live", 31 Oct). Sign in at /login.
+**Preview:** https://remus-git-claude-new-session-umpip5-team-raptor.vercel.app -- branch `claude/new-session-umpip5`,
+one step ahead of main: the eight extra contour drawings (heroes 11-18) and a test slip (`test-slips/`). Everything
+is committed and pushed; the openings session's branch (`claude/pensive-ptolemy-z0uc1o`) is fully merged.
+**Database:** migrations up to 0034 are applied live (0031 budget alerts, 0032 demo_rows + max_jobs, 0033 brand_photos,
+0034 products). A year of made-up jobs is in the live database, every row listed in `demo_rows`.
 
-**Asked of Stephan, not answered yet:**
-- His photo picks at /photos (dashboard band, sign-in, sidebar); defaults are grinder / Bosch tool / stacked steel.
-  Offered: a photo of the day from his favourites (Raptor's portal does it).
-- Whether the corner ticks on the square Platinum cards stay (offered to keep only the square edges).
-- Raptor S16 items offered, not built: Mail's Archive ("inbox zero"), the client portal signing in with a password
-  instead of codes.
-- Still open from before: Big Boss, crew message cut off at "Should also be able to", overheads capture, Duplicate
-  quote, P-0005 at R 0, Supabase auth URLs (invite and reset links fail until Stephan sets them), Resend DNS.
-- Clearing the demo data before real use: every row made on 31 Oct is listed in `demo_rows` (see item 18).
+**What Remus has now (all live; details in the numbered log below):** the Platinum look (default) and Platinum Night
+(glass, the site-contours drawing in the band, chosen on /photos); the Operations board (/ops: dark map with pins,
+job card, gauges); the progress dial; budget alerts green/yellow/red in the bell; Schedule's jobs-by-week with the
+company's capacity; today's stage and diary on the dashboard; the quote on every project; Snap slip with Claude
+(dictated note, files a slip on a project and stage, splits one slip across jobs); WhatsApp a quote; email drafts;
+the products book (/products: Preferred / Avoid, warnings on quotes, Find prices and Snap slip); the brand board
+(/brand); the sign-in openings with the Pour sound.
+
+**Waiting on Stephan:**
+- Result of his Snap slip test with `test-slips/cashbuild-test-slip.png` (delivery address = UHG-001 Smith; the
+  steps were: snap it plain, then snap it saying "cement, sand, nails and hammer for Smith; tile adhesive and grout
+  for Naidoo's bathroom, the tiling" -- Claude should split it R 1 819.81 / R 1 029.94).
+- Whether he wants a contour hero 11-18 instead of 10 (then "go live" for them).
+- His Unsplash photo picks at /photos (band, sign-in, sidebar).
+- Whether the corner ticks on Platinum's square cards stay.
+- Raptor S16 items offered, not built: Mail's Archive ("inbox zero"); the client portal signing in with a password.
+- Products step 2 (sharing verdicts with other builders) waits for multi-company.
+- Older: Big Boss; crew message cut off at "Should also be able to"; overheads capture; Duplicate quote; P-0005 at
+  R 0; Supabase auth URLs (invite and reset links fail until set); Resend DNS; clearing the demo data before real use.
+
+**Watch:** the sign-in "Invalid login credentials" Stephan saw was his browser's saved password (the openings session
+checked). Unsplash photos and map tiles cannot be loaded from the build container (network policy), so screens were
+checked by layout and Stephan confirmed the map.
+
+## The day's log (29 Oct - 2 Nov, Remus · Handover 6), oldest first
 
 **After going live (31 Oct, preview only, waiting for "go live"):** **Platinum Night** skin (`night`, end of
 skins.css, themes.ts; Stephan: "a night theme ... black glass, silver lights, but I didn't want any neon"): the dark
