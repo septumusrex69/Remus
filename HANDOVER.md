@@ -1,3 +1,11 @@
+# Remus · Handover 9 (being written by the Remus · Handover 8 session, started 2 Nov 2026)
+
+## Remus · Handover 8 (2 Nov 2026)
+
+- Started from the Handover 8 PDF; this branch `claude/new-session-z0vgkh` was fast-forwarded to `claude/slip-reader-haiku` (d2376b0), so it carries the Handover 7 work (cheap slip reader, /slip-test).
+- Raptor check done (see "Raptor last checked"): one new thing -- Raptor dropped its sign-in animation. Asked Stephan whether Remus should too.
+- Everything under "Waiting on Stephan" in Handover 8 below is still open.
+
 # Remus · Handover 8 (written 2 Nov 2026 by the Remus · Handover 7 session)
 
 For the next Claude Code session on `septumusrex69/Remus`. Read `CLAUDE.md` (the standing rules), then this file, then do the
@@ -896,7 +904,7 @@ what Raptor gained since the last one:
 4. Tick off the Raptor checklist in `CLAUDE.md` as features land, and update the "Raptor last
    checked" line below.
 
-**Raptor last checked:** 2 Nov 2026 (Remus · Handover 7) — `claude/beautiful-curie-f7deq7` at 8296885 (Raptor · Handover 16). New since 1d2f716: the portal's photograph of the day approved a month at a time (`/portal-looks`, table `portal_day_looks`, the sign-in panel previewed with real words); an Unsplash-down alarm (Administrators' dashboards, one bell line a day, morning cron `/api/portal/photo-check`). Offered to Stephan for Remus: both (Remus's brand photos are hotlinked from Unsplash too). Not for Remus: the "Bredell Ferreira" skin as Raptor's default, the portal handovers' test history, payover runs, R-12/R-14/R-15 (debt collection).
+**Raptor last checked:** 2 Nov 2026 (Remus · Handover 8) — `claude/beautiful-curie-f7deq7` at 6aa89a0 (Raptor · Handover 16). New since 8296885: Raptor's sign-in no longer plays an opening animation (Stephan, 2 Nov: "remove that animation when you log into Raptor. I don't like that."); /opening still replays them on demand, the client portal's opening untouched. Asked Stephan whether Remus's sign-in openings should go the same way. Not for Remus: the Neon Genie imagery brief for Ryno and the portal photo links list (docs/briefs, Raptor's own marketing). Previous check: 2 Nov 2026 (Remus · Handover 7) at 8296885.
 
 Before that: 31 Oct 2026 (Remus · Handover 6) — `claude/beautiful-curie-f7deq7` at 1d2f716 (S16: openings, Platinum, portal photographs of the day, Mail Archive, portal passwords); before that 29 Oct — `claude/sales-raptor-review-p1pzx2` at 04947bf, plus
 `claude/beautiful-curie-f7deq7` (7a13c74, S16) and `claude/s13-reino-campaigns` (48579a1, Ryno's PR #2, not merged).
