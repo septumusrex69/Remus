@@ -7,6 +7,26 @@ For the next session on `septumusrex69/Remus`: you are the **Remus · Handover 8
 - Started in a Sales-Raptor session; Remus was added to it and cloned. Working branch: `claude/new-session-umpip5` (the preview), unchanged in code.
 - Raptor check done (see "Raptor last checked" below): two things offered to Stephan -- Raptor's photo of the day approved a month at a time, and the Unsplash-down alarm. Nothing built yet.
 - Everything under "Waiting on Stephan" in Handover 7 below is still open.
+- **Slip reading made cheap (branch `claude/slip-reader-haiku`, PREVIEW ONLY; live keeps the old reader until Stephan approves the test).**
+  Stephan: slip reading "heading to about R1,000/month ... Keep accuracy the same"; and after his Snap slip test ("went very good"):
+  "I don't think it's necessary to try to find out which project it is for ... Just ask which project is it for."
+  - Measured before: Sonnet 5.5, ~12,550 tokens in / ~590 out = $0.031 (~R0.56) on the 760x1250 test slip; ~R0.65 with a real 2000px photo.
+    Most of it was the prompt's project list + last 40 expenses (~11k tokens), not the photo (~1.3k).
+  - Now (`api/_lib/slipReader.ts`, +test): the server shrinks the stored photo with sharp -- EXIF upright, greyscale (1 channel),
+    long side 1200px (a long till slip keeps up to 1200x1200 px of area, max 2400 long, so it stays readable), never upscaled,
+    JPEG 75 mozjpeg -- and only that copy goes to Claude Haiku 5.5, effort low, max_tokens 1500, strict JSON: supplier, date,
+    slip_number, total_incl, vat, line_items. No project list, no suggestion. PDFs go as they are. Estimated ~2,000 tokens, ~R0.01 a slip.
+    The photo in Storage is untouched (it is the browser's 2000px JPEG, as before -- the true phone original was never stored).
+  - Snap slip: the "Tell Claude" box, Ask Claude again, the suggestion banner and Claude's dictated split are gone; the project
+    field reads "Which project is this for?"; splitting a slip by hand stays.
+  - The test: `/slip-test` (Administrators; link on Settings -> Integrations, Claude credit card). Choose slips -> each is stored and
+    read by BOTH readers (`api/receipts/compare.ts`; the old reader is kept verbatim in `api/_lib/slipReaderBaseline.ts`) -> side by
+    side, type or tick what is really on the slip -> the score per field and the cost per slip (`src/lib/slipTrial.ts`, +test).
+    Results in table `slip_reader_trials` (0035, applied live, Administrators only). Stephan is getting 20 slips ready.
+  - Cost per slip: every read was already in `ai_usage`; now its note is the slip's path (test reads: `trial <path>`), and the Claude
+    credit card shows "Slip reading, month by month" (slips, $ and R, R per slip), test reads left out.
+  - When Stephan approves: merge the branch, then delete slipReaderBaseline.ts, compare.ts, /slip-test (and empty slip_reader_trials).
+  - Later phase assessed, not built: PaddleOCR needs a Python server with 1-2 GB (not Vercel), ~R100-300/month -- more than Haiku costs.
 
 ---
 

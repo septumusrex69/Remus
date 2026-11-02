@@ -27,6 +27,7 @@ const pages = {
   MailPage: () => import('./mail/MailPage'),
   RequestsPage: () => import('../requests/RequestsPage'),
   PhotosPage: () => import('./photos/PhotosPage'),
+  SlipTestPage: () => import('./slips/SlipTestPage'),
   BrandBoardPage: () => import('./brand/BrandBoardPage'),
   OpsPage: () => import('./ops/OpsPage'),
   ProductsPage: () => import('./products/ProductsPage'),
@@ -45,6 +46,7 @@ const ProductsPage = lazy(() => pages.ProductsPage().then((x) => ({ default: x.P
 const OpsPage = lazy(() => pages.OpsPage().then((x) => ({ default: x.OpsPage })))
 const BrandBoardPage = lazy(() => pages.BrandBoardPage().then((x) => ({ default: x.BrandBoardPage })))
 const PhotosPage = lazy(() => pages.PhotosPage().then((x) => ({ default: x.PhotosPage })))
+const SlipTestPage = lazy(() => pages.SlipTestPage().then((x) => ({ default: x.SlipTestPage })))
 const SchedulePage = lazy(() => pages.SchedulePage().then((x) => ({ default: x.SchedulePage })))
 const ProjectsList = lazy(() => pages.ProjectsList().then((x) => ({ default: x.ProjectsList })))
 const ProjectDetail = lazy(() => pages.ProjectDetail().then((x) => ({ default: x.ProjectDetail })))
@@ -105,6 +107,7 @@ export const buildRoutes = (
     <Route path="settings" element={<SettingsPage />} />
     {/* Remus · Handover 6: choosing the Unsplash photographs (anybody may look; Administrators choose). */}
     <Route path="photos" element={<PhotosPage />} />
+    <Route path="slip-test" element={<SlipTestPage />} />
     <Route path="brand" element={<BrandBoardPage />} />
     {/* Remus · Handover 6: the dark Operations board (map, job card, gauges). Everybody; money parts follow access. */}
     <Route path="ops" element={<OpsPage />} />

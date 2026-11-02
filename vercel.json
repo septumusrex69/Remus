@@ -68,6 +68,9 @@
       "regions": [
         "cpt1"
       ]
+    },
+    "api/receipts/compare.ts": {
+      "maxDuration": 120
     }
   }
 }

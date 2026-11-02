@@ -583,9 +583,10 @@ export interface ReceiptExtraction {
   slip_number: string | null
   total_incl: number | null
   vat: number | null
-  amount_excl: number | null
-  payment_method: string | null
-  card_last4: string | null
+  /** Read by the first reader only (before Remus · Handover 7); kept on old expenses' ai_extracted. */
+  amount_excl?: number | null
+  payment_method?: string | null
+  card_last4?: string | null
   line_items: ReceiptLineItem[]
 }
 

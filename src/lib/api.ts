@@ -21,6 +21,7 @@ import type {
   DiaryEvent,
   Expense,
   ExtractResponse,
+  ReceiptExtraction,
   ID,
   Invoice,
   Payment,
@@ -578,12 +579,12 @@ async function authHeader(): Promise<Record<string, string>> {
  * Asks the server to read a slip. Never throws for "AI not configured" or a failed read: the
  * capture flow must still work by hand, so both come back as `configured: false` with a message.
  */
-export async function extractReceipt(path: string, note?: string): Promise<ExtractResponse> {
+export async function extractReceipt(path: string): Promise<ExtractResponse> {
   try {
     const res = await fetch('/api/receipts/extract', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...(await authHeader()) },
-      body: JSON.stringify({ path, ...(note?.trim() ? { note: note.trim() } : {}) }),
+      body: JSON.stringify({ path }),
     })
     const body = (await res.json().catch(() => null)) as (ExtractResponse & { error?: string }) | null
     if (res.ok && body && 'configured' in body) return body
@@ -1156,6 +1157,68 @@ export async function loadClaudeCredit(boughtUsd: number): Promise<ClaudeCredit>
     if (r.at >= monthStart) { monthUsd += usd; monthCalls += 1 }
   }
   return { boughtUsd, usedUsd, leftUsd: Math.max(0, boughtUsd - usedUsd), monthUsd, monthCalls }
+}
+
+// ---------- Slip reading: what it costs, month by month (Remus · Handover 7) ----------
+
+export interface SlipReadingMonth { month: string; slips: number; usd: number }
+
+/**
+ * Stephan: "Log tokens used and estimated cost per slip in the database, so we can see the monthly total in the app."
+ * Every slip read writes an ai_usage row (feature slip_reader, its tokens, its dollars, the slip's path as the note).
+ * The side-by-side test's reads (note 'trial ...') are left out here; the Claude credit still counts them.
+ * Newest month first, the last `months` months that had any reads.
+ */
+export async function loadSlipReading(months = 6): Promise<SlipReadingMonth[]> {
+  const since = new Date(new Date().getFullYear(), new Date().getMonth() - (months - 1), 1).toISOString()
+  const rows = unwrap<{ at: string; usd: number | string; note: string | null }[]>(
+    await supabase.from('ai_usage').select('at, usd, note').eq('feature', 'slip_reader').gte('at', since).order('at', { ascending: false }).limit(20000),
+  )
+  const by = new Map<string, SlipReadingMonth>()
+  for (const r of rows) {
+    if (r.note?.startsWith('trial ')) continue
+    const d = new Date(r.at)
+    const month = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+    const m = by.get(month) ?? { month, slips: 0, usd: 0 }
+    m.slips += 1
+    m.usd += Number(r.usd) || 0
+    by.set(month, m)
+  }
+  return [...by.values()].sort((a, b) => b.month.localeCompare(a.month))
+}
+
+// ---------- The slip reader's side-by-side test (Remus · Handover 7; /slip-test, Administrators) ----------
+
+export interface SlipFields { supplier: string | null; date: string | null; slip_number: string | null; total_incl: number | null; vat: number | null }
+export interface SlipTrial {
+  id: ID; at: string; path: string; label: string | null
+  bytes_in: number | null; bytes_sent: number | null; sent_width: number | null; sent_height: number | null
+  old_model: string | null; old_result: { extraction?: Partial<ReceiptExtraction>; error?: string } | null
+  old_input_tokens: number | null; old_output_tokens: number | null; old_usd: number | string | null; old_ms: number | null
+  new_model: string | null; new_result: { extraction?: Partial<ReceiptExtraction>; error?: string } | null
+  new_input_tokens: number | null; new_output_tokens: number | null; new_usd: number | string | null; new_ms: number | null
+  truth: Partial<SlipFields> | null; note: string | null
+}
+
+export async function listSlipTrials(): Promise<SlipTrial[]> {
+  return unwrap<SlipTrial[]>(await supabase.from('slip_reader_trials').select('*').order('at', { ascending: true }).limit(500))
+}
+
+/** Uploads one slip as Snap slip does (shrunk to 2000px in the browser), then reads it both ways on the server. */
+export async function runSlipTrial(file: File): Promise<SlipTrial> {
+  const path = await uploadReceipt(await compressImage(file))
+  const res = await callApi('/api/receipts/compare', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...(await authHeader()) },
+    body: JSON.stringify({ path, label: file.name }),
+  }, 'run the slip test')
+  const body = (await res.json().catch(() => null)) as { trial?: SlipTrial; error?: string } | null
+  if (!body?.trial || body.error) throw new Error(body?.error ?? `The slip test failed (HTTP ${res.status}).`)
+  return body.trial
+}
+
+export async function saveSlipTruth(id: ID, truth: Partial<SlipFields>, note?: string | null): Promise<void> {
+  unwrap(await supabase.from('slip_reader_trials').update({ truth, ...(note !== undefined ? { note } : {}) }).eq('id', id).select('id'))
 }
 
 // ---------- Where a quote shops: the branches near its areas (Remus · Handoff 1) ----------

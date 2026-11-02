@@ -32,6 +32,8 @@ export const paths = {
   /** Settings, optionally on one tab (Raptor's ?tab= links), e.g. paths.settings('Integrations'). */
   /** The Unsplash photographs and where each is used (Remus · Handover 6). */
   photos: () => p('/photos'),
+  /** The slip reader, old against new, on the same slips (Remus · Handover 7; Administrators). */
+  slipTest: () => p('/slip-test'),
   /** The Platinum brand board (Remus · Handover 6). */
   brand: () => p('/brand'),
   /** The Operations board: every site on a dark map (Remus · Handover 6). */
