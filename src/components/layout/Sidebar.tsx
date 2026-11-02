@@ -3,7 +3,7 @@ import { Link, NavLink } from 'react-router-dom'
 import { clsx } from 'clsx'
 import {
   Banknote, CalendarDays, Radar, Package, CalendarRange, Camera, ChevronDown, FileText, FolderKanban, HardHat, Inbox, LayoutDashboard, LineChart, LogOut,
-  Lightbulb, PanelLeftClose, PanelLeftOpen, Receipt, Settings, Users, UsersRound, type LucideIcon, ClipboardCheck,
+  Lightbulb, PanelLeftClose, RotateCcw, PanelLeftOpen, Receipt, Settings, Users, UsersRound, type LucideIcon, ClipboardCheck,
 } from 'lucide-react'
 import { useAuth } from '../../store/AuthContext'
 import { useBuild } from '../../pages/build/BuildContext'
@@ -11,6 +11,7 @@ import { paths } from '../../pages/build/paths'
 import { useSidebarCollapsed } from '../../lib/sidebarCollapsed'
 import { useUnreadMail } from '../../lib/unreadMail'
 import { useRequestCount } from '../../lib/requestCount'
+import { useReturnCount } from '../../lib/returnCount'
 import { useTheme } from '../../store/ThemeContext'
 import { ACCESS_LABEL, seesMoney, seesQuotes, useAccess, useSnapsSlips, type Access } from '../../lib/access'
 
@@ -21,9 +22,10 @@ import { ACCESS_LABEL, seesMoney, seesQuotes, useAccess, useSnapsSlips, type Acc
  * Only a few items carry a count, Raptor's rule: a badge earns its place if it counts something one
  * person can clear today (unread client mail, bank lines to link, requests waiting on me).
  */
-type Badge = 'mail' | 'bank' | 'requests'
+type Badge = 'mail' | 'bank' | 'requests' | 'returns'
 /** `when`: who sees the item (lib/access.ts); everybody when absent. */
-const NAV: { to: string; label: string; icon: LucideIcon; end?: boolean; badge?: Badge; when?: (a: Access) => boolean }[] = [
+/** `slips`: only for the people who snap slips (lib/access snapsSlips). */
+const NAV: { to: string; label: string; icon: LucideIcon; end?: boolean; badge?: Badge; when?: (a: Access) => boolean; slips?: boolean }[] = [
   { to: paths.dashboard(), label: 'Dashboard', icon: LayoutDashboard, end: true },
   // Remus · Handover 6: the dark Operations board, every site on a map.
   { to: paths.ops(), label: 'Operations', icon: Radar },
@@ -39,6 +41,8 @@ const NAV: { to: string; label: string; icon: LucideIcon; end?: boolean; badge?:
   { to: paths.crew(), label: 'Crew register', icon: ClipboardCheck },
   { to: paths.subcontractors(), label: 'Subcontractors', icon: HardHat, when: seesQuotes },
   { to: paths.expenses(), label: 'Expenses', icon: Receipt, when: seesMoney },
+  // Remus · Handover 8: goods going back to the store, counted until they are back.
+  { to: paths.returns(), label: 'Returns', icon: RotateCcw, badge: 'returns', slips: true },
   { to: paths.bank(), label: 'Bank', icon: Banknote, badge: 'bank', when: seesMoney },
   { to: paths.diary(), label: 'Diary', icon: CalendarDays },
   { to: paths.finance(), label: 'Finance', icon: LineChart, when: seesMoney },
@@ -65,7 +69,8 @@ export function Sidebar({ drawer, onNavigate }: { drawer?: boolean; onNavigate?:
   const requestCount = useRequestCount()
   const access = useAccess()
   const snaps = useSnapsSlips()
-  const counts: Record<Badge, number> = { mail: unreadMail.count, bank: needsLinking, requests: requestCount }
+  const returnCount = useReturnCount(snaps)
+  const counts: Record<Badge, number> = { mail: unreadMail.count, bank: needsLinking, requests: requestCount, returns: returnCount }
 
   useEffect(() => {
     function onClick(e: MouseEvent) {
@@ -115,7 +120,7 @@ export function Sidebar({ drawer, onNavigate }: { drawer?: boolean; onNavigate?:
       </div>}
 
       <nav className={clsx('flex-1 space-y-0.5 overflow-y-auto py-4', collapsed ? 'px-2' : 'px-3')}>
-        {NAV.filter((n) => !n.when || n.when(access)).map(({ to, label, icon: Icon, end, badge }) => {
+        {NAV.filter((n) => (!n.when || n.when(access)) && (!n.slips || snaps)).map(({ to, label, icon: Icon, end, badge }) => {
           const count = badge ? counts[badge] : 0
           return (
             <NavLink

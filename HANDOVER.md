@@ -2,9 +2,28 @@
 
 ## Remus · Handover 8 (2 Nov 2026)
 
-- Started from the Handover 8 PDF; this branch `claude/new-session-z0vgkh` was fast-forwarded to `claude/slip-reader-haiku` (d2376b0), so it carries the Handover 7 work (cheap slip reader, /slip-test).
-- Raptor check done (see "Raptor last checked"): one new thing -- Raptor dropped its sign-in animation. Asked Stephan whether Remus should too.
-- Everything under "Waiting on Stephan" in Handover 8 below is still open.
+Working branch `claude/new-session-z0vgkh` (fast-forwarded to `claude/slip-reader-haiku`, so it carries the Handover 7
+slip reader and /slip-test too). Preview: https://remus-git-claude-new-session-z0vgkh-team-raptor.vercel.app.
+**Nothing from this session is on `main`/live yet** (waits for Stephan's "go live"; the slip test also still waits).
+
+- Raptor check done (see "Raptor last checked"): Raptor dropped its sign-in animation.
+- **Stephan's answers (2 Nov):** keep Remus's sign-in animation ("I like it here. The Raptor one just looked shit").
+  Slip photos: keep the shrunk copy, no full-size original needed (today's behaviour, nothing to change). Photo of the
+  day approved a month at a time (Raptor's /portal-looks): "I like that" -- **next to build**, not started. He did not
+  understand "Big Boss, crew message cut off, overheads, Duplicate quote": explained in plain words, answers pending.
+- **Returns (built, preview only; database part LIVE).** Stephan: "you've bought ten paint strippers and you only used
+  5. Then the other 5 should be returned. So we should have something for returning products." Migration **0036**
+  `slip_returns` (applied live, additive; tested in a rolled-back transaction as Stephan). A return is logged on the
+  slip (Expenses: the turn-back arrow on a slip; or Returns -> New return -> pick the slip / "type it in"): each line
+  Claude read off the slip with - / + for how many go back (up to how many were bought), price of one from the slip,
+  lines typed by hand, "The store should give back" adds up by itself. It sits on **Returns** (`/returns`, sidebar
+  under Expenses with a count, for the people who snap slips) under "To take back" until someone marks it **Returned**
+  (date, credit-note number, what the store actually gave back, credit-note photo). Only then Remus writes a CREDIT:
+  an expense with negative amounts on the slip's job, stage and kind, VAT in the slip's share (`lib/slipReturns.ts`
+  creditFor, +test; `lib/api.ts` markReturned / reopenReturn), so job cost, stage actuals and money pages drop.
+  "Kept" (we kept them after all), Undo on a returned one (takes the credit off again), delete. A site manager sees the
+  returns they logged (same rule as slips). Credits show green and negative on Expenses. Checked with fixtures in
+  Playwright, desktop 1280 and iPhone 390, no sideways scroll.
 
 # Remus · Handover 8 (written 2 Nov 2026 by the Remus · Handover 7 session)
 

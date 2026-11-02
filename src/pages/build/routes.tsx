@@ -31,6 +31,7 @@ const pages = {
   BrandBoardPage: () => import('./brand/BrandBoardPage'),
   OpsPage: () => import('./ops/OpsPage'),
   ProductsPage: () => import('./products/ProductsPage'),
+  ReturnsPage: () => import('./returns/ReturnsPage'),
 }
 
 const DashboardPage = lazy(() => pages.DashboardPage().then((x) => ({ default: x.DashboardPage })))
@@ -43,6 +44,7 @@ const SubcontractorsPage = lazy(() => pages.SubcontractorsPage().then((x) => ({ 
 const WorkersPage = lazy(() => pages.WorkersPage().then((x) => ({ default: x.WorkersPage })))
 const CrewRegisterPage = lazy(() => pages.CrewRegisterPage().then((x) => ({ default: x.CrewRegisterPage })))
 const ProductsPage = lazy(() => pages.ProductsPage().then((x) => ({ default: x.ProductsPage })))
+const ReturnsPage = lazy(() => pages.ReturnsPage().then((x) => ({ default: x.ReturnsPage })))
 const OpsPage = lazy(() => pages.OpsPage().then((x) => ({ default: x.OpsPage })))
 const BrandBoardPage = lazy(() => pages.BrandBoardPage().then((x) => ({ default: x.BrandBoardPage })))
 const PhotosPage = lazy(() => pages.PhotosPage().then((x) => ({ default: x.PhotosPage })))
@@ -100,6 +102,8 @@ export const buildRoutes = (
     <Route path="projects/:id" element={<ProjectDetail />} />
     <Route path="expenses" element={<Allow when={seesMoney}><ExpensesPage /></Allow>} />
     <Route path="expenses/capture" element={<Allow when={(_a, p) => snapsSlips(p)}><SlipCapture /></Allow>} />
+    {/* Remus · Handover 8: returns -- for the people who snap slips. */}
+    <Route path="returns" element={<Allow when={(_a, p) => snapsSlips(p)}><ReturnsPage /></Allow>} />
     <Route path="diary" element={<DiaryPage />} />
     <Route path="bank" element={<Allow when={seesMoney}><BankPage /></Allow>} />
     <Route path="finance" element={<Allow when={seesMoney}><FinancePage /></Allow>} />

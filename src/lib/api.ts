@@ -5,6 +5,7 @@
  * Functions throw on error (with the PostgREST message); pages catch and show it.
  */
 import type { Product, ProductUse } from './products'
+import { creditFor, type SlipReturn } from './slipReturns'
 import { supabase, BRANDING_BUCKET, QUOTE_FILES_BUCKET, RECEIPTS_BUCKET } from './supabase'
 import { quoteTotals } from './quoteMath'
 import { formatZAR } from './format'
@@ -455,6 +456,56 @@ export async function getProjectFinancials(projectId: ID): Promise<ProjectFinanc
 // ---------- Money ----------
 
 export const expenses = crud<Expense>('expenses', ['amount_excl', 'vat'], 'date')
+
+// ---------- Returns (migration 0036, Remus · Handover 8) ----------
+
+/** Goods going back to the store: logged on the slip, credited once the store has refunded. */
+export const slipReturns = crud<SlipReturn>('slip_returns', ['amount_incl', 'credit_amount_incl'], 'created_at')
+
+/** The returns logged on these slips (the Expenses list marks a slip that has one). */
+export async function listReturnsForSlips(expenseIds: ID[]): Promise<SlipReturn[]> {
+  if (!expenseIds.length) return []
+  const rows = unwrap<SlipReturn[]>(await supabase.from('slip_returns').select('*').in('expense_id', expenseIds))
+  return rows.map((r) => nums(r, ['amount_incl', 'credit_amount_incl']))
+}
+
+/**
+ * The goods are back at the store: write the credit (an expense with negative amounts on the slip's job and
+ * stage), then close the return with it. If closing fails, the credit is taken out again so it is never counted
+ * twice when the person tries again.
+ */
+export async function markReturned(
+  ret: SlipReturn,
+  credit: { date: string; amount_incl: number; credit_number: string | null; credit_path: string | null; note?: string | null },
+  vatRate: number,
+): Promise<SlipReturn> {
+  const slip = ret.expense_id ? await expenses.get(ret.expense_id).catch(() => null) : null
+  const made = await expenses.create(creditFor(ret, credit, slip, vatRate))
+  try {
+    return await slipReturns.update(ret.id, {
+      status: 'returned',
+      returned_on: credit.date,
+      credit_number: credit.credit_number,
+      credit_amount_incl: credit.amount_incl,
+      credit_path: credit.credit_path,
+      credit_expense_id: made.id,
+      ...(credit.note !== undefined ? { note: credit.note } : {}),
+      updated_at: new Date().toISOString(),
+    })
+  } catch (e) {
+    await expenses.remove(made.id).catch(() => {})
+    throw e
+  }
+}
+
+/** Undo "Returned" (wrong slip, the store refused after all): the credit comes off the job again. */
+export async function reopenReturn(ret: SlipReturn): Promise<SlipReturn> {
+  if (ret.credit_expense_id) await expenses.remove(ret.credit_expense_id)
+  return slipReturns.update(ret.id, {
+    status: 'to_return', returned_on: null, credit_number: null, credit_amount_incl: null, credit_path: null, credit_expense_id: null,
+    updated_at: new Date().toISOString(),
+  })
+}
 
 // ---------- Workers and the project plan (migration 0016) ----------
 

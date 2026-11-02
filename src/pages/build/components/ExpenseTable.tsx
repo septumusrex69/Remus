@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { FileText, Link2, Link2Off, Pencil, Receipt, Trash2 } from 'lucide-react'
+import { FileText, Link2, Link2Off, Pencil, Receipt, RotateCcw, Trash2 } from 'lucide-react'
 import { signedUrls } from '../../../lib/api'
 import { RECEIPTS_BUCKET } from '../../../lib/supabase'
 import { formatDate, formatZAR, labelize } from '../../../lib/format'
@@ -32,6 +32,7 @@ export function ExpenseTable({
   linked,
   onEdit,
   onDelete,
+  onReturn,
   showProject = true,
 }: {
   rows: Expense[]
@@ -39,6 +40,8 @@ export function ExpenseTable({
   linked: Set<string>
   onEdit: (e: Expense) => void
   onDelete: (e: Expense) => void
+  /** "Return items" on a slip (Remus · Handover 8); absent, no button. */
+  onReturn?: (e: Expense) => void
   showProject?: boolean
 }) {
   const [urls, setUrls] = useState<Map<string, string>>(new Map())
@@ -59,6 +62,8 @@ export function ExpenseTable({
       <ul className="divide-y divide-slate-100">
         {rows.map((e) => {
           const isLinked = linked.has(e.id)
+          // A credit for goods taken back (Remus · Handover 8): negative, and said so.
+          const isCredit = e.amount_excl + e.vat < 0
           return (
             <li key={e.id} className="flex items-center gap-3 px-4 py-2.5">
               <SlipThumb path={e.receipt_path} url={e.receipt_path ? urls.get(e.receipt_path) : undefined} onOpen={() => setPreview(urls.get(e.receipt_path!) ?? null)} />
@@ -77,10 +82,13 @@ export function ExpenseTable({
                 {isLinked ? <Link2 size={11} /> : <Link2Off size={11} />} {isLinked ? 'Linked' : 'Unlinked'}
               </span>
               <span className="tabular w-28 shrink-0 text-right text-sm">
-                <span className="font-medium text-slate-900">{formatZAR(e.amount_excl + e.vat)}</span>
+                <span className={`font-medium ${isCredit ? 'text-emerald-700' : 'text-slate-900'}`}>{formatZAR(e.amount_excl + e.vat)}</span>
                 <span className="block text-[11px] text-slate-500">{formatZAR(e.amount_excl)} ex</span>
               </span>
               <span className="flex shrink-0 gap-0.5">
+                {onReturn && !isCredit && (
+                  <button className="rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700" onClick={() => onReturn(e)} aria-label="Return items" title="Return items" data-testid="expense-return"><RotateCcw size={14} /></button>
+                )}
                 <button className="rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700" onClick={() => onEdit(e)} aria-label="Edit"><Pencil size={14} /></button>
                 <button className="rounded p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600" onClick={() => onDelete(e)} aria-label="Delete"><Trash2 size={14} /></button>
               </span>

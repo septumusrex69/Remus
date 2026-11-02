@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Camera, Download, Plus } from 'lucide-react'
+import { Camera, Download, Plus, RotateCcw } from 'lucide-react'
 import { expenses as expensesApi, listExpensesBetween, listLinkedExpenseIds, projects as projectsApi } from '../../../lib/api'
 import { formatZAR, labelize } from '../../../lib/format'
 import { exportExpensesCsv } from '../../../lib/csvExport'
@@ -10,6 +10,7 @@ import { Button, Card, ErrorBanner, PageHeader, Spinner, StatTile } from '../../
 import { EXPENSE_CATEGORIES, type Expense } from '../../../types'
 import { ExpenseFormModal } from '../components/ExpenseFormModal'
 import { ExpenseTable } from '../components/ExpenseTable'
+import { ReturnFormModal } from '../returns/ReturnModals'
 import { paths } from '../paths'
 
 export function ExpensesPage() {
@@ -19,6 +20,7 @@ export function ExpensesPage() {
   const [link, setLink] = useState<'all' | 'linked' | 'unlinked'>('all')
   const [editing, setEditing] = useState<Expense | null>(null)
   const [adding, setAdding] = useState(false)
+  const [returning, setReturning] = useState<Expense | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
   const range = periodRange(period)
   const { data, error, loading, reload } = useLoad(async () => {
@@ -47,6 +49,7 @@ export function ExpensesPage() {
           <>
             <Link to={paths.capture()} className="inline-flex items-center gap-1.5 rounded-lg bg-brand-500 px-3.5 py-2 text-sm font-semibold text-white hover:bg-brand-600"><Camera size={16} /> Snap slip</Link>
             <Button onClick={() => setAdding(true)}><Plus size={16} /> Add</Button>
+            <Link to={paths.returns()} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"><RotateCcw size={16} /> Returns</Link>
             <Button onClick={() => data && exportExpensesCsv(rows, data.projects, data.linked, `expenses-${range.from}-to-${range.to}.csv`)} disabled={!rows.length}><Download size={16} /> CSV</Button>
           </>
         }
@@ -83,6 +86,7 @@ export function ExpensesPage() {
             projects={data?.projects ?? []}
             linked={data?.linked ?? new Set()}
             onEdit={setEditing}
+            onReturn={setReturning}
             onDelete={async (e) => {
               if (!window.confirm('Delete this expense?')) return
               setActionError(null)
@@ -96,6 +100,8 @@ export function ExpensesPage() {
           />
         )}
       </Card>
+      <ReturnFormModal open={!!returning} slip={returning} projects={data?.projects ?? []}
+        onClose={() => setReturning(null)} onSaved={() => setReturning(null)} />
       <ExpenseFormModal
         open={adding || !!editing}
         editing={editing}

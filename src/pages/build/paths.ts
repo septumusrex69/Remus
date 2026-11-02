@@ -24,6 +24,8 @@ export const paths = {
   project: (id: string, tab?: string) => p(`/projects/${id}${tab ? `?tab=${tab}` : ''}`),
   expenses: () => p('/expenses'),
   capture: () => p('/expenses/capture'),
+  /** Goods going back to the store (Remus · Handover 8). */
+  returns: () => p('/returns'),
   diary: () => p('/diary'),
   bank: () => p('/bank'),
   finance: () => p('/finance'),
