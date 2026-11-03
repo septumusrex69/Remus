@@ -34,6 +34,8 @@ export const paths = {
   /** Settings, optionally on one tab (Raptor's ?tab= links), e.g. paths.settings('Integrations'). */
   /** The Unsplash photographs and where each is used (Remus · Handover 6). */
   photos: () => p('/photos'),
+  /** The photo of the day, laid out and approved a month at a time (Remus · Handover 8). */
+  photoDays: () => p('/photo-days'),
   /** The slip reader, old against new, on the same slips (Remus · Handover 7; Administrators). */
   slipTest: () => p('/slip-test'),
   /** The Platinum brand board (Remus · Handover 6). */

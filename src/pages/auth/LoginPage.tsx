@@ -1,10 +1,12 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
 import { ArrowRight, Lock, Mail } from 'lucide-react'
 import { useAuth } from '../../store/AuthContext'
 import { isSupabaseConfigured, supabase } from '../../lib/supabase'
 import { useTheme } from '../../store/ThemeContext'
 import { photoUrl, rememberedLoginPhoto } from '../../lib/brandPhotos'
+import { getDayPhoto } from '../../lib/api'
+import { johannesburgToday, lookFromRow, type DayLook } from '../../lib/dayPhotos'
 import { queueRemusOpening } from '../../components/opening/openingQueue'
 import { primeOpeningAudio } from '../../components/opening/remusSound'
 
@@ -14,7 +16,13 @@ export function LoginPage() {
   const { theme } = useTheme()
   const remus = !!theme.tagline
   // The sign-in cannot read the settings: the photograph last chosen, remembered in this browser (lib/brandPhotos.ts).
-  const loginPhoto = theme.loginPhoto ? rememberedLoginPhoto() : null
+  // Today's photo of the day, if approved (Remus · Handover 8): the sign-in may read approved days before anybody signs in.
+  const [day, setDay] = useState<DayLook | null>(null)
+  useEffect(() => {
+    if (!theme.loginPhoto || !isSupabaseConfigured) return
+    getDayPhoto(johannesburgToday()).then((r) => { const l = lookFromRow(r, null, 'login'); if (l.approved) setDay(l) }).catch(() => {})
+  }, [theme.loginPhoto])
+  const loginPhoto = theme.loginPhoto ? (day?.photo ?? rememberedLoginPhoto()) : null
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -74,7 +82,7 @@ export function LoginPage() {
       ) : (
       <div className="relative hidden w-1/2 flex-col justify-between overflow-hidden bg-ink-950 bg-cover bg-center p-10 text-white lg:flex"
         // Platinum (Remus · Handover 6): a construction photograph under black glass, graded so the words read.
-        style={loginPhoto ? { backgroundImage: `linear-gradient(160deg, rgba(9,9,11,0.82) 0%, rgba(9,9,11,0.45) 55%, rgba(9,9,11,0.82) 100%), url('${photoUrl(loginPhoto, 1600)}')` } : undefined}>
+        style={loginPhoto ? { backgroundImage: `linear-gradient(160deg, rgba(9,9,11,0.82) 0%, rgba(9,9,11,0.45) 55%, rgba(9,9,11,0.82) 100%), url('${photoUrl(loginPhoto, 1600)}')`, backgroundPosition: day ? `center, ${day.login.x}% ${day.login.y}%` : undefined } : undefined}>
         {remus ? (
           <div className="self-start">
             <img src={theme.lockupLight} alt={theme.productName} className="h-12 w-auto object-contain" />
@@ -90,6 +98,11 @@ export function LoginPage() {
               ? 'Quotes, projects, site diary and costs in one place, for Urban Haus Construction.'
               : 'Know your margin on every job, from the first quote to the final payment.'}
           </p>
+          {day?.line && (
+            <p className="mt-5 max-w-md text-sm text-white/75 italic" data-testid="login-day-line">
+              “{day.line}”{day.who ? <span className="not-italic text-white/50"> — {day.who}</span> : null}
+            </p>
+          )}
         </div>
         <p className={remus ? 'skin-eyebrow text-[11px] text-white/40' : 'text-xs text-white/40'}>
           {remus ? 'Plans · People · Progress · Together' : 'Construction · Renovations · Maintenance · Electrical'}

@@ -1,5 +1,7 @@
 import { useState } from 'react'
-import { Check } from 'lucide-react'
+import { CalendarDays, Check } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { paths } from '../paths'
 import { clsx } from 'clsx'
 import { updateSettings } from '../../../lib/api'
 import { BRAND_PHOTOS, NIGHT_HEROES, PHOTO_PLACES, applyBrandPhotos, heroFor, heroUrl, photoFor, photoUrl, type BrandPhotoChoice, type PhotoPlace } from '../../../lib/brandPhotos'
@@ -38,6 +40,12 @@ export function PhotosPage() {
     <div className="space-y-4">
       <PageHeader title="Photos" subtitle="Black-and-white construction photographs from Unsplash. Pick one for each place; everybody sees the choice." />
       <ErrorBanner error={error} />
+      {/* Remus · Handover 8: a different one every day, approved a month at a time. */}
+      <Link to={paths.photoDays()} className="card flex items-center gap-3 p-4 hover:bg-slate-50" data-testid="photo-days-link">
+        <CalendarDays size={20} className="shrink-0 text-slate-500" />
+        <span className="min-w-0 flex-1"><span className="block text-sm font-semibold text-slate-800">Photo of the day</span><span className="block text-xs text-slate-500">A different photograph and line every day, laid out and approved a month at a time. The choices below show on any day that is not approved.</span></span>
+        <span className="text-xs font-medium text-brand-700">Plan the month →</span>
+      </Link>
       <Card>
         <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm text-slate-600">
           {PHOTO_PLACES.map((pl) => <span key={pl.id}><span className="font-semibold text-slate-800">{pl.label}:</span> {photoFor(pl.id, current).subject}</span>)}

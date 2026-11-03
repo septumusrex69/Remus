@@ -31,6 +31,22 @@ export const BRAND_PHOTOS: BrandPhoto[] = [
   { id: 'wVycuhEJnN0', base: 'https://images.unsplash.com/photo-1718769327016-4fe93d01ce2c', subject: 'Timber planks', credit: 'Mary Schultz' },
   { id: 'LMpO06hCJyI', base: 'https://images.unsplash.com/photo-1562028288-e5e0eb2dac59', subject: 'A nail in wood', credit: 'Mark Boss' },
   { id: 'c9lnWi5nT34', base: 'https://images.unsplash.com/photo-1789871966074-f69a1606c3c4', subject: 'Scaffolding against concrete', credit: 'KC Shum' },
+  // Remus · Handover 8: fifteen more, so a month of photos of the day hardly repeats (no faces, as before).
+  { id: 'i6V6diaf71A', base: 'https://images.unsplash.com/photo-1701850009190-2859ba2aeea6', subject: 'Mortar going onto a brick wall', credit: 'Solømen' },
+  { id: 'YClFdlDbfOU', base: 'https://images.unsplash.com/photo-1704005446360-5f30e4276182', subject: 'Hands laying a brick wall', credit: 'Gowtham AGM' },
+  { id: 'FqAyHJpNhJA', base: 'https://images.unsplash.com/photo-1588399944136-efbd34b99d6b', subject: 'Grouting tools on the bench', credit: 'Haneen Krimly' },
+  { id: 'Usn68-mvjjo', base: 'https://images.unsplash.com/photo-1579197586491-aed481d3a945', subject: 'Two old shovels on a plank', credit: 'Mari Potter' },
+  { id: 'Wiu3w-99tNg', base: 'https://images.unsplash.com/photo-1504328345606-18bbc8c9d7d1', subject: 'Welding, the sparks flying', credit: 'Christopher Burns' },
+  { id: 'VW4xiLRr-do', base: 'https://images.unsplash.com/photo-1508465818649-14a170138405', subject: 'A welding torch in the dark', credit: 'Glenn Hansen' },
+  { id: 'ZhGGLxPcO_M', base: 'https://images.unsplash.com/photo-1499424401353-9b68ae399f0c', subject: 'A crane at night', credit: 'Christopher Baumeister' },
+  { id: 'rpCP0gFdg5M', base: 'https://images.unsplash.com/photo-1656335865197-40ed379dd677', subject: 'A crane over a building site', credit: 'mostafa jamei' },
+  { id: 'BIeC4YK2MTA', base: 'https://images.unsplash.com/photo-1591955506264-3f5a6834570a', subject: 'A crane in front of new flats', credit: 'Ben Allan' },
+  { id: 'wIP0VMI3P7I', base: 'https://images.unsplash.com/photo-1620563704212-b4d54ce17d10', subject: 'A crane under a cloudy sky', credit: 'wu yi' },
+  { id: 'eyq7H7gO0EY', base: 'https://images.unsplash.com/photo-1530863506128-dc9eb5c3e0fc', subject: 'Rebar, looking up', credit: 'Michael Bader' },
+  { id: 'KS6YES3Djmc', base: 'https://images.unsplash.com/photo-1745909247906-123b53b70e06', subject: 'Rebar stacked, close up', credit: 'Araf Ibne Alam' },
+  { id: 'WoZs8gGyQBY', base: 'https://images.unsplash.com/photo-1580901369227-308f6f40bdeb', subject: 'An excavator on rock', credit: 'Gerold Hinzen' },
+  { id: 'nkxB5Ab-ONY', base: 'https://images.unsplash.com/photo-1630288214173-a119cf823388', subject: 'An excavator on bare ground', credit: 'Billy Freeman' },
+  { id: 'MPjUcioFDxk', base: 'https://images.unsplash.com/photo-1749638442639-ecb976639ae0', subject: 'Brick showing through broken plaster', credit: 'Mathias Reding' },
 ]
 
 export type PhotoPlace = 'band' | 'login' | 'side'
@@ -105,6 +121,8 @@ export const heroUrl = (id: string) => `/brand/heroes/${id}.svg`
 export function applyBrandPhotos(choice: BrandPhotoChoice | null | undefined): void {
   const root = document.documentElement
   root.style.setProperty('--skin-photo-band', `url('${photoUrl(photoFor('band', choice), 2000)}')`)
+  // The day's framing, when an approved photo of the day sets one (lib/dayPhotos.ts); the band's usual otherwise.
+  root.style.removeProperty('--skin-photo-band-pos')
   root.style.setProperty('--skin-photo-side', `url('${photoUrl(photoFor('side', choice), 600)}')`)
   root.dataset.bandCredit = `Photo: ${photoFor('band', choice).credit} / Unsplash`
   root.style.setProperty('--skin-night-hero', `url('${heroUrl(heroFor(choice))}')`)

@@ -39,6 +39,7 @@ const TITLES: { test: RegExp; title: string }[] = [
   { test: /^\/clients/, title: 'Clients' },
   { test: /^\/expenses\/capture/, title: 'Snap slip' },
   { test: /^\/returns/, title: 'Returns' },
+  { test: /^\/photo-days/, title: 'Photo of the day' },
   { test: /^\/expenses/, title: 'Expenses' },
   { test: /^\/bank/, title: 'Bank' },
   { test: /^\/diary/, title: 'Diary' },

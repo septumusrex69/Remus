@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react'
-import { countNeedsLinking, getSettings } from '../../lib/api'
+import { countNeedsLinking, getDayPhoto, getSettings } from '../../lib/api'
 import { applyBrandPhotos } from '../../lib/brandPhotos'
+import { applyDayLook, johannesburgToday, lookFromRow, type DayLook } from '../../lib/dayPhotos'
 import type { CompanySettings } from '../../types'
 
 interface BuildContextValue {
@@ -9,6 +10,8 @@ interface BuildContextValue {
   /** Bank lines still waiting to be linked (sidebar badge, dashboard card). */
   needsLinking: number
   refreshNeedsLinking: () => void
+  /** Today's photo of the day (Remus · Handover 8): the approved look, or the band's chosen photograph. */
+  dayLook: DayLook | null
 }
 
 const Ctx = createContext<BuildContextValue | null>(null)
@@ -16,10 +19,19 @@ const Ctx = createContext<BuildContextValue | null>(null)
 export function BuildProvider({ children }: { children: ReactNode }) {
   const [settings, setSettings] = useState<CompanySettings | null>(null)
   const [needsLinking, setNeedsLinking] = useState(0)
+  const [dayLook, setDayLook] = useState<DayLook | null>(null)
 
   const reloadSettings = useCallback(() => {
     // The chosen photographs go on the page as soon as the settings are read (lib/brandPhotos.ts).
-    getSettings().then((s) => { setSettings(s); applyBrandPhotos(s.brand_photos) }).catch(() => {})
+    // Then today's photo of the day over it, if an Administrator approved one (lib/dayPhotos.ts).
+    getSettings().then(async (s) => {
+      setSettings(s)
+      applyBrandPhotos(s.brand_photos)
+      const row = await getDayPhoto(johannesburgToday()).catch(() => null)
+      const look = lookFromRow(row, s.brand_photos)
+      applyDayLook(look)
+      setDayLook(look)
+    }).catch(() => {})
   }, [])
   const refreshNeedsLinking = useCallback(() => {
     countNeedsLinking().then(setNeedsLinking).catch(() => {})
@@ -30,7 +42,7 @@ export function BuildProvider({ children }: { children: ReactNode }) {
     refreshNeedsLinking()
   }, [reloadSettings, refreshNeedsLinking])
 
-  return <Ctx.Provider value={{ settings, reloadSettings, needsLinking, refreshNeedsLinking }}>{children}</Ctx.Provider>
+  return <Ctx.Provider value={{ settings, reloadSettings, needsLinking, refreshNeedsLinking, dayLook }}>{children}</Ctx.Provider>
 }
 
 // eslint-disable-next-line react/only-export-components

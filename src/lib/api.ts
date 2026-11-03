@@ -6,6 +6,7 @@
  */
 import type { Product, ProductUse } from './products'
 import { creditFor, type SlipReturn } from './slipReturns'
+import type { DayPhotoRow } from './dayPhotos'
 import { supabase, BRANDING_BUCKET, QUOTE_FILES_BUCKET, RECEIPTS_BUCKET } from './supabase'
 import { quoteTotals } from './quoteMath'
 import { formatZAR } from './format'
@@ -1323,4 +1324,33 @@ export async function placeAddress(address: string): Promise<{ lat: number; lon:
   const body = (await res.json().catch(() => ({}))) as { lat?: number; lon?: number; found?: string; error?: string }
   if (!res.ok || typeof body.lat !== 'number' || typeof body.lon !== 'number') throw new Error(body.error ?? `The map could not be read (${res.status}).`)
   return { lat: body.lat, lon: body.lon, found: body.found ?? address }
+}
+
+// ---------- The photo of the day (migration 0037, Remus · Handover 8) ----------
+
+const DAY_NUMS: (keyof DayPhotoRow)[] = ['band_x', 'band_y', 'login_x', 'login_y']
+
+/** The days laid out between two dates (inclusive). Signed in: drafts too; on the sign-in page: approved only. */
+export async function listDayPhotos(from: string, to: string): Promise<DayPhotoRow[]> {
+  const rows = unwrap<DayPhotoRow[]>(await supabase.from('day_photos').select('*').gte('day', from).lte('day', to).order('day'))
+  return rows.map((r) => nums(r, DAY_NUMS))
+}
+
+/** One day's row, if there is one the reader may see (the sign-in page sees approved rows only). */
+export async function getDayPhoto(day: string): Promise<DayPhotoRow | null> {
+  const row = unwrap<DayPhotoRow | null>(await supabase.from('day_photos').select('*').eq('day', day).maybeSingle())
+  return row ? nums(row, DAY_NUMS) : null
+}
+
+/** Saves days as they are laid out (Administrators). A changed day is no longer approved unless `approve`. */
+export async function saveDayPhotos(rows: DayPhotoRow[], approveBy: ID | null): Promise<DayPhotoRow[]> {
+  if (!rows.length) return []
+  const now = new Date().toISOString()
+  const payload = rows.map((r) => ({
+    day: r.day, photo_id: r.photo_id, band_x: r.band_x, band_y: r.band_y, login_x: r.login_x, login_y: r.login_y,
+    line: r.line?.trim() || null, who: r.line?.trim() ? r.who?.trim() || null : null,
+    approved_at: approveBy ? now : null, approved_by: approveBy, updated_at: now,
+  }))
+  const saved = unwrap<DayPhotoRow[]>(await supabase.from('day_photos').upsert(payload, { onConflict: 'day' }).select('*'))
+  return saved.map((r) => nums(r, DAY_NUMS))
 }

@@ -24,6 +24,23 @@ slip reader and /slip-test too). Preview: https://remus-git-claude-new-session-z
   "Kept" (we kept them after all), Undo on a returned one (takes the credit off again), delete. A site manager sees the
   returns they logged (same rule as slips). Credits show green and negative on Expenses. Checked with fixtures in
   Playwright, desktop 1280 and iPhone 390, no sideways scroll.
+- **Photo of the day, a month at a time (built 3 Nov, preview only; database part LIVE).** Stephan: "yes photo of the
+  day". Copied from Raptor S16 (`portalPhotos.ts` / `/portal-looks` / `portal_day_looks`). Migration **0037**
+  `day_photos` (applied live, additive): one row per day -- photo, framing in the dashboard band (band_x/y) and the
+  sign-in (login_x/y), a line and who said it, approved_at/by. Signed-in members read; the sign-in (anon) reads
+  APPROVED rows only (checked live in a rolled-back transaction); only Administrators write. Page **/photo-days**
+  ("Photo of the day", linked from the top of /photos): the month as band previews; "Fill the month" lays out empty
+  days from the rotation (`lib/dayPhotos.ts`, +test: every photograph before any repeats, counted from 1 Nov 2026,
+  the day changes at midnight Johannesburg time); tap a day to pick its photograph, tap the band or sign-in preview to
+  frame it, change the line; "Save and approve" / "Approve the month". ONLY APPROVED DAYS SHOW; any other day shows
+  the /photos choices as before. Shown: Platinum's dashboard band (photo, framing via `--skin-photo-band-pos` in
+  skins.css, credit, the line in italics under the greeting) and the sign-in (photo, framing, line). Platinum Night
+  keeps its contour drawing in the band (Stephan's pick); its sign-in follows. 15 more photos added to
+  `lib/brandPhotos.ts` (29 now: cranes, welding, rebar, brickwork, excavators, old tools; picked by their Unsplash
+  descriptions, not seen -- this container cannot load Unsplash images, so Stephan should look them over on the
+  page). 31 lines in DAY_LINES: our own words plus four quotes on good authority (Wotton 1624, Churchill 1943,
+  Sullivan 1896, Le Corbusier 1923). DIFFERENT FROM RAPTOR: no text-side or shade setting (Remus's band always has its
+  words on the left under the same black glass). Nothing approved yet, so nothing changes until Stephan approves.
 
 # Remus · Handover 8 (written 2 Nov 2026 by the Remus · Handover 7 session)
 

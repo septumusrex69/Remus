@@ -122,7 +122,7 @@ interface DayItem {
 
 export function DashboardPage() {
   const { data, error, loading } = useLoad(load, [], 'dashboard')
-  const { needsLinking, settings: buildSettings } = useBuild()
+  const { needsLinking, settings: buildSettings, dayLook } = useBuild()
   const bandChoice = buildSettings?.brand_photos
   const { currentUser } = useAuth()
   // Who sees what (lib/access.ts): the money for Administrators, the budget for contractors too.
@@ -273,7 +273,7 @@ export function DashboardPage() {
       {/* ---------- Hero ---------- */}
       {/* skin-band: Platinum lays a construction photograph under black glass here (skins.css). */}
       <section className="skin-band relative overflow-hidden rounded-2xl bg-ink-950 px-6 py-6 text-white sm:px-7 sm:py-7">
-        <span className="skin-band-credit absolute right-3 bottom-1.5 hidden text-[9px] text-white/40">Photo: {photoFor('band', bandChoice).credit} / Unsplash</span>
+        <span className="skin-band-credit absolute right-3 bottom-1.5 hidden text-[9px] text-white/40">Photo: {(dayLook?.approved ? dayLook.photo : photoFor('band', bandChoice)).credit} / Unsplash</span>
         <div className="relative z-[1] flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="mb-1 text-[11px] font-bold tracking-[0.1em] text-brand-300 uppercase">{format(now, 'EEEE d MMMM')}</p>
@@ -283,6 +283,12 @@ export function DashboardPage() {
               {quotesToo ? ` · ${live.length} open quote${live.length === 1 ? '' : 's'}` : ''}
               {next ? ` · next job starts ${formatDate(next.start_date)}` : ''}
             </p>
+            {/* The photo of the day's line (Remus · Handover 8), when today was approved at /photo-days. */}
+            {dayLook?.approved && dayLook.line && (
+              <p className="mt-2 max-w-xl text-[13px] text-white/75 italic" data-testid="day-line">
+                “{dayLook.line}”{dayLook.who ? <span className="not-italic text-white/50"> — {dayLook.who}</span> : null}
+              </p>
+            )}
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {snaps && (
