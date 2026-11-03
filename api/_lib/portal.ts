@@ -2,12 +2,15 @@ import crypto from 'node:crypto'
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { requireCaller } from './auth.js'
-import { credentialsKeyProblem, keyedHash, sameHex } from './crypto.js'
+import { credentialsKeyProblem, hashPassword, keyedHash, passwordMatches, sameHex } from './crypto.js'
 import { adminClient, getConnection, sendFromOwnMailbox } from './mailbox.js'
+import { buildQuotePdf, QuotePdfError } from './quotePdf.js'
 import {
-  CODE_SENT_MESSAGE, PORTAL_CODE_MESSAGE, PORTAL_CODE_MINUTES, PORTAL_INVOICE_STATUSES, PORTAL_PROJECT_STATUS, PORTAL_QUOTE_STATUS,
-  PORTAL_SESSION_DAYS, PORTAL_TOKEN_HEADER, STAGE_STATE_LABEL, codeSenderOrder, deviceLabel, isPortalToken, normaliseCode,
-  normalisePortalEmail, portalCodeCheck, portalCodeEmail, portalInviteEmail, portalInvoice, projectProgress, resendDecision,
+  CODE_SENT_MESSAGE, PORTAL_CODE_MESSAGE, PORTAL_CODE_MINUTES, PORTAL_INVOICE_STATUSES, PORTAL_PASSWORD_LOCK_MINUTES,
+  PORTAL_PASSWORD_WRONG, PORTAL_PHOTOS_PER_PROJECT, PORTAL_PROJECT_STATUS, PORTAL_QUOTE_STATUS,
+  PORTAL_TOKEN_HEADER, STAGE_STATE_LABEL, cleanPersonName, codeSenderOrder, deviceLabel, isPortalToken, normaliseCode,
+  normalisePortalEmail, passwordFailure, portalAcceptNotice, portalCodeCheck, portalCodeEmail, portalInviteEmail, portalInvoice,
+  portalPasswordProblem, portalProgressNotes, portalQuoteAcceptProblem, portalSessionDays, projectProgress, resendDecision,
   stageState, todayJhb,
 } from './portalRules.js'
 
@@ -19,8 +22,9 @@ import {
  * read: not a client, not a project. The client comes off the session row.
  *
  * Two kinds of caller, never mixed:
- *   anonymous    request-code, verify                          (the code is the authority)
- *   portal user  me, overview, sign-out                         (x-portal-token)
+ *   anonymous    brand, request-code, verify, sign-in          (the code, or the password set after it, is the authority)
+ *   portal user  me, overview, sign-out, set-password,          (x-portal-token)
+ *                quote-pdf, accept-quote
  *   staff        staff-list, staff-invite, staff-set-active     (a Remus session, active, not Read Only)
  */
 
@@ -87,12 +91,15 @@ const requestCode: Handler = async (req, res, admin) => {
   const order = codeSenderOrder((user.invited_by as string | null) ?? '', (staff ?? []).map((p) => ({
     id: p.id as string, name: String(p.name ?? ''), hasMailbox: withMailbox.has(p.id as string), active: p.status === 'Active',
   })))
-  const mail = portalCodeEmail({ name: String(user.name ?? ''), code, company })
+  /* The button goes back to the portal the client asked from, and the email is signed by whoever sends it (Raptor S16). */
+  const url = portalUrl(req)
+  const nameOf = new Map((staff ?? []).map((p) => [p.id as string, String(p.name ?? '')]))
   let sent = false
   let lastError = 'Nobody at the company has a mailbox connected to send it from.'
   for (const senderId of order) {
+    const mail = portalCodeEmail({ name: String(user.name ?? ''), code, company, url, from: nameOf.get(senderId) })
     const r = await sendAs(admin, senderId, { to: user.email as string, subject: mail.subject, html: mail.html, text: mail.text })
-    if (r.ok) { sent = true; break }
+    if (r.ok) { sent = true; console.log(`[portal] code for portal user ${user.id} sent from ${senderId}`); break }
     lastError = r.error
   }
   if (!sent) {
@@ -108,7 +115,7 @@ const verify: Handler = async (req, res, admin) => {
   const email = normalisePortalEmail(body.email)
   const code = normaliseCode(body.code)
   if (!email || !code) { res.status(400).json({ error: 'Type the six digits from the email.' }); return }
-  const { data: user } = await admin.from('client_portal_users').select('id, active').eq('email', email).maybeSingle()
+  const { data: user } = await admin.from('client_portal_users').select('id, active, password_hash').eq('email', email).maybeSingle()
   const { data: stored } = user?.active
     ? await admin.from('client_portal_codes').select('code_hash, expires_at, attempts').eq('user_id', user.id).maybeSingle()
     : { data: null }
@@ -122,15 +129,74 @@ const verify: Handler = async (req, res, admin) => {
 
   /* Spent the moment it matches, so the same six digits cannot open a second browser. */
   await admin.from('client_portal_codes').delete().eq('user_id', user!.id)
+  const session = await openSession(admin, req, user!.id, t, body.remember !== false)
+  if (!session) { res.status(500).json({ error: 'You could not be signed in just now. Try again.' }); return }
+  /* A CODE IS THE FIRST VISIT OR THE RESET (Raptor S16), so the browser asks for a password next: always when
+     there is none yet, and when the client came here because they forgot it. The code also clears a lock. */
+  await admin.from('client_portal_users').update({ password_failures: 0, password_locked_until: null }).eq('id', user!.id)
+  res.status(200).json({ ...session, needsPassword: !user!.password_hash || body.reset === true })
+}
+
+/**
+ * A new signed-in browser: the token goes to it once, only its keyed hash is kept. KEEP ME SIGNED IN (Raptor
+ * S16): ticked, a month; not ticked, a day (portalSessionDays).
+ */
+async function openSession(admin: SupabaseClient, req: VercelRequest, userId: string, t: number, remember: boolean): Promise<{ token: string; expiresAt: string } | null> {
   const token = crypto.randomBytes(32).toString('hex')
-  const expiresAt = new Date(t + PORTAL_SESSION_DAYS * 86_400_000).toISOString()
+  const expiresAt = new Date(t + portalSessionDays(remember) * 86_400_000).toISOString()
   const { error } = await admin.from('client_portal_sessions').insert({
-    user_id: user!.id, token_hash: keyedHash('portal-session', token), expires_at: expiresAt,
+    user_id: userId, token_hash: keyedHash('portal-session', token), expires_at: expiresAt,
     device: deviceLabel(req.headers['user-agent'] as string | undefined),
   })
-  if (error) { res.status(500).json({ error: 'You could not be signed in just now. Try again.' }); return }
-  await admin.from('client_portal_users').update({ last_login_at: new Date(t).toISOString() }).eq('id', user!.id)
-  res.status(200).json({ token, expiresAt })
+  if (error) return null
+  await admin.from('client_portal_users').update({ last_login_at: new Date(t).toISOString() }).eq('id', userId)
+  return { token, expiresAt }
+}
+
+/*
+ * THE EVERYDAY SIGN-IN (Remus · Handover 8, Raptor S16's signIn): the address and the password set after the
+ * first code. One answer for an unknown address, a login with no password yet and a wrong password
+ * (PORTAL_PASSWORD_WRONG), for the same reason the code's answer never says whether an address is a client's.
+ * Five wrong in a row lock it for a quarter of an hour; the emailed code still opens it.
+ */
+const signIn: Handler = async (req, res, admin) => {
+  const body = req.body ?? {}
+  const email = normalisePortalEmail(body.email)
+  const password = typeof body.password === 'string' ? body.password : ''
+  if (!email || !password) { res.status(400).json({ error: 'Type your email address and your password.' }); return }
+  const { data: user } = await admin.from('client_portal_users')
+    .select('id, active, password_hash, password_failures, password_locked_until').eq('email', email).maybeSingle()
+  const t = now()
+  if (user?.password_locked_until && Date.parse(user.password_locked_until as string) > t) {
+    res.status(429).json({ error: `Too many wrong passwords. Try again in ${PORTAL_PASSWORD_LOCK_MINUTES} minutes, or email yourself a code.` }); return
+  }
+  if (!user || !user.active || !user.password_hash || !passwordMatches(password, user.password_hash as string)) {
+    if (user?.password_hash) {
+      const f = passwordFailure(Number(user.password_failures ?? 0), t)
+      await admin.from('client_portal_users').update({ password_failures: f.failures, password_locked_until: f.lockedUntil }).eq('id', user.id)
+      if (f.lockedUntil) console.log(`[portal] password locked for portal user ${user.id}`)
+    }
+    res.status(400).json({ error: PORTAL_PASSWORD_WRONG }); return
+  }
+  const session = await openSession(admin, req, user.id as string, t, body.remember !== false)
+  if (!session) { res.status(500).json({ error: 'You could not be signed in just now. Try again.' }); return }
+  await admin.from('client_portal_users').update({ password_failures: 0, password_locked_until: null }).eq('id', user.id)
+  res.status(200).json(session)
+}
+
+/*
+ * WHO THE SIGN-IN PAGE BELONGS TO, before anybody signs in: the company's name, logo, phone and email from
+ * Settings -- what is on every quote anyway. Raptor's sign-in has "Need help signing in?"; this is where it writes to.
+ */
+const brand: Handler = async (_req, res, admin) => {
+  const { data: s } = await admin.from('company_settings').select('name, phone, email, logo_url').eq('id', true).maybeSingle()
+  res.status(200).json({ name: s?.name || 'Urban Haus Construction', phone: s?.phone ?? null, email: s?.email ?? null, logoUrl: s?.logo_url ?? null })
+}
+
+/** The portal's own address, for the emails' button. */
+function portalUrl(req: VercelRequest): string | undefined {
+  const host = req.headers['x-forwarded-host'] ?? req.headers.host
+  return host ? `https://${String(host)}/portal` : undefined
 }
 
 /* ------------------------------------------------------------------ a signed-in client */
@@ -186,7 +252,7 @@ const overview: Handler = async (req, res, admin) => {
   const [projects, quotes, invoices] = await Promise.all([
     admin.from('projects').select('id, name, code, site_address, status, start_date, end_date')
       .eq(col, client).in('status', Object.keys(PORTAL_PROJECT_STATUS)).order('start_date', { ascending: false, nullsFirst: false }),
-    admin.from('quotes').select('id, number, title, site_address, status, issue_date, valid_until')
+    admin.from('quotes').select('id, number, title, site_address, status, issue_date, valid_until, accepted_at, accepted_by_name, accepted_via')
       .eq(col, client).in('status', Object.keys(PORTAL_QUOTE_STATUS)).order('issue_date', { ascending: false }),
     admin.from('invoices').select('id, project_id, number, issue_date, due_date, description, amount_excl, vat, status')
       .eq(col, client).in('status', [...PORTAL_INVOICE_STATUSES]).order('issue_date', { ascending: false }),
@@ -196,17 +262,44 @@ const overview: Handler = async (req, res, admin) => {
   const projectIds = (projects.data ?? []).map((p) => p.id as string)
   const quoteIds = (quotes.data ?? []).map((q) => q.id as string)
   const invoiceIds = (invoices.data ?? []).map((i) => i.id as string)
-  const [stages, totals, payments] = await Promise.all([
+  const none = Promise.resolve({ data: [], error: null })
+  const [stages, totals, payments, diary, photoRows] = await Promise.all([
     projectIds.length
       ? admin.from('project_stages').select('project_id, name, sort_order, start_date, end_date').in('project_id', projectIds).order('sort_order')
-      : Promise.resolve({ data: [], error: null }),
-    quoteIds.length ? admin.from('quote_totals').select('quote_id, total_incl').in('quote_id', quoteIds) : Promise.resolve({ data: [], error: null }),
-    invoiceIds.length ? admin.from('payments').select('invoice_id, amount').in('invoice_id', invoiceIds) : Promise.resolve({ data: [], error: null }),
+      : none,
+    quoteIds.length ? admin.from('quote_totals').select('quote_id, total_incl').in('quote_id', quoteIds) : none,
+    invoiceIds.length ? admin.from('payments').select('invoice_id, amount').in('invoice_id', invoiceIds) : none,
+    /* PART 2 (Remus · Handover 8): only the diary days and photos the office ticked for the client, and of a
+       diary day only its date and "Work done" -- delays, safety, materials and the crew are never selected. */
+    projectIds.length
+      ? admin.from('site_diary_entries').select('project_id, date, work_done').in('project_id', projectIds).eq('show_client', true)
+        .order('date', { ascending: false }).limit(500)
+      : none,
+    projectIds.length
+      ? admin.from('site_diary_photos').select('id, project_id, path, caption, created_at, site_diary_entries(date)')
+        .in('project_id', projectIds).eq('show_client', true).order('created_at', { ascending: false }).limit(PORTAL_PHOTOS_PER_PROJECT * projectIds.length)
+      : none,
   ])
 
   const paid = new Map<string, number>()
   for (const p of payments.data ?? []) paid.set(p.invoice_id as string, (paid.get(p.invoice_id as string) ?? 0) + Number(p.amount))
   const totalOf = new Map((totals.data ?? []).map((t) => [t.quote_id as string, Number(t.total_incl)]))
+
+  /* The photos, a fair number per project, each opened with a signed link that lasts an hour (the bucket is private). */
+  const photosOf = new Map<string, { id: string; path: string; caption: string | null; date: string }[]>()
+  for (const r of (photoRows.data ?? []) as unknown as { id: string; project_id: string; path: string; caption: string | null; created_at: string; site_diary_entries: { date: string } | null }[]) {
+    const list = photosOf.get(r.project_id) ?? []
+    if (list.length >= PORTAL_PHOTOS_PER_PROJECT) continue
+    list.push({ id: r.id, path: r.path, caption: r.caption, date: r.site_diary_entries?.date ?? r.created_at.slice(0, 10) })
+    photosOf.set(r.project_id, list)
+  }
+  const paths = [...photosOf.values()].flat().map((p) => p.path)
+  const signed = new Map<string, string>()
+  if (paths.length) {
+    const { data } = await admin.storage.from('site-photos').createSignedUrls(paths, 3600)
+    for (const s of data ?? []) if (s.path && s.signedUrl) signed.set(s.path, s.signedUrl)
+  }
+  const diaryRows = (diary.data ?? []) as { project_id: string; date: string; work_done: string | null }[]
 
   res.status(200).json({
     today,
@@ -223,11 +316,18 @@ const overview: Handler = async (req, res, admin) => {
           const state = stageState(s, today)
           return { name: s.name || 'General', start: s.start_date, end: s.end_date, state, stateLabel: STAGE_STATE_LABEL[state] }
         }),
+        notes: portalProgressNotes(diaryRows.filter((d) => d.project_id === p.id)),
+        photos: (photosOf.get(p.id as string) ?? [])
+          .filter((ph) => signed.has(ph.path))
+          .map((ph) => ({ id: ph.id, url: signed.get(ph.path)!, caption: ph.caption, date: ph.date })),
       }
     }),
     quotes: (quotes.data ?? []).map((q) => ({
-      number: q.number, title: q.title, siteAddress: q.site_address, issued: q.issue_date, validUntil: q.valid_until,
+      /* The id goes to the browser so it can ask for the PDF or accept; the server checks it is this client's every time. */
+      id: q.id, number: q.number, title: q.title, siteAddress: q.site_address, issued: q.issue_date, validUntil: q.valid_until,
       total: totalOf.get(q.id as string) ?? null, status: PORTAL_QUOTE_STATUS[q.status as string] ?? q.status,
+      canAccept: portalQuoteAcceptProblem(q as { status: string; valid_until: string | null }, { name: 'ok', agreed: true }, today) === null,
+      acceptedOnPortal: q.accepted_via === 'portal' ? { by: String(q.accepted_by_name ?? ''), at: q.accepted_at as string } : null,
     })),
     invoices: (invoices.data ?? []).map((i) => ({
       ...portalInvoice(i as never, paid.get(i.id as string) ?? 0, today),
@@ -240,6 +340,88 @@ const signOut: Handler = async (req, res, admin) => {
   const who = await requirePortalUser(req, admin)
   if (who) await admin.from('client_portal_sessions').delete().eq('id', who.sessionId)
   res.status(200).json({ ok: true })
+}
+
+/* SETTING THE PASSWORD (Raptor S16), from a browser the code just signed in. Hashed here, never stored as typed. */
+const setPassword: Handler = async (req, res, admin) => {
+  const who = await requirePortalUser(req, admin)
+  if (!who) { res.status(401).json({ error: 'Please sign in again.' }); return }
+  const password = (req.body ?? {}).password
+  const problem = portalPasswordProblem(password, who.email)
+  if (problem) { res.status(400).json({ error: problem }); return }
+  const { error } = await admin.from('client_portal_users').update({
+    password_hash: hashPassword(password as string), password_set_at: new Date(now()).toISOString(),
+    password_failures: 0, password_locked_until: null,
+  }).eq('id', who.userId)
+  if (error) { res.status(500).json({ error: 'Your password could not be saved just now. Try again.' }); return }
+  console.log(`[portal] password set for portal user ${who.userId}`)
+  res.status(200).json({ ok: true })
+}
+
+/* ------------------------------------------------------------------ a signed-in client: quotes (part 2) */
+
+/**
+ * ONE OF THIS CLIENT'S QUOTES THAT THEY HAVE BEEN SENT, or null. The browser names the quote; the server checks
+ * it belongs to the session's client and is not a draft -- the same filter the overview reads with.
+ */
+async function ownQuote(admin: SupabaseClient, who: PortalCaller, id: unknown) {
+  if (typeof id !== 'string' || !/^[0-9a-f-]{36}$/i.test(id)) return null
+  const col = who.companyId ? 'company_id' : 'contact_id'
+  const { data } = await admin.from('quotes').select('id, number, title, status, valid_until')
+    .eq('id', id).eq(col, (who.companyId ?? who.contactId)!).in('status', Object.keys(PORTAL_QUOTE_STATUS)).maybeSingle()
+  return data as { id: string; number: string | null; title: string; status: string; valid_until: string | null } | null
+}
+
+/** The quote as the PDF the office sends (api/_lib/quotePdf.ts), for one of the client's own quotes. */
+const quotePdf: Handler = async (req, res, admin) => {
+  const who = await requirePortalUser(req, admin)
+  if (!who) { res.status(401).json({ error: 'Please sign in again.' }); return }
+  const q = await ownQuote(admin, who, (req.body ?? {}).id)
+  if (!q) { res.status(404).json({ error: 'That quote could not be found.' }); return }
+  try {
+    const pdf = await buildQuotePdf(admin, q.id)
+    res.setHeader('Content-Type', 'application/pdf')
+    res.setHeader('Content-Disposition', `inline; filename="${pdf.filename}"`)
+    res.setHeader('Cache-Control', 'private, no-store')
+    res.status(200).send(Buffer.from(pdf.bytes))
+  } catch (e) {
+    if (e instanceof QuotePdfError) { res.status(404).json({ error: e.message }); return }
+    console.error('[portal] quote PDF failed', e)
+    res.status(500).json({ error: 'The PDF could not be made just now. Try again, or ask us to email it.' })
+  }
+}
+
+/*
+ * ACCEPTING A QUOTE (Remus · Handover 8; Raptor has no equivalent). A sent, still-valid quote, the client's
+ * name typed and the box ticked (portalQuoteAcceptProblem). The update only lands while the quote is still
+ * 'sent', so two clicks -- or the office marking it at the same moment -- cannot both win. Every active
+ * Administrator is told in the bell, as the budget alerts are; making the project stays the office's step.
+ */
+const acceptQuote: Handler = async (req, res, admin) => {
+  const who = await requirePortalUser(req, admin)
+  if (!who) { res.status(401).json({ error: 'Please sign in again.' }); return }
+  const body = req.body ?? {}
+  const q = await ownQuote(admin, who, body.id)
+  const problem = portalQuoteAcceptProblem(q, { name: body.name, agreed: body.agreed }, todayJhb(now()))
+  if (problem) { res.status(q ? 409 : 404).json({ error: problem }); return }
+  const name = cleanPersonName(body.name)
+  const at = new Date(now()).toISOString()
+  const { data: done, error } = await admin.from('quotes').update({
+    status: 'accepted', accepted_at: at, accepted_by_name: name, accepted_via: 'portal', accepted_portal_user_id: who.userId, updated_at: at,
+  }).eq('id', q!.id).eq('status', 'sent').select('id').maybeSingle()
+  if (error) { res.status(500).json({ error: 'Your acceptance could not be saved just now. Try again, or give us a call.' }); return }
+  if (!done) { res.status(409).json({ error: 'This quote can no longer be accepted here. Please contact us.' }); return }
+
+  const { data: admins } = await admin.from('profiles').select('id').eq('role', 'Administrator').eq('status', 'Active')
+  const message = portalAcceptNotice({ name, client: who.clientName, number: q!.number, title: q!.title })
+  if (admins?.length) {
+    const { error: nErr } = await admin.from('notifications').insert(admins.map((a) => ({
+      user_id: a.id as string, type: 'quote.accepted', message, link: `/quotes/${q!.id}`,
+    })))
+    if (nErr) console.error(`[portal] quote ${q!.id} accepted, but the bell could not be told: ${nErr.message}`)
+  }
+  console.log(`[portal] quote ${q!.id} accepted on the portal by portal user ${who.userId}`)
+  res.status(200).json({ ok: true, acceptedAt: at })
 }
 
 /* ------------------------------------------------------------------ staff: who may sign in */
@@ -267,7 +449,7 @@ const staffList: Handler = async (req, res, admin) => {
   const client = clientOf(req.body ?? {})
   if (!client) { res.status(400).json({ error: 'Which client?' }); return }
   const { data, error } = await admin.from('client_portal_users')
-    .select('id, email, name, active, invited_at, last_login_at').eq(client.col, client.id).order('invited_at')
+    .select('id, email, name, active, invited_at, last_login_at, password_set_at').eq(client.col, client.id).order('invited_at')
   if (error) { res.status(500).json({ error: error.message }); return }
   res.status(200).json({ users: data ?? [] })
 }
@@ -294,9 +476,8 @@ const staffInvite: Handler = async (req, res, admin) => {
     : await admin.from('client_portal_users').insert({ [client.col]: client.id, email, name, invited_by: staff.id }).select('id').single()
   if (row.error) { res.status(500).json({ error: row.error.message }); return }
 
-  const host = req.headers['x-forwarded-host'] ?? req.headers.host
-  const url = `https://${String(host)}/portal`
-  const mail = portalInviteEmail({ name, company: await companyName(admin), url })
+  const url = portalUrl(req) ?? '/portal'
+  const mail = portalInviteEmail({ name, company: await companyName(admin), url, from: staff.name })
   const sent = await sendAs(admin, staff.id, { to: email, subject: mail.subject, html: mail.html, text: mail.text })
   /* Access is given either way; an invitation that did not go is said, not hidden. */
   res.status(200).json({ id: row.data.id, emailed: sent.ok, emailError: sent.ok ? null : sent.error, url })
@@ -314,10 +495,15 @@ const staffSetActive: Handler = async (req, res, admin) => {
 }
 
 export const PORTAL_ROUTES: Record<string, Handler> = {
+  brand,
   'request-code': requestCode,
   verify,
+  'sign-in': signIn,
+  'set-password': setPassword,
   me,
   overview,
+  'quote-pdf': quotePdf,
+  'accept-quote': acceptQuote,
   'sign-out': signOut,
   'staff-list': staffList,
   'staff-invite': staffInvite,

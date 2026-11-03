@@ -176,6 +176,10 @@ export interface Quote extends ClientRef {
   approved_total: number | null
   sent_at: string | null
   sent_to: string | null
+  /** Accepted by the client themselves on the portal (0042): when, the name they typed, and 'portal'. */
+  accepted_at?: string | null
+  accepted_by_name?: string | null
+  accepted_via?: 'portal' | 'office' | null
   created_at: string
   updated_at: string
 }
@@ -470,6 +474,8 @@ export interface SiteDiaryEntry {
   materials_delivered: string | null
   delays: string | null
   safety_notes: string | null
+  /** Ticked: the client portal shows this day's "Work done" as a progress note (0042). Nothing else of the day. */
+  show_client?: boolean
   created_at: string
 }
 
@@ -480,7 +486,7 @@ export interface SiteDiaryPhoto {
   project_id: ID
   path: string
   caption: string | null
-  /** For the client portal's phase 2: nothing reads it yet. */
+  /** Ticked "Client sees": shown on the client portal under the project (Remus · Handover 8). */
   show_client: boolean
   created_by: ID | null
   created_at: string

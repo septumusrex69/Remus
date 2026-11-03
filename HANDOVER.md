@@ -41,6 +41,30 @@ slip reader and /slip-test too). Preview: https://remus-git-claude-new-session-z
   page). 31 lines in DAY_LINES: our own words plus four quotes on good authority (Wotton 1624, Churchill 1943,
   Sullivan 1896, Le Corbusier 1923). DIFFERENT FROM RAPTOR: no text-side or shade setting (Remus's band always has its
   words on the left under the same black glass). Nothing approved yet, so nothing changes until Stephan approves.
+- **Client portal: password sign-in + part 2 (built 3 Nov, NOT on any preview yet; migration 0042 NOT applied).**
+  Stephan: "Yeah, you can continue with the client. Login as well. The Raptor stuff, you can build in." Built in a
+  worktree branch by a helper session; **apply `0042_portal_passwords_and_phase2.sql` BEFORE this code goes live** --
+  the portal overview, the diary form's save and the accept route read/write its new columns and fail without them.
+  * **Password sign-in, copied from Raptor S16** (cb7a54b, 20f6734): email + password (`/api/portal/sign-in`); the
+    emailed code is only the first visit and "Forgot your password?" (`verify` -> `needsPassword` -> `set-password`).
+    scrypt, salted, over `keyedHash('portal-password', ...)` (`hashPassword`/`passwordMatches` in api/_lib/crypto.ts,
+    +test); one answer for every wrong sign-in; five wrong lock it 15 minutes; a code clears the lock. Password eye,
+    a REAL Keep me signed in (ticked: 30-day session in localStorage; not: 1-day session, tab only), Need help signing
+    in? (mailto the company's Settings email, else its phone). Raptor's split screen, in skin tokens, with the
+    company's logo from Settings (anonymous `brand` route: name, logo, phone, email). Emails: Raptor's band + code box
+    + button, in the brand board's graphite/stone (an email cannot read skins); the invite says code-then-password.
+    Staff card shows "has a password / no password yet".
+  * **Part 2:** per project, **From site** (photos ticked "Client" -- a new switch under each photo in the diary form,
+    `site_diary_photos.show_client`; signed links, an hour; 60 per project) and **Progress notes** (a diary day ticked
+    "Show this day's work to the client" -- new `site_diary_entries.show_client` -- gives ONLY its "Work done"; 30 per
+    project; "Client sees" pill on the diary list). **Quote PDF** button on each quote (`quote-pdf`, the same PDF as
+    `api/_lib/quotePdf.ts`, only for the client's own non-draft quotes). **Accept this quote** while sent and still
+    valid: full name + tick; the update only lands while still 'sent'; kept as `quotes.accepted_at / accepted_by_name /
+    accepted_via='portal' / accepted_portal_user_id`; every active Administrator gets a bell notification
+    (`quote.accepted`, links to the quote); the quote page says "Accepted on the client portal by ...". Making the
+    project stays the office's Convert to project (it sets the budget). **Invoices:** Remus has no invoice PDFs, so they
+    stay a list with amounts and status. Rules + tests: `api/_lib/portalRules.ts` (passwords, lock, accept, notes).
+    Checked with fixtures in Playwright, iPhone 390 and desktop 1280, no sideways scroll.
 
 # Remus · Handover 8 (written 2 Nov 2026 by the Remus · Handover 7 session)
 

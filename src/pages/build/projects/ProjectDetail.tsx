@@ -538,7 +538,11 @@ export function SiteDiaryList({ rows, projectName, onEdit }: { rows: SiteDiaryEn
         <li key={e.id} className="px-4 py-3">
           <button className="w-full text-left" onClick={() => onEdit(e)}>
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <span className="text-sm font-semibold text-slate-800">{formatDate(e.date, 'EEE d MMM yyyy')}{projectName ? ` · ${projectName(e.project_id)}` : ''}</span>
+              <span className="text-sm font-semibold text-slate-800">
+                {formatDate(e.date, 'EEE d MMM yyyy')}{projectName ? ` · ${projectName(e.project_id)}` : ''}
+                {/* Remus · Handover 8: this day's work shows on the client's portal. */}
+                {e.show_client && <span className="ml-2 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700" data-testid="diary-client-pill">Client sees</span>}
+              </span>
               <span className="text-xs text-slate-500">{[e.weather, e.workers_on_site !== null ? `${e.workers_on_site} on site` : null].filter(Boolean).join(' · ')}</span>
             </div>
             {e.work_done && <p className="mt-1 whitespace-pre-line text-sm text-slate-700">{e.work_done}</p>}
@@ -546,7 +550,7 @@ export function SiteDiaryList({ rows, projectName, onEdit }: { rows: SiteDiaryEn
             {e.delays && <p className="mt-1 text-xs text-orange-700"><strong>Delays:</strong> {e.delays}</p>}
             {e.safety_notes && <p className="mt-1 text-xs text-red-700"><strong>Safety:</strong> {e.safety_notes}</p>}
           </button>
-          <div className="mt-2"><PhotoStrip photos={(photos.byEntry.get(e.id) ?? []).map((p) => ({ key: p.id, url: p.url }))} /></div>
+          <div className="mt-2"><PhotoStrip photos={(photos.byEntry.get(e.id) ?? []).map((p) => ({ key: p.id, url: p.url, client: p.show_client }))} /></div>
         </li>
       ))}
     </ul>

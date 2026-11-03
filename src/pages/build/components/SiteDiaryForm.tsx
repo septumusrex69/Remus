@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { NumInput } from '../../../components/ui/NumInput'
-import { addDiaryPhoto, siteDiary } from '../../../lib/api'
+import { addDiaryPhoto, setDiaryPhotoShowClient, siteDiary } from '../../../lib/api'
 import { DictateButton } from '../../../components/ui/Dictate'
 import { PhotoButtons, PhotoStrip, removeDiaryPhoto, useDiaryPhotos } from './DiaryPhotos'
 import { todayYmd } from '../../../lib/format'
@@ -13,7 +13,7 @@ export function SiteDiaryForm({ open, onClose, onSaved, editing, projectId, proj
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   /* Photos picked before the entry is saved wait here; an existing entry's photos are uploaded at once. */
-  const [pending, setPending] = useState<{ key: string; file: File; url: string }[]>([])
+  const [pending, setPending] = useState<{ key: string; file: File; url: string; client: boolean }[]>([])
   const [uploading, setUploading] = useState(false)
   const existing = useDiaryPhotos(editing ? [editing.id] : [])
   useEffect(() => {
@@ -26,7 +26,7 @@ export function SiteDiaryForm({ open, onClose, onSaved, editing, projectId, proj
 
   async function addPhotos(files: File[]) {
     if (!editing) {
-      setPending((p) => [...p, ...files.map((file) => ({ key: crypto.randomUUID(), file, url: URL.createObjectURL(file) }))])
+      setPending((p) => [...p, ...files.map((file) => ({ key: crypto.randomUUID(), file, url: URL.createObjectURL(file), client: false }))])
       return
     }
     setUploading(true); setError(null)
@@ -50,11 +50,12 @@ export function SiteDiaryForm({ open, onClose, onSaved, editing, projectId, proj
         materials_delivered: form.materials_delivered || null,
         delays: form.delays || null,
         safety_notes: form.safety_notes || null,
+        show_client: !!form.show_client,
       }
       if (editing) await siteDiary.update(editing.id, values)
       else {
         const made = await siteDiary.create(values)
-        for (const p of pending) await addDiaryPhoto(made, p.file)
+        for (const p of pending) await addDiaryPhoto(made, p.file, p.client)
       }
       onSaved()
     } catch (e) {
@@ -77,10 +78,23 @@ export function SiteDiaryForm({ open, onClose, onSaved, editing, projectId, proj
           <div className="mb-1 flex justify-end"><DictateButton size="small" value={form.work_done ?? ''} onChange={(v) => set('work_done', v)} /></div>
           <textarea className="input min-h-20" value={form.work_done ?? ''} onChange={(e) => set('work_done', e.target.value)} />
         </Field>
+        {/* PORTAL PART 2 (Remus · Handover 8): this day's "Work done" as a progress note on the client's portal.
+            Only the words above -- never delays, safety notes, materials or the crew count. Off unless ticked.
+            Its own label, outside the Field (a Field is a <label>, and labels do not nest). */}
+        <label className="-mt-1 flex items-start gap-2 text-sm text-slate-700 sm:col-span-2">
+          <input type="checkbox" className="mt-0.5 h-4 w-4 shrink-0" checked={!!form.show_client}
+            onChange={(e) => set('show_client', e.target.checked)} data-testid="diary-show-client" />
+          <span>Show this day's work to the client <span className="text-slate-500">(on their portal, as written above)</span></span>
+        </label>
         <Field label="Photos" className="sm:col-span-2">
           <div className="space-y-2">
             <PhotoStrip
-              photos={[...(editing ? existing.byEntry.get(editing.id) ?? [] : []).map((p) => ({ key: p.id, url: p.url })), ...pending.map((p) => ({ key: p.key, url: p.url }))]}
+              photos={[...(editing ? existing.byEntry.get(editing.id) ?? [] : []).map((p) => ({ key: p.id, url: p.url, client: p.show_client })), ...pending.map((p) => ({ key: p.key, url: p.url, client: p.client }))]}
+              onToggleClient={(key, client) => {
+                const saved = editing ? (existing.byEntry.get(editing.id) ?? []).find((p) => p.id === key) : undefined
+                if (saved) void setDiaryPhotoShowClient(saved.id, client).then(existing.reload).catch((e: Error) => setError(e.message))
+                else setPending((ps) => ps.map((p) => (p.key === key ? { ...p, client } : p)))
+              }}
               onRemove={(key) => {
                 const saved = editing ? (existing.byEntry.get(editing.id) ?? []).find((p) => p.id === key) : undefined
                 if (saved) { if (window.confirm('Remove this photo?')) void removeDiaryPhoto(saved).then(existing.reload).catch((e: Error) => setError(e.message)) }
@@ -89,6 +103,7 @@ export function SiteDiaryForm({ open, onClose, onSaved, editing, projectId, proj
             />
             <PhotoButtons onFiles={(f) => void addPhotos(f)} busy={uploading} />
             {uploading && <p className="text-xs text-slate-500">Sending the photos…</p>}
+            <p className="text-xs text-slate-500">Tap "Client" under a photo to show it to the client on their portal.</p>
           </div>
         </Field>
         <Field label="Materials delivered" className="sm:col-span-2"><textarea className="input" value={form.materials_delivered ?? ''} onChange={(e) => set('materials_delivered', e.target.value)} /></Field>

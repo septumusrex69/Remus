@@ -848,17 +848,22 @@ export async function listDiaryPhotos(entryIds: ID[]): Promise<(SiteDiaryPhoto &
 }
 
 /** A photo from the phone, shrunk on the phone first (a site photo does not need 12 megapixels). */
-export async function addDiaryPhoto(entry: Pick<SiteDiaryEntry, 'id' | 'project_id'>, file: File): Promise<void> {
+export async function addDiaryPhoto(entry: Pick<SiteDiaryEntry, 'id' | 'project_id'>, file: File, showClient = false): Promise<void> {
   const small = await compressImage(file, { maxEdge: 1800, quality: 0.8 })
   const ext = small.type === 'image/png' ? 'png' : small.type === 'image/webp' ? 'webp' : 'jpg'
   const path = `${entry.project_id}/${entry.id}/${crypto.randomUUID()}.${ext}`
   const up = await supabase.storage.from(SITE_PHOTOS_BUCKET).upload(path, small, { contentType: small.type || 'image/jpeg' })
   if (up.error) throw new Error(up.error.message)
-  const { error } = await supabase.from('site_diary_photos').insert({ entry_id: entry.id, project_id: entry.project_id, path })
+  const { error } = await supabase.from('site_diary_photos').insert({ entry_id: entry.id, project_id: entry.project_id, path, show_client: showClient })
   if (error) {
     await supabase.storage.from(SITE_PHOTOS_BUCKET).remove([path])
     throw new Error(error.message)
   }
+}
+
+/** "Client sees" (Remus · Handover 8): the photo shows on the client portal under its project. */
+export async function setDiaryPhotoShowClient(id: ID, showClient: boolean): Promise<void> {
+  unwrap(await supabase.from('site_diary_photos').update({ show_client: showClient }).eq('id', id))
 }
 
 export async function removeDiaryPhoto(photo: Pick<SiteDiaryPhoto, 'id' | 'path'>): Promise<void> {

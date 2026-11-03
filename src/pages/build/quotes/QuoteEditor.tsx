@@ -530,6 +530,12 @@ export function QuoteEditor() {
           <span className="flex flex-wrap items-center gap-2">
             <StatusBadge status={quote.status} />
             {quote.sent_at && <span className="text-xs">Sent {formatDateTime(quote.sent_at)} to {quote.sent_to}</span>}
+            {/* Remus · Handover 8: the client's own yes, from the portal (the bell told the Administrators). */}
+            {quote.accepted_via === 'portal' && quote.accepted_at && (
+              <span className="text-xs font-medium text-emerald-700" data-testid="quote-accepted-portal">
+                Accepted on the client portal by {quote.accepted_by_name || 'the client'}, {formatDateTime(quote.accepted_at)}
+              </span>
+            )}
             {dirty ? <span className="text-xs text-brand-700">Unsaved changes</span> : savedAt ? <span className="text-xs text-emerald-700">Saved</span> : null}
           </span>
         }

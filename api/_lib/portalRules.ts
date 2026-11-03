@@ -5,9 +5,10 @@
  *
  * Stephan, 28 Oct: "Client portal can be a good idea. To see their progresses and things."
  *
- * HOW A CLIENT SIGNS IN, AND WHY NOT LIKE STAFF. A client is never a Supabase user (0026): they type
- * their email, are emailed six digits, and the portal server hands their browser a session token. No
- * password to forget or share.
+ * HOW A CLIENT SIGNS IN, AND WHY NOT LIKE STAFF. A client is never a Supabase user (0026). Since Remus ·
+ * Handover 8 (Raptor S16) they sign in with their email and a PASSWORD; the emailed six digits are only the
+ * first visit (then they choose a password) and the "forgot your password". Either way the portal server
+ * hands their browser a session token.
  *
  * WHAT THE CLIENT IS SHOWN -- Raptor's "limited transparency", in a builder's terms: their projects and
  * where each stage stands against the plan, the quotes sent to them, and their invoices with what is
@@ -49,6 +50,44 @@ export function isPortalToken(value: unknown): value is string {
  * address" is a way to find out who Urban Haus's clients are, one guess at a time.
  */
 export const CODE_SENT_MESSAGE = 'If that address may sign in, a code is on its way. It lasts 10 minutes.'
+
+/*
+ * A PASSWORD, AFTER THE FIRST CODE (Remus · Handover 8, copied from Raptor S16's clientPortal.ts). Raptor's
+ * Stephan: "Should I get a code every time? ... Maybe the first time, but ... if you have a password, then that's
+ * fine." The code proves the address once and stays as the reset; every other visit is the address and a
+ * password. Length is the rule, not a recipe of symbols -- a long phrase a person remembers beats "P@ssw0rd!" --
+ * and the address itself is refused, being the first guess anybody makes.
+ */
+export const PORTAL_PASSWORD_MIN = 8
+export const PORTAL_PASSWORD_FAILURES = 5
+export const PORTAL_PASSWORD_LOCK_MINUTES = 15
+/** The same answer for an unknown address, a login with no password yet and a wrong password. */
+export const PORTAL_PASSWORD_WRONG = 'That email address and password do not match. Forgot it, or first time here? Email yourself a code.'
+
+/** Why a chosen password will not do, in words for the client; null when it will. */
+export function portalPasswordProblem(password: unknown, email: string | null): string | null {
+  if (typeof password !== 'string' || password.length < PORTAL_PASSWORD_MIN) return `Use at least ${PORTAL_PASSWORD_MIN} characters.`
+  if (password.length > 200) return 'That is longer than a password needs to be.'
+  if (/^(.)\1*$/.test(password)) return 'Use more than one character, repeated.'
+  if (email && password.trim().toLowerCase() === email.toLowerCase()) return 'Use something other than your email address.'
+  return null
+}
+
+/**
+ * KEEP ME SIGNED IN (Raptor S16): ticked, a month; not ticked, a day -- and the browser keeps it for the tab only.
+ * The server must not hold a month-long key for a shared office PC.
+ */
+export function portalSessionDays(remember: boolean): number {
+  return remember ? PORTAL_SESSION_DAYS : 1
+}
+
+/** After five wrong passwords in a row, locked for a quarter of an hour (the counter starts again). */
+export function passwordFailure(failuresBefore: number, nowMs: number): { failures: number; lockedUntil: string | null } {
+  const failures = failuresBefore + 1
+  return failures >= PORTAL_PASSWORD_FAILURES
+    ? { failures: 0, lockedUntil: new Date(nowMs + PORTAL_PASSWORD_LOCK_MINUTES * 60_000).toISOString() }
+    : { failures, lockedUntil: null }
+}
 
 export type PortalCodeCheck = 'none' | 'expired' | 'used-up' | 'compare'
 
@@ -127,35 +166,77 @@ function escapeHtml(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 }
 
-/** The code email. The code in the body, not the subject, so a lock screen does not show it. */
-export function portalCodeEmail(input: { name: string; code: string; company: string }): { subject: string; html: string; text: string } {
+/*
+ * THE PORTAL'S EMAILS (Remus · Handover 8, after Raptor S16's portalEmailHtml: "the link should be like a thing,
+ * like press here"). One layout for both: a band with the company's name in tracked capitals (TEXT, not a
+ * picture -- a mail client that blocks images still shows who it is from), the message, the code in a box of its
+ * own where there is one, and a BUTTON to the portal. Tables and inline styles only, because that is all Outlook
+ * draws. An email cannot read the skins, so the colours are the brand board's (graphite, stone, paper), written
+ * out here.
+ */
+const MAIL = { ink: '#2B2F33', graphite: '#454B50', stone: '#EEEAE4', paper: '#FAF9F6', line: '#DDD8D0', muted: '#6B7075' }
+const MAIL_FONT = 'Inter, Arial, Helvetica, sans-serif'
+
+export function portalEmailHtml(input: { company: string; lines: string[]; code?: string; codeNote?: string; button?: { url: string; label: string }; signOff: string }): string {
+  const p = (html: string) => `<p style="margin:0 0 16px;font-family:${MAIL_FONT};font-size:15px;line-height:1.55;color:${MAIL.ink}">${html}</p>`
+  const code = input.code ? `
+        <table role="presentation" cellpadding="0" cellspacing="0" style="margin:8px 0 20px"><tr>
+          <td style="background:${MAIL.stone};border:1px solid ${MAIL.line};border-radius:10px;padding:16px 28px;font-family:Consolas,'Courier New',monospace;font-size:30px;font-weight:bold;letter-spacing:8px;color:${MAIL.ink}">${escapeHtml(input.code)}</td>
+        </tr></table>${input.codeNote ? p(`<span style="color:${MAIL.muted};font-size:13px">${input.codeNote}</span>`) : ''}` : ''
+  const button = input.button ? `
+        <table role="presentation" cellpadding="0" cellspacing="0" style="margin:8px 0 24px"><tr>
+          <td style="background:${MAIL.graphite};border-radius:8px">
+            <a href="${escapeHtml(input.button.url)}" style="display:inline-block;padding:13px 26px;font-family:${MAIL_FONT};font-size:15px;font-weight:bold;color:#FFFFFF;text-decoration:none">${escapeHtml(input.button.label)} &rarr;</a>
+          </td>
+        </tr></table>` : ''
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${MAIL.paper};padding:24px 0"><tr><td align="center">
+  <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;background:#FFFFFF;border:1px solid ${MAIL.line};border-radius:12px;overflow:hidden">
+    <tr><td style="background:${MAIL.graphite};padding:22px 32px">
+      <div style="font-family:${MAIL_FONT};font-size:13px;letter-spacing:4px;font-weight:bold;color:#FFFFFF">${escapeHtml(input.company.toUpperCase())}</div>
+      <div style="font-family:${MAIL_FONT};font-size:11px;letter-spacing:2px;color:${MAIL.stone};margin-top:4px">CLIENT PORTAL</div>
+    </td></tr>
+    <tr><td style="padding:30px 32px 14px">
+        ${input.lines.map(p).join('\n        ')}${code}${button}
+        ${p(input.signOff)}
+    </td></tr>
+  </table>
+</td></tr></table>`
+}
+
+/** Plain text beside the HTML, for mail clients that show no HTML. */
+function plainOf(parts: string[]): string {
+  return parts.join('\n\n').replace(/<br>/g, '\n').replace(/<[^>]+>/g, '').replace(/&amp;/g, '&')
+}
+
+/** The code email: the first visit, or a forgotten password. The code in the body, not the subject, so a lock screen does not show it. */
+export function portalCodeEmail(input: { name: string; code: string; company: string; url?: string; from?: string }): { subject: string; html: string; text: string } {
   const first = input.name.trim().split(' ')[0] || 'there'
-  const lines = [
-    `Hi ${escapeHtml(first)},`,
-    `Your code is <b style="font-size:20px;letter-spacing:3px">${escapeHtml(input.code)}</b>. It expires in ${PORTAL_CODE_MINUTES} minutes.`,
-    'If you did not ask for it, you can ignore this email: nobody can sign in without the code.',
-    escapeHtml(input.company),
-  ]
+  const lines = [`Hi ${escapeHtml(first)},`, 'Here is your code to sign in to the client portal:']
+  const codeNote = `It works once, for ${PORTAL_CODE_MINUTES} minutes. Next you choose a password, so you will not need a code to sign in again.`
+  const signOff = `If you did not ask for this code, you can ignore this email: nobody can sign in without it.<br><br>Kind regards<br>${input.from ? `${escapeHtml(input.from)}<br>` : ''}${escapeHtml(input.company)}`
   return {
     subject: `Your ${input.company} client portal code`,
-    html: lines.join('<br><br>'),
-    text: lines.join('\n\n').replace(/<[^>]+>/g, ''),
+    html: portalEmailHtml({
+      company: input.company, lines, code: input.code, codeNote,
+      button: input.url ? { url: input.url, label: 'Open the client portal' } : undefined, signOff,
+    }),
+    text: plainOf([...lines, input.code, codeNote, ...(input.url ? [input.url] : []), signOff]),
   }
 }
 
 /** The invitation, from the inviter's own mailbox. */
-export function portalInviteEmail(input: { name: string; company: string; url: string }): { subject: string; html: string; text: string } {
+export function portalInviteEmail(input: { name: string; company: string; url: string; from?: string }): { subject: string; html: string; text: string } {
   const first = input.name.trim().split(' ')[0] || 'there'
-  const url = escapeHtml(input.url)
-  const html = [
+  const lines = [
     `Hi ${escapeHtml(first)},`,
-    `You can now follow your building work with ${escapeHtml(input.company)} online: where each stage of your project stands, your quotes, and your invoices with what has been paid.`,
-    `Open <a href="${url}">${url}</a> and type this email address. We email you a code each time you sign in; there is no password to remember.`,
-  ].join('<br><br>')
+    `You can now follow your building work with ${escapeHtml(input.company)} online: where each stage of your project stands, photos from site, your quotes, and your invoices with what has been paid.`,
+    'Press the button below and type this email address. The first time, we email you a code and you choose a password; after that you sign in with your password.',
+  ]
+  const signOff = `Kind regards<br>${input.from ? `${escapeHtml(input.from)}<br>` : ''}${escapeHtml(input.company)}`
   return {
     subject: `Your ${input.company} client portal`,
-    html,
-    text: html.replace(/<br><br>/g, '\n\n').replace(/<a href="[^"]*">([^<]*)<\/a>/g, '$1').replace(/<[^>]+>/g, ''),
+    html: portalEmailHtml({ company: input.company, lines, button: { url: input.url, label: 'Open the client portal' }, signOff }),
+    text: plainOf([...lines, input.url, signOff]),
   }
 }
 
@@ -230,4 +311,57 @@ export function portalInvoice(
 /** Today in Johannesburg, yyyy-mm-dd: the server runs on UTC, and a 01:00 visit is still today here. */
 export function todayJhb(nowMs: number): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Johannesburg', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(nowMs))
+}
+
+/* ------------------------------------------------------------------ portal part 2 (Remus · Handover 8) */
+
+/*
+ * PROGRESS NOTES AND SITE PHOTOS. Stephan's portal: "To see their progresses and things." Only what the office
+ * ticked for the client: a site diary day with "Show to the client" ticked gives its "Work done" (never delays,
+ * safety, materials or the crew count), and a photo with "Client sees" ticked. The newest first, a fair number
+ * per project -- a phone is not a place for two years of diary.
+ */
+export const PORTAL_NOTES_PER_PROJECT = 30
+export const PORTAL_PHOTOS_PER_PROJECT = 60
+
+export function portalProgressNotes(
+  entries: { date: string; work_done: string | null }[],
+  limit = PORTAL_NOTES_PER_PROJECT,
+): { date: string; text: string }[] {
+  return entries
+    .map((e) => ({ date: e.date, text: (e.work_done ?? '').trim() }))
+    .filter((e) => e.text.length > 0)
+    .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))
+    .slice(0, limit)
+}
+
+/*
+ * ACCEPTING A QUOTE ON THE PORTAL. Raptor has nothing like it (a debt book has no quote to accept), so this is
+ * Remus's own, in the portal's style: a quote that was SENT, still valid, the client's full name typed and the
+ * box ticked. Who and when are kept on the quote, and the Administrators are told in the bell -- turning it into a
+ * project stays the office's step (Convert to project), because that sets the budget.
+ */
+export function cleanPersonName(typed: unknown): string {
+  return typeof typed === 'string' ? typed.replace(/\s+/g, ' ').trim().slice(0, 120) : ''
+}
+
+export function portalQuoteAcceptProblem(
+  quote: { status: string; valid_until: string | null } | null,
+  input: { name: unknown; agreed: unknown },
+  today: string,
+): string | null {
+  if (!quote) return 'That quote could not be found.'
+  if (quote.status === 'accepted') return 'This quote has already been accepted. Thank you.'
+  if (quote.status !== 'sent') return 'This quote can no longer be accepted here. Please contact us.'
+  if (quote.valid_until && quote.valid_until < today) return 'This quote is past its valid-until date. Ask us for an updated one.'
+  if (cleanPersonName(input.name).length < 2) return 'Type your full name.'
+  if (input.agreed !== true) return 'Tick the box to say you accept the quote and its terms.'
+  return null
+}
+
+/** The bell's line for the Administrators. */
+export function portalAcceptNotice(input: { name: string; client: string; number: string | null; title: string }): string {
+  const what = [input.number, input.title].filter(Boolean).join(' · ') || 'a quote'
+  const who = input.client && input.client !== input.name ? `${input.name} (${input.client})` : input.name
+  return `${who} accepted quote ${what} on the client portal. Convert it to a project when you are ready.`
 }
