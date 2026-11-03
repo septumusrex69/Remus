@@ -3,6 +3,7 @@ import { requireCaller } from '../_lib/auth.js'
 import { credentialsKeyProblem } from '../_lib/crypto.js'
 import { syncConnection, type EmailConnectionRow } from '../_lib/emailSync.js'
 import { adminClient } from '../_lib/mailbox.js'
+import { photoAlarm } from '../_lib/photoCheck.js'
 
 /**
  * Files new mail from known clients on their Emails card (Raptor's api/email/sync and sync-all,
@@ -39,7 +40,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         results.push({ userId: conn.user_id, error: err instanceof Error ? err.message : 'Sync failed.' })
       }
     }
-    return res.status(200).json({ ok: true, results })
+    // Remus · Handover 8: the morning check that Unsplash still serves our photographs (api/_lib/photoCheck.ts).
+    const photosDown = await photoAlarm(admin)
+    return res.status(200).json({ ok: true, results, photosDown })
   }
 
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })

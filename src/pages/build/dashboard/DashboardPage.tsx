@@ -32,6 +32,7 @@ import { outstandingInvoices } from '../../../lib/finance'
 import { approvalCurrent } from '../../../lib/quoteMath'
 import { workingDaysIn } from '../../../lib/workdays'
 import { photoFor } from '../../../lib/brandPhotos'
+import { PhotoAlert } from './PhotoAlert'
 import { ProgressDial, ProgressLine } from '../../../components/ui/ProgressDial'
 import { projectProgress } from '../../../lib/projectProgress'
 import { useLoad } from '../../../hooks/useLoad'
@@ -305,6 +306,8 @@ export function DashboardPage() {
         </div>
       </section>
       <ErrorBanner error={error} />
+      {/* Remus · Handover 8: Unsplash down, or days with no approved photo of the day (Administrators). */}
+      <PhotoAlert />
 
       <NeedsAttention items={attention} />
 
