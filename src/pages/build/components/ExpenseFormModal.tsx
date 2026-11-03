@@ -1,14 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
-import { StageSelect } from './StageSelect'
 import { NumInput } from '../../../components/ui/NumInput'
 import { expenses } from '../../../lib/api'
 import { round2, todayYmd } from '../../../lib/format'
 import { splitInclusive } from '../../../lib/quoteMath'
 import { Button, Field, Modal } from '../../../components/ui'
-import { EXPENSE_CATEGORIES, type Expense, type ExpenseCategory, type Project } from '../../../types'
-import { ProjectSelect } from './ProjectSelect'
+import type { Expense, ExpenseCategory, Project } from '../../../types'
+import { JobOrOverhead, expenseFieldsFor, jobOrOverheadProblem, type SlipFor } from './JobOrOverhead'
 import { useVatRate } from '../BuildContext'
-import { labelize } from '../../../lib/format'
 
 export type ExpenseDraft = Partial<Omit<Expense, 'id' | 'created_at'>>
 
@@ -31,6 +29,8 @@ export function ExpenseFormModal({
   const vatRate = useVatRate()
   const [form, setForm] = useState<ExpenseDraft>({})
   const [inclMode, setInclMode] = useState(true)
+  /* A job or overheads (Remus · Handover 8): an expense on no job is an overhead, of a kind. */
+  const [slipFor, setSlipFor] = useState<SlipFor>('job')
   const [incl, setIncl] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -44,9 +44,11 @@ export function ExpenseFormModal({
     setForm(base)
     setIncl(String(round2(Number(base.amount_excl ?? 0) + Number(base.vat ?? 0)) || ''))
     setInclMode(true)
+    setSlipFor(editing && !editing.project_id ? 'overheads' : base.project_id === null && base.overhead_kind ? 'overheads' : 'job')
     setError(null)
   }, [open, editing])
 
+  const place = { for: slipFor, project_id: form.project_id ?? null, stage_id: form.stage_id ?? null, category: (form.category ?? 'materials') as ExpenseCategory, overhead_kind: form.overhead_kind ?? null }
   const set = <K extends keyof ExpenseDraft>(k: K, v: ExpenseDraft[K]) => setForm((f) => ({ ...f, [k]: v }))
 
   function onIncl(v: string) {
@@ -60,11 +62,14 @@ export function ExpenseFormModal({
 
   async function save() {
     if (!form.date) return setError('Enter the expense date.')
+    const problem = jobOrOverheadProblem(place)
+    if (problem) return setError(problem)
     setSaving(true)
     setError(null)
     try {
       const values = {
         ...form,
+        ...expenseFieldsFor(place),
         supplier: form.supplier?.trim() || null,
         description: form.description?.trim() || null,
         receipt_number: form.receipt_number?.trim() || null,
@@ -96,15 +101,8 @@ export function ExpenseFormModal({
         <Field label="Date">
           <input type="date" className="input" value={form.date ?? ''} onChange={(e) => set('date', e.target.value)} />
         </Field>
-        <Field label="Category">
-          <select className="input" value={form.category ?? 'materials'} onChange={(e) => set('category', e.target.value as ExpenseCategory)}>
-            {EXPENSE_CATEGORIES.map((c) => <option key={c} value={c}>{labelize(c)}</option>)}
-          </select>
-        </Field>
-        <Field label="Project" className="sm:col-span-2">
-          <ProjectSelect projects={projects} value={form.project_id ?? null} onChange={(v) => { set('project_id', v); set('stage_id', null) }} />
-        </Field>
-        <StageSelect className="sm:col-span-2" projectId={form.project_id ?? null} value={form.stage_id ?? null} onChange={(v) => set('stage_id', v)} />
+        <JobOrOverhead className="sm:col-span-2" projects={projects} value={place}
+          onChange={(v) => { setSlipFor(v.for); setForm((f) => ({ ...f, project_id: v.project_id, stage_id: v.stage_id, category: v.category, overhead_kind: v.overhead_kind })) }} />
         <Field label="Supplier">
           <input className="input" value={form.supplier ?? ''} onChange={(e) => set('supplier', e.target.value)} placeholder="e.g. Builders Warehouse" />
         </Field>

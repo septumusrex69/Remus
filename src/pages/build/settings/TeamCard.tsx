@@ -20,7 +20,7 @@ export function TeamCard() {
   const [sending, setSending] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
 
-  async function change(p: Profile, values: Pick<Partial<Profile>, 'role' | 'status' | 'job' | 'can_snap'>) {
+  async function change(p: Profile, values: Pick<Partial<Profile>, 'role' | 'status' | 'job' | 'can_snap' | 'is_boss'>) {
     setError(null)
     try {
       await updateProfileAccess(p.id, values)
@@ -67,7 +67,9 @@ export function TeamCard() {
                 {(p.name || p.email).slice(0, 1).toUpperCase()}
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-medium">{p.name || '—'}{self && <span className="text-slate-400"> (you)</span>}</span>
+                <span className="block truncate text-sm font-medium">{p.name || '—'}{self && <span className="text-slate-400"> (you)</span>}
+                  {/* BIG BOSS (0038, Raptor S15): above the Administrator, decides what gets built. */}
+                  {p.is_boss && <span className="ml-1.5 rounded bg-slate-900 px-1.5 py-0.5 text-[10px] font-semibold tracking-wide text-white uppercase" title="Approves what gets built in Remus. Only a Big Boss can make somebody else one." data-testid="big-boss">Big Boss</span>}</span>
                 <span className="block truncate text-xs text-slate-500">{p.email}</span>
               </span>
               {isAdmin && !self ? (
@@ -80,6 +82,13 @@ export function TeamCard() {
                     <label className="flex items-center gap-1.5 text-xs text-slate-600" title="Lets this site manager photograph till slips (Snap slip)">
                       <input type="checkbox" checked={!!p.can_snap} onChange={(e) => change(p, { can_snap: e.target.checked })} />
                       May snap slips
+                    </label>
+                  )}
+                  {/* Only a Big Boss can make somebody else one (the database refuses anybody else). */}
+                  {currentUser?.is_boss && (
+                    <label className="flex items-center gap-1.5 text-xs text-slate-600" title="Approves what gets built in Remus">
+                      <input type="checkbox" checked={!!p.is_boss} onChange={(e) => change(p, { is_boss: e.target.checked })} />
+                      Big Boss
                     </label>
                   )}
                   <Button size="sm" variant="ghost" onClick={() => change(p, { status: p.status === 'Active' ? 'Inactive' : 'Active' })}>

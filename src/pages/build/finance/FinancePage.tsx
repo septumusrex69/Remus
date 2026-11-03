@@ -1,3 +1,4 @@
+import { overheadLabel } from '../../../lib/overheads'
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { eachMonthOfInterval, format, parseISO } from 'date-fns'
@@ -68,6 +69,11 @@ export function FinancePage() {
     const overheads = data.exp.filter((e) => !e.project_id).reduce((s, e) => s + e.amount_excl, 0)
     const vatPaid = data.exp.reduce((s, e) => s + e.vat, 0)
 
+    // Overheads by kind (Remus · Handover 8): internet, fuel, car maintenance ... largest first.
+    const overheadKinds = new Map<string, number>()
+    for (const e of data.exp.filter((x) => !x.project_id)) overheadKinds.set(overheadLabel(e.overhead_kind), (overheadKinds.get(overheadLabel(e.overhead_kind)) ?? 0) + e.amount_excl)
+    const byKind = [...overheadKinds].map(([name, value]) => ({ name, value })).filter((x) => x.value !== 0).sort((a, b) => b.value - a.value)
+
     const byCat = EXPENSE_CATEGORIES.map((c) => ({ name: labelize(c), value: data.exp.filter((e) => e.category === c).reduce((s, e) => s + e.amount_excl, 0) })).filter((x) => x.value > 0)
 
     const months = eachMonthOfInterval({ start: parseISO(range.from), end: parseISO(range.to) }).map((m) => {
@@ -90,7 +96,7 @@ export function FinancePage() {
 
     const outstanding = outstandingInvoices(data.invoices, data.allPayments)
     const ageing = AGEING_BUCKETS.map((b) => ({ bucket: b, total: outstanding.filter((o) => o.bucket === b).reduce((s, o) => s + o.outstanding, 0) }))
-    return { income, expIncl, expExcl, overheads, vatPaid, byCat, months, perProject, outstanding, ageing }
+    return { income, expIncl, expExcl, overheads, vatPaid, byCat, byKind, months, perProject, outstanding, ageing }
   }, [data, range.from, range.to])
 
   return (
@@ -172,6 +178,19 @@ export function FinancePage() {
               )}
             </Card>
           </div>
+
+          {calc.byKind.length > 0 && (
+            <Card title="Overheads by kind (excl. VAT)" subtitle="Slips on no job, by what they were for.">
+              <ul className="space-y-1.5 text-sm" data-testid="overheads-by-kind">
+                {calc.byKind.map((k) => (
+                  <li key={k.name}>
+                    <div className="flex items-center justify-between"><span>{k.name}</span><span className="tabular">{formatZAR(k.value)}</span></div>
+                    <div className="mt-0.5 h-1.5 rounded-full bg-slate-100"><div className="h-full rounded-full bg-ink-950" style={{ width: `${Math.max(2, (k.value / Math.max(1, calc.byKind[0].value)) * 100)}%` }} /></div>
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          )}
 
           <Card title="Profit per project" padded={false}>
             <Table>

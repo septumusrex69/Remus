@@ -1,3 +1,4 @@
+import { overheadLabel } from './overheads'
 import { labelize } from './format'
 import type { Expense, Project } from '../types'
 
@@ -25,12 +26,13 @@ export function downloadCsv(filename: string, rows: (string | number | null | un
 export function exportExpensesCsv(rows: Expense[], projects: Project[], linked: Set<string>, filename: string) {
   const name = new Map(projects.map((p) => [p.id, `${p.code ? `${p.code} ` : ''}${p.name}`]))
   downloadCsv(filename, [
-    ['Date', 'Supplier', 'Description', 'Category', 'Project', 'Slip no.', 'Amount excl. VAT', 'VAT', 'Total incl. VAT', 'Paid', 'Source', 'Bank linked'],
+    ['Date', 'Supplier', 'Description', 'Category', 'Overhead kind', 'Project', 'Slip no.', 'Amount excl. VAT', 'VAT', 'Total incl. VAT', 'Paid', 'Source', 'Bank linked'],
     ...rows.map((e) => [
       e.date,
       e.supplier,
       e.description,
       labelize(e.category),
+      e.project_id ? '' : overheadLabel(e.overhead_kind),
       e.project_id ? name.get(e.project_id) ?? '' : 'Overhead',
       e.receipt_number,
       e.amount_excl.toFixed(2),

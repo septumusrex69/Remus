@@ -33,6 +33,8 @@ export interface Profile {
   job?: 'contractor' | 'site_manager'
   /** A site manager allowed to snap slips (0028); contractors and Administrators always may. */
   can_snap?: boolean
+  /** Big Boss (0038, Remus · Handover 8): the only person who approves what gets built. */
+  is_boss?: boolean
 }
 
 export interface Company {
@@ -341,6 +343,8 @@ export interface Expense {
   paid: boolean
   /** The project stage it was spent on (migration 0016), for quoted vs actual per stage. */
   stage_id: ID | null
+  /** An overhead's kind (0039, lib/overheads.ts): internet_phone, vehicle_fuel ...; null on a job's slip. */
+  overhead_kind?: string | null
   created_at: string
 }
 

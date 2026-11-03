@@ -3,6 +3,7 @@ import { FileText, Link2, Link2Off, Pencil, Receipt, RotateCcw, Trash2 } from 'l
 import { signedUrls } from '../../../lib/api'
 import { RECEIPTS_BUCKET } from '../../../lib/supabase'
 import { formatDate, formatZAR, labelize } from '../../../lib/format'
+import { overheadLabel } from '../../../lib/overheads'
 import { EmptyState } from '../../../components/ui'
 import type { Expense, Project } from '../../../types'
 
@@ -70,8 +71,9 @@ export function ExpenseTable({
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium text-slate-800">{e.supplier || e.description || labelize(e.category)}</p>
                 <p className="truncate text-xs text-slate-500">
-                  {formatDate(e.date)} · {labelize(e.category)}
-                  {showProject && ` · ${e.project_id ? projectName.get(e.project_id) ?? 'Project' : 'Overhead'}`}
+                  {/* An overhead says its kind (Remus · Handover 8): "Overheads · Internet & phones". */}
+                  {formatDate(e.date)} · {e.project_id ? labelize(e.category) : `Overheads · ${overheadLabel(e.overhead_kind)}`}
+                  {showProject && e.project_id ? ` · ${projectName.get(e.project_id) ?? 'Project'}` : ''}
                   {e.description && e.supplier ? ` · ${e.description}` : ''}
                 </p>
               </div>

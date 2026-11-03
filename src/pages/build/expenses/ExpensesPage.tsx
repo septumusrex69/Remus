@@ -4,6 +4,7 @@ import { Camera, Download, Plus, RotateCcw } from 'lucide-react'
 import { expenses as expensesApi, listExpensesBetween, listLinkedExpenseIds, projects as projectsApi } from '../../../lib/api'
 import { formatZAR, labelize } from '../../../lib/format'
 import { exportExpensesCsv } from '../../../lib/csvExport'
+import { OVERHEAD_KINDS } from '../../../lib/overheads'
 import { PERIOD_LABELS, periodRange, type PeriodKey } from '../../../lib/period'
 import { useLoad } from '../../../hooks/useLoad'
 import { Button, Card, ErrorBanner, PageHeader, Spinner, StatTile } from '../../../components/ui'
@@ -32,7 +33,7 @@ export function ExpensesPage() {
     if (!data) return []
     return data.rows.filter(
       (e) =>
-        (project === 'all' || (project === 'overhead' ? !e.project_id : e.project_id === project)) &&
+        (project === 'all' || (project === 'overhead' ? !e.project_id : project.startsWith('overhead:') ? !e.project_id && (e.overhead_kind ?? 'none') === project.slice(9) : e.project_id === project)) &&
         (category === 'all' || e.category === category) &&
         (link === 'all' || (link === 'linked') === data.linked.has(e.id)),
     )
@@ -62,6 +63,9 @@ export function ExpensesPage() {
         <select className="input sm:w-auto" value={project} onChange={(e) => setProject(e.target.value)}>
           <option value="all">All projects</option>
           <option value="overhead">Overheads only</option>
+          {/* Each kind of overhead (Remus · Handover 8). */}
+          {OVERHEAD_KINDS.map((k) => <option key={k.id} value={`overhead:${k.id}`}>Overheads: {k.label}</option>)}
+          <option value="overhead:none">Overheads: kind not chosen</option>
           {data?.projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
         </select>
         <select className="input sm:w-auto" value={category} onChange={(e) => setCategory(e.target.value)}>

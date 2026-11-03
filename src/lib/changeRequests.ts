@@ -1,7 +1,7 @@
 import type { Profile } from '../types'
 
 /** Who is asking: Remus's people are profiles (Raptor's are Users of the same shape). */
-type User = Pick<Profile, 'id' | 'role'>
+type User = Pick<Profile, 'id' | 'role'> & { is_boss?: boolean }
 
 /**
  * "REQUEST A CHANGE" FROM INSIDE REMUS (Remus · Handoff 1, 26 Oct 2026). Copied from Raptor's
@@ -295,6 +295,15 @@ export function isOpen(s: RequestStatus): boolean {
 /** The firm decides what gets built: the role, as the database's policy writes it. */
 export function mayDecide(user: Pick<User, 'role'> | null | undefined): boolean {
   return user?.role === 'Administrator'
+}
+
+/**
+ * WHO DECIDES WHAT GETS BUILT: the Big Boss, and nobody else (Raptor S15, copied in Remus · Handover 8; Stephan:
+ * "I'm the only person that can approve any changes. Later, we can like try and change that"). Approve, decline,
+ * reopen a declined one, ask Claude to build. The browser's copy of change_request_boss_decides (0038).
+ */
+export function mayApproveBuild(user: Pick<User, 'is_boss'> | null | undefined): boolean {
+  return !!user?.is_boss
 }
 
 /*

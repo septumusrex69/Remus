@@ -17,6 +17,8 @@ import { useLoad } from '../../../hooks/useLoad'
 import { Button, Card, Field, PageHeader } from '../../../components/ui'
 import { EXPENSE_CATEGORIES, type ExpenseCategory, type Project, type ReceiptExtraction } from '../../../types'
 import { ProjectSelect } from '../components/ProjectSelect'
+import { JobOrOverhead, expenseFieldsFor, jobOrOverheadProblem, type SlipFor } from '../components/JobOrOverhead'
+import { OVERHEAD_KINDS, guessOverheadKind } from '../../../lib/overheads'
 import { paths } from '../paths'
 import { useVatRate } from '../BuildContext'
 
@@ -46,6 +48,9 @@ interface FormState {
   stage_id: string | null
   description: string
   paid: boolean
+  /** A job or overheads, and which kind of overhead (Remus · Handover 8, lib/overheads.ts). */
+  for: SlipFor
+  overhead_kind: string | null
 }
 
 /** One part of a split slip (Remus · Handover 6): where it goes, and how much of the slip, incl. VAT. */
@@ -56,8 +61,13 @@ interface Part {
   category: ExpenseCategory
   description: string
   amount: number | null
+  /** A part on no job is an overhead: which kind. */
+  overhead_kind?: string | null
 }
 const newPart = (p: Partial<Part> = {}): Part => ({ key: crypto.randomUUID(), project_id: null, stage_id: null, category: 'materials', description: '', amount: null, ...p })
+
+/** The form's job-or-overheads part, as JobOrOverhead takes it. */
+const placeOf = (f: FormState) => ({ for: f.for, project_id: f.project_id, stage_id: f.stage_id, category: f.category, overhead_kind: f.overhead_kind })
 
 const blankForm = (projectId: string | null): FormState => ({
   supplier: '',
@@ -70,6 +80,8 @@ const blankForm = (projectId: string | null): FormState => ({
   stage_id: null,
   description: '',
   paid: true,
+  for: 'job',
+  overhead_kind: null,
 })
 
 /**
@@ -189,6 +201,9 @@ export function SlipCapture() {
     if (total !== null) { f.total_incl = String(total); marks.add('total_incl') }
     if (vat !== null) f.vat = String(vat)
     if (x.line_items?.length) f.description = x.line_items.slice(0, 4).map((l) => l.description).join(', ').slice(0, 200)
+    // A fuel station, a cellphone network, a tyre centre: overheads of that kind, as a suggestion (lib/overheads.ts).
+    const kind = presetProject ? null : guessOverheadKind(x.supplier, ...(x.line_items ?? []).slice(0, 4).map((l) => l.description))
+    if (kind) { f.for = 'overheads'; f.overhead_kind = kind; marks.add('overhead_kind') }
     setParts(null)
     setForm(f)
     setSuggested(marks)
@@ -205,7 +220,11 @@ export function SlipCapture() {
     if (parts) {
       const placed = round2(parts.reduce((t, x) => t + (x.amount ?? 0), 0))
       if (parts.some((x) => !(x.amount && x.amount > 0))) { updateCurrent({ error: 'Give every part an amount, or remove it.' }); return }
+      if (parts.some((x) => !x.project_id && !x.overhead_kind)) { updateCurrent({ error: 'A part on no job is an overhead: choose what kind.' }); return }
       if (Math.abs(placed - total) > 0.01) { updateCurrent({ error: `The parts add up to ${formatZAR(placed)}, the slip is ${formatZAR(total)}.` }); return }
+    } else {
+      const problem = jobOrOverheadProblem(placeOf(form))
+      if (problem) { updateCurrent({ error: problem }); return }
     }
     updateCurrent({ stage: 'saving' })
     try {
@@ -221,7 +240,8 @@ export function SlipCapture() {
             supplier: form.supplier || null,
             description: [x.description, `part ${i + 1} of ${parts.length}`].filter(Boolean).join(' · ') || null,
             receipt_number: form.receipt_number || null,
-            category: x.category,
+            category: x.project_id ? x.category : 'overheads',
+            overhead_kind: x.project_id ? null : x.overhead_kind ?? null,
             project_id: x.project_id,
             stage_id: x.project_id ? x.stage_id : null,
             amount_excl: round2(amt - v),
@@ -242,9 +262,7 @@ export function SlipCapture() {
         supplier: form.supplier || null,
         description: form.description || null,
         receipt_number: form.receipt_number || null,
-        category: form.category,
-        project_id: form.project_id,
-        stage_id: form.project_id ? form.stage_id : null,
+        ...expenseFieldsFor(placeOf(form)),
         amount_excl: round2(total - vat),
         vat: round2(vat),
         paid: form.paid,
@@ -383,22 +401,19 @@ export function SlipCapture() {
                     onRemove={(key) => setParts((ps) => { const left = (ps ?? []).filter((x) => x.key !== key); return left.length < 2 ? null : left })}
                     onCancel={() => setParts(null)} />
                 ) : <>
-                <Field label="Category">
-                  <select className={`input ${hl('category')}`} value={form.category} onChange={(e) => set('category', e.target.value as ExpenseCategory)}>
-                    {EXPENSE_CATEGORIES.map((c) => <option key={c} value={c}>{labelize(c)}</option>)}
-                  </select>
-                </Field>
-                <Field label="Which project is this for?" hint={form.project_id ? undefined : 'None chosen: it goes to company overheads.'}>
-                  <ProjectSelect projects={projects ?? []} value={form.project_id} onChange={(v) => { set('project_id', v); set('stage_id', null) }} />
-                  <StageSelect className="mt-2" projectId={form.project_id} value={form.stage_id} onChange={(v) => set('stage_id', v)} />
-                </Field>
+                {/* A JOB OR OVERHEADS (Remus · Handover 8): Stephan, "if it's overheads, what is the category?" */}
+                <JobOrOverhead className="col-span-2" projects={projects ?? []} value={placeOf(form)} highlightKind={suggested.has('overhead_kind')}
+                  onChange={(v) => {
+                    setForm((f) => ({ ...f, for: v.for, project_id: v.project_id, stage_id: v.stage_id, category: v.category, overhead_kind: v.overhead_kind }))
+                    if (v.overhead_kind !== form.overhead_kind) setSuggested((sg) => { const n = new Set(sg); n.delete('overhead_kind'); return n })
+                  }} />
                 <Field label="Description" className="col-span-2"><input className={`input ${hl('description')}`} value={form.description} onChange={(e) => set('description', e.target.value)} /></Field>
                 <button type="button" data-testid="slip-split" className="col-span-2 -mt-1 inline-flex items-center gap-1.5 justify-self-start text-xs font-medium text-brand-700 hover:underline"
                   onClick={() => setParts([
-                    newPart({ project_id: form.project_id, stage_id: form.stage_id, category: form.category, description: form.description, amount: totalNum ? round2(totalNum / 2) : null }),
+                    newPart({ project_id: form.for === 'job' ? form.project_id : null, stage_id: form.for === 'job' ? form.stage_id : null, category: form.for === 'job' ? form.category : 'materials', overhead_kind: form.for === 'overheads' ? form.overhead_kind : null, description: form.description, amount: totalNum ? round2(totalNum / 2) : null }),
                     newPart({ category: form.category, amount: totalNum ? round2(totalNum - round2(totalNum / 2)) : null }),
                   ])}>
-                  <Split size={13} /> Split this slip across projects
+                  <Split size={13} /> Split this slip across jobs (or jobs and overheads)
                 </button>
                 </>}
                 <label className="col-span-2 flex items-center gap-2 text-sm"><input type="checkbox" checked={form.paid} onChange={(e) => set('paid', e.target.checked)} /> Already paid</label>
@@ -474,9 +489,17 @@ function SplitParts({ parts, projects, total, setPart, onAdd, onRemove, onCancel
               <StageSelect className="mt-1.5" projectId={x.project_id} value={x.stage_id} onChange={(v) => setPart(x.key, { stage_id: v })} />
             </div>
             <input className="input col-span-2" placeholder="What it covers, e.g. cement" value={x.description} onChange={(e) => setPart(x.key, { description: e.target.value })} />
-            <select className="input" value={x.category} onChange={(e) => setPart(x.key, { category: e.target.value as ExpenseCategory })}>
-              {EXPENSE_CATEGORIES.map((c) => <option key={c} value={c}>{labelize(c)}</option>)}
-            </select>
+            {x.project_id ? (
+              <select className="input" value={x.category === 'overheads' ? 'materials' : x.category} onChange={(e) => setPart(x.key, { category: e.target.value as ExpenseCategory })}>
+                {EXPENSE_CATEGORIES.filter((c) => c !== 'overheads').map((c) => <option key={c} value={c}>{labelize(c)}</option>)}
+              </select>
+            ) : (
+              // No job: an overhead, of which kind (Remus · Handover 8).
+              <select className="input" aria-label="Kind of overhead" value={x.overhead_kind ?? ''} onChange={(e) => setPart(x.key, { overhead_kind: e.target.value || null })}>
+                <option value="">Overheads: what kind?</option>
+                {OVERHEAD_KINDS.map((k) => <option key={k.id} value={k.id}>{k.label}</option>)}
+              </select>
+            )}
             <NumInput allowEmpty prefix="R" value={x.amount} onValue={(n) => setPart(x.key, { amount: n })} />
           </div>
         </div>
