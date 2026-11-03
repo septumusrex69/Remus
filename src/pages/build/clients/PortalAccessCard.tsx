@@ -55,7 +55,7 @@ export function PortalAccessCard({ client, clientName, suggest }: {
   return (
     <Card
       title="Client portal"
-      subtitle="Who may sign in and follow the job: where each stage stands, their quotes, and their invoices with what is paid. Never costs or profit."
+      subtitle="Who may sign in and follow the job: where each stage stands, site photos and diary days you mark for the client, their quotes (they can accept one there), and their invoices with what is paid. Never costs or profit."
       actions={<a href="/portal" target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs font-medium text-brand-600 hover:underline">What they see <ExternalLink size={12} /></a>}
     >
       <div data-testid="portal-access" className="pb-4">
@@ -68,7 +68,8 @@ export function PortalAccessCard({ client, clientName, suggest }: {
                     <div className={`min-w-0 ${c.active ? '' : 'opacity-50'}`}>
                       <p className="truncate text-slate-800">{c.name || c.email}</p>
                       <p className="truncate text-xs text-slate-500">
-                        {c.name ? `${c.email} · ` : ''}last signed in: {c.last_login_at ? formatDate(c.last_login_at) : 'never'}{c.active ? '' : ' · switched off'}
+                        {c.name ? `${c.email} · ` : ''}last signed in: {c.last_login_at ? formatDate(c.last_login_at) : 'never'}
+                        {c.password_set_at ? ' · has a password' : ' · no password yet'}{c.active ? '' : ' · switched off'}
                       </p>
                     </div>
                     <button type="button" onClick={() => void toggle(c)} className="shrink-0 text-xs text-slate-600 underline">

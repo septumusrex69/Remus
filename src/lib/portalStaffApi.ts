@@ -25,6 +25,8 @@ export interface PortalContact {
   active: boolean
   invited_at: string
   last_login_at: string | null
+  /** When they chose their portal password (Remus · Handover 8); null until their first code. */
+  password_set_at?: string | null
 }
 
 /** A company client or a private one: exactly one of the two. */
