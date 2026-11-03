@@ -50,6 +50,12 @@ const TITLES: { test: RegExp; title: string }[] = [
   { test: /^\/schedule/, title: 'Schedule' },
   { test: /^\/crew/, title: 'Crew register' },
   { test: /^\/requests/, title: 'Requests' },
+  // Remus · Handover 8, the phone check: these pages had an empty top bar.
+  { test: /^\/ops/, title: 'Operations' },
+  { test: /^\/products/, title: 'Products' },
+  { test: /^\/photos/, title: 'Photos' },
+  { test: /^\/brand/, title: 'Brand board' },
+  { test: /^\/slip-test/, title: 'Slip test' },
 ]
 
 /**

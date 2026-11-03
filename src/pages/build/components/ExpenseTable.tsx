@@ -66,9 +66,11 @@ export function ExpenseTable({
           // A credit for goods taken back (Remus · Handover 8): negative, and said so.
           const isCredit = e.amount_excl + e.vat < 0
           return (
-            <li key={e.id} className="flex items-center gap-3 px-4 py-2.5">
+            // On a phone the words take the row and the amount and buttons drop under them (Remus · Handover 8,
+            // Stephan: "the phone part everything should kind of look the same"), as on Returns.
+            <li key={e.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2.5 sm:flex-nowrap">
               <SlipThumb path={e.receipt_path} url={e.receipt_path ? urls.get(e.receipt_path) : undefined} onOpen={() => setPreview(urls.get(e.receipt_path!) ?? null)} />
-              <div className="min-w-0 flex-1">
+              <div className="min-w-0 flex-1 basis-[calc(100%-3.25rem)] sm:basis-auto">
                 <p className="truncate text-sm font-medium text-slate-800">{e.supplier || e.description || labelize(e.category)}</p>
                 <p className="truncate text-xs text-slate-500">
                   {/* An overhead says its kind (Remus · Handover 8): "Overheads · Internet & phones". */}
@@ -83,7 +85,7 @@ export function ExpenseTable({
               >
                 {isLinked ? <Link2 size={11} /> : <Link2Off size={11} />} {isLinked ? 'Linked' : 'Unlinked'}
               </span>
-              <span className="tabular w-28 shrink-0 text-right text-sm">
+              <span className="tabular ml-auto w-28 shrink-0 text-right text-sm">
                 <span className={`font-medium ${isCredit ? 'text-emerald-700' : 'text-slate-900'}`}>{formatZAR(e.amount_excl + e.vat)}</span>
                 <span className="block text-[11px] text-slate-500">{formatZAR(e.amount_excl)} ex</span>
               </span>
