@@ -36,7 +36,10 @@ async function refresh(): Promise<void> {
         .eq('user_id', id)
         .is('read_at', null)
         .eq('is_junk', false)
-        .eq('is_sent', false),
+        .eq('is_sent', false)
+        /* ARCHIVED excluded (Raptor S16, nav_counts): unread and archived is a message somebody dealt with
+           without opening it -- counting it would put a number on the envelope that no clearing takes down. */
+        .is('done_at', null),
     ])
     items = page.items
     count = total.count ?? page.items.length

@@ -9,8 +9,10 @@
 import { supabase } from './supabase'
 import { MAIL_CHANGED } from './api'
 import type { ID } from '../types'
+import type { MailFilter } from './mailTabs'
 
-export type MailFilter = 'all' | 'junk' | 'sent'
+/* The tabs, and which one a message is on, live in mailTabs.ts (tested without a database). */
+export type { MailFilter } from './mailTabs'
 export type Recipient = { name: string | null; address: string }
 
 export interface LinkedClient {
@@ -36,6 +38,11 @@ export interface MailItem {
   ccRecipients: Recipient[]
   occurredAt: string
   readAt: string | null
+  /**
+   * When this person ARCHIVED the message (Raptor S16, `done_at`): out of the Inbox, kept under Archive. Null is
+   * still in the Inbox. Separate from readAt: read is how a row looks, archived is whether it is still work.
+   */
+  doneAt: string | null
   linkedCompanyId: ID | null
   linkedContactId: ID | null
 }
@@ -58,12 +65,13 @@ interface Row {
   cc_recipients: Recipient[] | null
   occurred_at: string
   read_at: string | null
+  done_at: string | null
   linked_company_id: string | null
   linked_contact_id: string | null
 }
 
 const COLUMNS =
-  'id, folder, uid, message_id, from_address, from_name, subject, snippet, attachment_names, is_junk, is_sent, to_address, to_name, to_recipients, cc_recipients, occurred_at, read_at, linked_company_id, linked_contact_id'
+  'id, folder, uid, message_id, from_address, from_name, subject, snippet, attachment_names, is_junk, is_sent, to_address, to_name, to_recipients, cc_recipients, occurred_at, read_at, done_at, linked_company_id, linked_contact_id'
 
 function toItem(r: Row): MailItem {
   return {
@@ -84,6 +92,8 @@ function toItem(r: Row): MailItem {
     ccRecipients: r.cc_recipients ?? [],
     occurredAt: r.occurred_at,
     readAt: r.read_at,
+    /* By hand like every other column (Raptor): missing here, every archived message would read as still in the Inbox. */
+    doneAt: r.done_at ?? null,
     linkedCompanyId: r.linked_company_id,
     linkedContactId: r.linked_contact_id,
   }
@@ -95,12 +105,20 @@ function fail(error: { message: string } | null) {
 
 const changed = () => window.dispatchEvent(new Event(MAIL_CHANGED))
 
-/** Narrows a query to a tab: All is the mailbox without junk or sent, as in Raptor. */
+/** Narrows a query to a tab: the Inbox is the mailbox without junk, sent or archived mail, as in Raptor. */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function scope(q: any, filter: MailFilter) {
   if (filter === 'junk') return q.eq('is_junk', true)
   if (filter === 'sent') return q.eq('is_sent', true)
-  return q.eq('is_junk', false).eq('is_sent', false)
+  /*
+   * ARCHIVE (Raptor S16), the inbox's other half. Stephan in Raptor: "if an email has been dealt with ... that it's
+   * archived ... they want their inboxes to show that it's empty". So the Inbox leaves archived mail out and Archive
+   * holds it -- on the same two exclusions the Inbox has, because only mail that would be in the Inbox can be
+   * archived (tabOf). NOTHING IS LOST: a search reaches the whole mailbox (`everywhere`), archived mail included,
+   * and "Move to inbox" puts a message back.
+   */
+  if (filter === 'done') return q.not('done_at', 'is', null).eq('is_junk', false).eq('is_sent', false)
+  return q.eq('is_junk', false).eq('is_sent', false).is('done_at', null)
 }
 
 /** Postgres ilike pattern for a search term, with its own % and _ taken literally. */
@@ -152,7 +170,9 @@ export async function countUnreadByTab(userId: ID): Promise<Record<MailFilter, n
     return n ?? 0
   }
   const [all, junk] = await Promise.all([count('all'), count('junk')])
-  return { all, junk, sent: 0 }
+  /* NONE ON ARCHIVE (Raptor S16): unread mail somebody has archived is not waiting on them, and a badge on the tab
+     of finished work is a number nobody is meant to clear. */
+  return { all, done: 0, junk, sent: 0 }
 }
 
 /** The kept body of a message. Null when it was too large to keep: open it in your mail app. */
@@ -180,6 +200,44 @@ async function setRead(userId: ID, items: MailItem[], read: boolean): Promise<vo
 }
 export const markMailRead = (userId: ID, items: MailItem[]) => setRead(userId, items, true)
 export const markMailUnread = (userId: ID, items: MailItem[]) => setRead(userId, items, false)
+
+/**
+ * ARCHIVE: this message is dealt with, and leaves the Inbox (Raptor S16, markMailDone; copied in Remus ·
+ * Handover 8).
+ *
+ * Stephan in Raptor: "if an email has been dealt with ... that it's archived ... they want their inboxes to show
+ * that it's empty ... that's how they used to working." So archived is its own fact, beside read and not instead
+ * of it: opening a message is not dealing with it.
+ *
+ * REMUS ONLY. Nothing moves or is flagged in the person's real Outlook or Gmail -- the sync is one-way, and a
+ * message archived in Outlook because somebody clicked in Remus is a change to a mailbox they did not make. The
+ * sync's insert ignores duplicates, so a re-sync cannot undo this either.
+ *
+ * Narrowed to rows not already archived, so a second press does not move who did it or when.
+ */
+export async function markMailDone(ids: ID[], actorId: ID | null): Promise<void> {
+  if (ids.length === 0) return
+  const { error } = await supabase
+    .from('user_emails')
+    .update({ done_at: new Date().toISOString(), done_by: actorId })
+    .in('id', ids)
+    .is('done_at', null)
+  fail(error)
+  // The envelope's unread count leaves archived mail out (unreadMail.ts), so it moves with this.
+  changed()
+}
+
+/** Back into the Inbox, as it was ("Move to inbox"). Who goes with when -- a check holds the two together. */
+export async function markMailNotDone(ids: ID[]): Promise<void> {
+  if (ids.length === 0) return
+  const { error } = await supabase
+    .from('user_emails')
+    .update({ done_at: null, done_by: null })
+    .in('id', ids)
+    .not('done_at', 'is', null)
+  fail(error)
+  changed()
+}
 
 /** Moves to or out of Junk in Remus (the message stays where it is in the mailbox itself). */
 export async function setJunk(ids: ID[], junk: boolean): Promise<void> {
@@ -265,12 +323,21 @@ export async function fileOnClient(input: {
   body: string
   client: LinkedClient
   companyIdOfContact?: ID | null
+  /**
+   * FILE AND ARCHIVE IN ONE STEP (Raptor S16, "Archive it as well" on the match box). Filing a message is usually
+   * the whole of dealing with it, so the box offers both, written in the SAME update, so a message is never left
+   * filed-but-in-the-inbox by a request that failed halfway. Absent is plain filing, exactly as before.
+   */
+  markDone?: boolean
 }): Promise<void> {
   const companyId = input.client.kind === 'company' ? input.client.id : input.companyIdOfContact ?? null
   const contactId = input.client.kind === 'contact' ? input.client.id : null
   const { error } = await supabase
     .from('user_emails')
-    .update({ linked_company_id: companyId, linked_contact_id: contactId, linked_at: new Date().toISOString(), linked_by: input.userId, unfiled_at: null })
+    .update({
+      ...(input.markDone && !input.mail.doneAt ? { done_at: new Date().toISOString(), done_by: input.userId } : {}),
+      linked_company_id: companyId, linked_contact_id: contactId, linked_at: new Date().toISOString(), linked_by: input.userId, unfiled_at: null,
+    })
     .eq('id', input.mail.id)
   fail(error)
   const direction = input.mail.isSent ? 'Email sent' : input.mail.isJunk ? 'Email received (was in Spam/Junk)' : 'Email received'

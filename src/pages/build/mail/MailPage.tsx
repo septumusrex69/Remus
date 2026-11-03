@@ -2,15 +2,16 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { Link, useSearchParams } from 'react-router-dom'
 import { formatDistanceToNowStrict } from 'date-fns'
 import {
-  AlertTriangle, Ban, Check, CheckSquare, ChevronDown, ExternalLink, Filter, Forward as ForwardIcon, Inbox, Link2, Loader2,
+  AlertTriangle, Archive, ArchiveRestore, Ban, Check, CheckSquare, ChevronDown, ExternalLink, Filter, Forward as ForwardIcon, Inbox, Link2, Loader2,
   Mail as MailIcon, Paperclip, PenLine, RefreshCw, Reply, ReplyAll, Search, ShieldAlert, Trash2, Undo2, X,
 } from 'lucide-react'
 import { clientLabel, contactName, loadClientDirectory, mailboxStatus, type ClientDirectory } from '../../../lib/api'
 import {
   blockSender, countUnreadByTab, deleteMail, downloadMailAttachment, fetchBlockedSenders, fetchBody, fetchMail, fetchMailItem, fetchMailPictures,
-  fileOnClient, forwardSubject, isSharedDomain, domainOf, markMailRead, markMailUnread, quoteBlock, replyAllTo, replySubject,
+  fileOnClient, forwardSubject, isSharedDomain, domainOf, markMailDone, markMailNotDone, markMailRead, markMailUnread, quoteBlock, replyAllTo, replySubject,
   setJunk, unblockSender, unfileFromClient, type BlockedSender, type LinkedClient, type MailFilter, type MailItem,
 } from '../../../lib/mailbox'
+import { archivedMessage, bumpUnread, canBeArchived } from '../../../lib/mailTabs'
 import { picturesLeftOut } from '../../../lib/mailPictures'
 import { emailDayLabel, emailTimeLabel } from '../../../lib/emailActivity'
 import { sanitizeEmailHtml } from '../../../lib/emailHtml'
@@ -28,7 +29,7 @@ import { dropDraft, listDrafts, type MailDraft } from '../../../lib/mailDrafts'
 /**
  * Mail: the person's own mailbox inside Remus, ported from Raptor's src/pages/mail/MailPage.tsx.
  *
- * Raptor's shape throughout: All / Junk / Sent / Blocked tabs (a mail server's own folders, with
+ * Raptor's shape throughout: Inbox / Junk / Sent / Blocked / Drafts / Archive tabs (a mail server's own folders, with
  * no "needs matching" queue), unread per tab, a search over the whole mailbox, a list that expands
  * in place or Outlook's reading pane, and a floating action bar on the open message. Mail from a
  * known client is filed on the client automatically; anything else can be filed by hand.
@@ -41,7 +42,17 @@ import { dropDraft, listDrafts, type MailDraft } from '../../../lib/mailDrafts'
 
 type Pane = MailFilter | 'blocked'
 const TABS: { id: Pane; label: string; hint: string }[] = [
-  { id: 'all', label: 'All', hint: 'Your whole mailbox, junk aside' },
+  /* LABELLED "INBOX" (Stephan in Raptor, 30 Oct: "instead of all, say inbox"); the id stays 'all'. */
+  { id: 'all', label: 'Inbox', hint: 'Your inbox: everything not yet archived, junk aside' },
+  /*
+   * ARCHIVE, TO THE RIGHT OF DRAFTS (Raptor S16, copied in Remus · Handover 8; Stephan: "The Raptor stuff, you can
+   * build in"). In Raptor, Stephan of the staff: "if an email has been dealt with ... that it's archived ... they want
+   * their inboxes to show that it's empty", then "instead of done, just say archive and just put it to the right of
+   * drafts. Still don't know how to archive something." A message somebody archives leaves the Inbox and lands here --
+   * nothing is lost, a search still finds it, and "Move to inbox" puts it back. The id stays 'done' (the column is
+   * done_at); `order` on the strip, below, puts Drafts -- a toggle, not a tab -- between Blocked and Archive.
+   */
+  { id: 'done', label: 'Archive', hint: 'Mail you have archived. Move to inbox puts it back' },
   { id: 'junk', label: 'Junk', hint: 'Your mail server thought this was spam' },
   { id: 'sent', label: 'Sent', hint: 'What you have sent, from Remus, Outlook or your phone' },
   { id: 'blocked', label: 'Blocked', hint: 'Senders whose mail does not reach Remus at all' },
@@ -97,7 +108,7 @@ export function MailPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const [filter, setFilter] = useState<Pane>('all')
   const [view, setView] = useEmailView()
-  const [unreadByTab, setUnreadByTab] = useState<Record<MailFilter, number>>({ all: 0, junk: 0, sent: 0 })
+  const [unreadByTab, setUnreadByTab] = useState<Record<MailFilter, number>>({ all: 0, done: 0, junk: 0, sent: 0 })
   const [unreadOnly, setUnreadOnly] = useState(false)
   // The box, and what has been asked of the database a third of a second later (one query, not six).
   const [search, setSearch] = useState('')
@@ -273,6 +284,37 @@ export function MailPage() {
     }
   }
 
+  /**
+   * ARCHIVE, OR MOVE TO INBOX, for one message (Raptor S16, doneOne).
+   *
+   * NOTHING IS RELOADED: the row leaves the list it is on (Inbox for archive, Archive for move to inbox) and the
+   * badges move by one, so the reader stays where they were in the list. Except while a search is reaching the
+   * whole mailbox -- that list holds every tab, so the row stays and only says so. Read state is not touched.
+   */
+  async function doneOne(mail: MailItem, done: boolean) {
+    const next = { ...mail, doneAt: done ? new Date().toISOString() : null }
+    const stays = searchEverywhere && !!asked.trim()
+    setError(null)
+    setItems((list) => (stays ? list.map((m) => (m.id === mail.id ? next : m)) : list.filter((m) => m.id !== mail.id)))
+    if (!mail.readAt) setUnreadByTab((counts) => bumpUnread(bumpUnread(counts, mail, -1), next, 1))
+    if (open === mail.id) setOpen(null)
+    try {
+      if (done) await markMailDone([mail.id], userId ?? null)
+      else await markMailNotDone([mail.id])
+      setStatus(archivedMessage(1, done, true))
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+      await load(page)
+    }
+  }
+
+  /** The same for a selection: only the chosen rows that can be archived, which is never junk or sent. */
+  function doneChosen(done: boolean) {
+    const ids = items.filter((m) => chosen.has(m.id) && canBeArchived(m) && !!m.doneAt !== done).map((m) => m.id)
+    if (ids.length === 0) return
+    void act(() => (done ? markMailDone(ids, userId ?? null) : markMailNotDone(ids)), archivedMessage(ids.length, done))
+  }
+
   const chosenItems = items.filter((m) => chosen.has(m.id))
   const allChosen = items.length > 0 && chosen.size === items.length
   const unread = filter === 'blocked' ? 0 : unreadByTab[filter]
@@ -301,6 +343,7 @@ export function MailPage() {
         onReplyAll={() => reply(m, true)}
         onForward={() => forward(m)}
         onUnread={() => userId && act(async () => { await markMailUnread(userId, [m]); setOpen(null) })}
+        onDone={canBeArchived(m) ? (d) => void doneOne(m, d) : null}
         onJunk={(junk) => act(() => setJunk([m.id], junk), junk ? 'Moved to Junk.' : 'Moved back to your mailbox.')}
         onFile={() => setFiling(m)}
         onUnfile={() => userId && act(() => unfileFromClient(userId, m), 'Taken off the client.')}
@@ -365,13 +408,16 @@ export function MailPage() {
         <div className="flex items-center gap-2 border-b border-slate-200 pr-5">
           <div className="-mb-px flex min-w-0 flex-1 items-center gap-1 overflow-x-auto px-5">
             {TABS.map((t) => {
-              const n = t.id === 'blocked' ? 0 : unreadByTab[t.id]
+              /* None on Archive (Raptor S16): finished work carries no number to clear. */
+              const n = t.id === 'blocked' || t.id === 'done' ? 0 : unreadByTab[t.id]
               return (
                 <button
                   key={t.id}
                   onClick={() => { setFilter(t.id); setOpen(null) }}
                   title={t.hint}
                   aria-pressed={filter === t.id}
+                  data-testid={`mail-tab-${t.id}`}
+                  style={{ order: t.id === 'done' ? 2 : 0 }}
                   className={`inline-flex shrink-0 items-center gap-1.5 border-b-2 px-3.5 py-2 text-sm font-medium ${filter === t.id ? 'border-brand-500 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
                 >
                   {t.label}
@@ -389,6 +435,7 @@ export function MailPage() {
               title="Email you started and did not send"
               aria-pressed={showDrafts}
               data-testid="mail-drafts-tab"
+              style={{ order: 1 }}
               className={`inline-flex shrink-0 items-center gap-1.5 border-b-2 px-3.5 py-2 text-sm font-medium ${showDrafts ? 'border-brand-500 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
             >
               Drafts
@@ -405,7 +452,9 @@ export function MailPage() {
                 className={`inline-flex shrink-0 items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors ${selecting ? 'border-brand-500 bg-brand-500 text-white' : 'border-slate-200 text-slate-600 hover:border-brand-300 hover:bg-brand-50'}`}
               >
                 {selecting ? <X size={14} /> : <CheckSquare size={14} />}
-                {selecting ? 'Done' : 'Select'}
+                {/* CANCEL, NOT "Done" (Raptor S16): two buttons finishing different things on one screen is a
+                    press on the wrong one waiting to happen. */}
+                {selecting ? 'Cancel' : 'Select'}
               </button>
             )}
             {filter !== 'blocked' && <EmailViewSwitcher view={view} onChange={setView} />}
@@ -424,6 +473,20 @@ export function MailPage() {
             {chosenItems.some((m) => !!m.readAt) && userId && (
               <button onClick={() => act(() => markMailUnread(userId, chosenItems))} className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-slate-600 hover:bg-white">
                 <MailIcon size={14} /> Mark unread
+              </button>
+            )}
+            {/*
+              ARCHIVE, IN BULK (Raptor S16): a morning's dealt-with mail out of the inbox in one press. Offered on the
+              two tabs a message can be archived from -- Inbox archives, Archive moves to inbox -- acting only on the
+              chosen rows that can be, so junk and sent picked up by Select all on a search are left alone.
+            */}
+            {filter === 'done' ? (
+              <button onClick={() => doneChosen(false)} data-testid="mail-bulk-archive" className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-slate-600 hover:bg-white">
+                <ArchiveRestore size={14} /> Move to inbox
+              </button>
+            ) : filter === 'all' && (
+              <button onClick={() => doneChosen(true)} data-testid="mail-bulk-archive" className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-slate-600 hover:bg-white">
+                <Archive size={14} /> Archive
               </button>
             )}
             {filter === 'junk' ? (
@@ -529,6 +592,18 @@ export function MailPage() {
                   <button onClick={() => (open === m.id ? setOpen(null) : void openMessage(m))} className={`min-w-0 flex-1 py-2.5 text-left ${!m.readAt ? '' : ''}`} aria-expanded={open === m.id}>
                     <MailSummary mail={m} linked={linkedLabel(m)} blocked={blocked} />
                   </button>
+                  {/*
+                    ARCHIVE ON THE ROW, IN WORDS (Raptor S16, 30 Oct). It was a faint tick there and Stephan, looking at
+                    it: "Still don't know how to archive something." So a small labelled button, so a message can be
+                    archived without opening it; on the Archive tab it reads Move to inbox.
+                  */}
+                  {canBeArchived(m) && (
+                    <button onClick={() => void doneOne(m, !m.doneAt)} data-testid="mail-row-archive"
+                      title={m.doneAt ? 'Move this email back to your inbox' : 'Archive this email: out of your inbox, kept under Archive'}
+                      className="inline-flex shrink-0 items-center gap-1 rounded-md border border-slate-300 px-2.5 py-1 text-[12px] font-medium text-slate-600 hover:border-slate-400 hover:bg-slate-50">
+                      {m.doneAt ? <><ArchiveRestore size={12} /> Move to inbox</> : <><Archive size={12} /> Archive</>}
+                    </button>
+                  )}
                 </div>
                 {open === m.id && <div className="px-5 pt-1 pb-4 sm:pl-12">{detail(m, false)}</div>}
               </li>
@@ -599,12 +674,13 @@ export function MailPage() {
         }} />
       )}
       {filing && userId && dir && (
-        <FileModal mail={filing} dir={dir} onClose={() => setFiling(null)} onFile={async (client) => {
+        <FileModal mail={filing} dir={dir} onClose={() => setFiling(null)} onFile={async (client, archive) => {
           const companyIdOfContact = client.kind === 'contact' ? dir.contactById.get(client.id)?.company_id ?? null : null
-          await fileOnClient({ userId, mail: filing, body: bodyText(filing), client, companyIdOfContact })
+          await fileOnClient({ userId, mail: filing, body: bodyText(filing), client, companyIdOfContact, markDone: archive })
           setFiling(null)
+          if (archive && open === filing.id) setOpen(null)
           await load(page)
-          setStatus('Filed on the client. The whole team sees it on the client’s Emails card.')
+          setStatus(`Filed on the client${archive ? ' and archived' : ''}. The whole team sees it on the client’s Emails card.`)
         }} />
       )}
     </div>
@@ -627,7 +703,10 @@ function LoadFailed({ onRetry }: { onRetry: () => void }) {
 function Empty({ filter, searching }: { filter: MailFilter; searching: boolean }) {
   if (searching) return <p className="py-14 text-center text-sm text-slate-400">Nothing matches that.</p>
   const words: Record<MailFilter, string> = {
-    all: 'Your mailbox is empty here. Connect it under Settings → My email, then press the refresh button.',
+    /* EMPTY IS THE POINT NOW (Raptor S16) -- the inbox people work towards -- so it says so, and only then mentions
+       connecting a mailbox, for the person who has never had any mail at all. */
+    all: 'Nothing waiting — your inbox is clear. (No mail at all? Connect your mailbox under Settings → My email, then press the refresh button.)',
+    done: 'Nothing archived yet. Archive a message and it leaves your inbox for here.',
     junk: 'Nothing in junk.',
     sent: 'Nothing sent yet. This fills from your mailbox’s Sent folder, so mail you send from Outlook or your phone shows here too.',
   }
@@ -670,7 +749,7 @@ function MailSearchBar({ search, onSearch, unreadOnly, onUnreadOnly, unread, eve
       </div>
       {search.trim() !== '' && (
         <p className="text-[11px] text-slate-400">
-          {everywhere ? 'Searching the whole mailbox, junk and sent included.' : `Searching ${tabLabel} only.`}{' '}
+          {everywhere ? 'Searching the whole mailbox, junk, sent and archive included.' : `Searching ${tabLabel} only.`}{' '}
           <button type="button" onClick={() => onEverywhere(!everywhere)} className="font-medium text-slate-500 underline underline-offset-2 hover:text-slate-800">
             {everywhere ? `Search ${tabLabel} only` : 'Search everywhere'}
           </button>
@@ -773,7 +852,7 @@ function EmailFrame({ html }: { html: string }) {
 }
 
 /** Everything you can do with an open message (Raptor's MessageActions): floating in the pane, a row in the list. */
-function MessageActions({ mail, sticky, linked, moreActions, onReply, onReplyAll, onForward, onUnread }: {
+function MessageActions({ mail, sticky, linked, moreActions, onReply, onReplyAll, onForward, onUnread, onDone }: {
   mail: MailItem
   sticky: boolean
   linked: { label: string; to: string } | null
@@ -782,11 +861,22 @@ function MessageActions({ mail, sticky, linked, moreActions, onReply, onReplyAll
   onReplyAll: () => void
   onForward: () => void
   onUnread: () => void
+  /** Archive or move to inbox. Null where it cannot be -- junk and sent are not in the inbox to leave it. */
+  onDone: ((done: boolean) => void) | null
 }) {
   const others = mail.toRecipients.length + mail.ccRecipients.length > 1
   return (
     <div className={sticky ? 'pointer-events-none sticky bottom-3 z-20 mt-auto flex justify-center pt-4' : 'flex flex-wrap items-center gap-1.5 pb-2'}>
       <div className={sticky ? 'pointer-events-auto inline-flex items-center gap-0.5 rounded-full border border-slate-200 bg-white/95 px-1.5 py-1 shadow-lg backdrop-blur' : 'contents'}>
+        {/*
+          ARCHIVE, FIRST ON THE BAR, WITH ITS WORD (Raptor S16; Stephan, circling the bar on the iPad: "put the option
+          here like Mark has done or archive"). As a bare icon an iPad shows no tooltip, so it was not there for him.
+          Like Reply, it says what it does; then a divider. Move to inbox on an archived message is the way back.
+        */}
+        {onDone && (mail.doneAt
+          ? <BarButton sticky={sticky} worded testId="mail-bar-archive" onClick={() => onDone(false)} label="Move to inbox" icon={<ArchiveRestore size={15} />} />
+          : <BarButton sticky={sticky} worded testId="mail-bar-archive" onClick={() => onDone(true)} label="Archive" icon={<Archive size={15} />} />)}
+        {onDone && sticky && <span aria-hidden className="mx-0.5 h-5 w-px bg-slate-200" />}
         {!mail.isSent && <BarButton sticky={sticky} onClick={onUnread} label="Mark unread" icon={<MailIcon size={15} />} />}
         {others && <BarButton sticky={sticky} onClick={onReplyAll} label="Reply all" icon={<ReplyAll size={15} />} />}
         <BarButton sticky={sticky} onClick={onForward} label="Forward" icon={<ForwardIcon size={15} />} />
@@ -811,17 +901,29 @@ function MessageActions({ mail, sticky, linked, moreActions, onReply, onReplyAll
   )
 }
 
-function BarButton({ sticky, onClick, label, icon }: { sticky: boolean; onClick: () => void; label: string; icon: ReactNode }) {
+function BarButton({ sticky, onClick, label, icon, worded = false, testId }: {
+  sticky: boolean
+  onClick: () => void
+  label: string
+  icon: ReactNode
+  /** Its word on the floating pill too, not only in a tooltip an iPad never shows (Raptor S16). */
+  worded?: boolean
+  testId?: string
+}) {
   return (
-    <button onClick={onClick} title={label} aria-label={label}
-      className={sticky ? 'inline-flex h-9 w-9 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 hover:text-slate-800' : 'inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[13px] font-medium text-slate-600 hover:border-slate-300 hover:bg-slate-50'}>
+    <button onClick={onClick} title={label} aria-label={label} data-testid={testId}
+      className={sticky
+        ? worded
+          ? 'inline-flex h-9 items-center gap-1.5 rounded-full px-3 text-[13px] font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-800'
+          : 'inline-flex h-9 w-9 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 hover:text-slate-800'
+        : 'inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[13px] font-medium text-slate-600 hover:border-slate-300 hover:bg-slate-50'}>
       {icon}
-      {!sticky && label}
+      {(!sticky || worded) && label}
     </button>
   )
 }
 
-function MailBody({ mail, sticky, body, loadingBody, showPictures, onShowPictures, linked, blockedSender, mine, onReply, onReplyAll, onForward, onUnread, onJunk, onFile, onUnfile, onBlock, onDelete, onAttachment }: {
+function MailBody({ mail, sticky, body, loadingBody, showPictures, onShowPictures, linked, blockedSender, mine, onReply, onReplyAll, onForward, onUnread, onDone, onJunk, onFile, onUnfile, onBlock, onDelete, onAttachment }: {
   mail: MailItem
   sticky: boolean
   body: { text: string; html: string } | null | undefined
@@ -835,6 +937,8 @@ function MailBody({ mail, sticky, body, loadingBody, showPictures, onShowPicture
   onReplyAll: () => void
   onForward: () => void
   onUnread: () => void
+  /** Archive, or move to inbox. Null where the message cannot be (junk, sent). */
+  onDone: ((done: boolean) => void) | null
   onJunk: (junk: boolean) => void
   onFile: () => void
   onUnfile: () => void
@@ -857,7 +961,7 @@ function MailBody({ mail, sticky, body, loadingBody, showPictures, onShowPicture
     { label: 'Delete from Remus', icon: <Trash2 size={15} />, onClick: onDelete },
     ...(!mail.isSent && !blockedSender ? [{ label: 'Block sender', icon: <Ban size={15} />, onClick: onBlock, danger: true }] : []),
   ]
-  const bar = { mail, sticky, linked, moreActions, onReply, onReplyAll, onForward, onUnread }
+  const bar = { mail, sticky, linked, moreActions, onReply, onReplyAll, onForward, onUnread, onDone }
   const me = new Set(mine.filter((x): x is string => !!x).map((x) => x.toLowerCase()))
   const line = (label: string, list: { name: string | null; address: string }[]) =>
     list.length > 0 && (
@@ -875,6 +979,18 @@ function MailBody({ mail, sticky, body, loadingBody, showPictures, onShowPicture
         <div className="flex items-start gap-3">
           <h3 className="min-w-0 flex-1 text-base font-semibold text-balance text-slate-900">{mail.subject || '(no subject)'}</h3>
           <span className="shrink-0 pt-1 text-xs whitespace-nowrap text-slate-400">{emailDayLabel(mail.occurredAt)} <span className="tabular-nums">{emailTimeLabel(mail.occurredAt)}</span></span>
+          {/*
+            ARCHIVE, AT THE TOP OF THE OPEN MESSAGE (Raptor S16, 30 Oct; Stephan: "Still don't know how to archive
+            something"). In this layout a row of the list is one button, so it cannot hold another; the first place
+            the eye goes once a message is open is here, beside its subject. The floating bar at the foot offers the same.
+          */}
+          {onDone && (
+            <button type="button" onClick={() => onDone(!mail.doneAt)} data-testid="mail-archive"
+              title={mail.doneAt ? 'Move this email back to your inbox' : 'Archive this email: out of your inbox, kept under Archive'}
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-ink-950 hover:bg-slate-50">
+              {mail.doneAt ? <><ArchiveRestore size={15} /> Move to inbox</> : <><Archive size={15} /> Archive</>}
+            </button>
+          )}
         </div>
       )}
       {!sticky && <MessageActions {...bar} />}
@@ -983,10 +1099,17 @@ function BlockModal({ mail, onClose, onBlock }: { mail: MailItem; onClose: () =>
 }
 
 /** File a message on a client by hand: search companies and people. */
-function FileModal({ mail, dir, onClose, onFile }: { mail: MailItem; dir: ClientDirectory; onClose: () => void; onFile: (client: LinkedClient) => Promise<void> }) {
+function FileModal({ mail, dir, onClose, onFile }: { mail: MailItem; dir: ClientDirectory; onClose: () => void; onFile: (client: LinkedClient, archive: boolean) => Promise<void> }) {
   const [q, setQ] = useState(() => (mail.isSent ? mail.toAddress : mail.fromAddress) ?? '')
   const [busy, setBusy] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  /*
+   * FILE AND ARCHIVE, AS ONE STEP (Raptor S16, the match box's "Archive it as well"). A checkbox, defaulting on,
+   * because filing is usually the whole of dealing with a message, and a client files on the tap -- there is no
+   * second button to put it on. Untick it and filing is exactly what it was before.
+   */
+  const archiveOffered = canBeArchived(mail) && !mail.doneAt
+  const [alsoArchive, setAlsoArchive] = useState(archiveOffered)
   const results = useMemo(() => {
     const t = q.trim().toLowerCase()
     const has = (...xs: (string | null | undefined)[]) => !t || xs.some((x) => x?.toLowerCase().includes(t))
@@ -1006,11 +1129,17 @@ function FileModal({ mail, dir, onClose, onFile }: { mail: MailItem; dir: Client
       <div className="space-y-3">
         <p className="text-sm text-slate-500">The message joins the client's Emails card, where the whole team can see it.</p>
         <input className="input" autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search clients and people…" />
+        {archiveOffered && (
+          <label className="flex cursor-pointer items-center gap-2.5 text-sm text-slate-700">
+            <input type="checkbox" checked={alsoArchive} disabled={!!busy} onChange={(e) => setAlsoArchive(e.target.checked)} data-testid="mail-file-archive" />
+            Archive it as well &mdash; out of your inbox once it is filed
+          </label>
+        )}
         {error && <p className="text-xs text-red-600">{error}</p>}
         <ul className="max-h-80 divide-y divide-slate-100 overflow-y-auto rounded-lg border border-slate-100">
           {results.map((r) => (
             <li key={`${r.kind}-${r.id}`}>
-              <button disabled={!!busy} onClick={async () => { setBusy(r.id); setError(null); try { await onFile({ kind: r.kind, id: r.id }) } catch (e) { setError(e instanceof Error ? e.message : String(e)); setBusy(null) } }}
+              <button disabled={!!busy} onClick={async () => { setBusy(r.id); setError(null); try { await onFile({ kind: r.kind, id: r.id }, archiveOffered && alsoArchive) } catch (e) { setError(e instanceof Error ? e.message : String(e)); setBusy(null) } }}
                 className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left hover:bg-slate-50 disabled:opacity-50">
                 <span className="min-w-0">
                   <span className="block truncate text-sm font-medium text-slate-800">{r.label}</span>
