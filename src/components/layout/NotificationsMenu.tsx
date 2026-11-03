@@ -4,7 +4,7 @@ import { Bell } from 'lucide-react'
 import { markAllNotificationsRead, markNotificationRead, useNotifications } from '../../lib/notifications'
 import { groupNotifications, linkIsOpen, notificationWhen, type NotificationGroup } from '../../lib/notificationGroups'
 
-const BUDGET_DOT: Record<string, string> = { 'budget.yellow': 'bg-amber-400', 'budget.red': 'bg-red-500', 'budget.over': 'bg-red-600' }
+const BUDGET_DOT: Record<string, string> = { 'budget.half': 'bg-emerald-500', 'budget.yellow': 'bg-amber-400', 'budget.red': 'bg-red-500', 'budget.over': 'bg-red-600' }
 
 /** Raptor's NotificationsMenu (H13: one line per thing, real times), reading Remus's own notifications. */
 export function NotificationsMenu() {

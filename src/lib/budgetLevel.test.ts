@@ -1,5 +1,18 @@
 import { describe, expect, it } from 'vitest'
-import { budgetAlertLevel, budgetColour } from './budgetLevel'
+import { budgetAlertLevel, budgetColour, budgetStep } from './budgetLevel'
+
+describe('the bell at 50, 75, 90 and 100%', () => {
+  it('says the highest step reached, nothing under half', () => {
+    expect(budgetStep(null)).toBeNull()
+    expect(budgetStep(49.9)).toBeNull()
+    expect(budgetStep(50)).toBe(50)
+    expect(budgetStep(74)).toBe(50)
+    expect(budgetStep(75)).toBe(75)
+    expect(budgetStep(92)).toBe(90)
+    expect(budgetStep(100)).toBe(100)
+    expect(budgetStep(140)).toBe(100)
+  })
+})
 
 describe('budget colours', () => {
   it('green, then yellow at 75%, then red at 90%', () => {

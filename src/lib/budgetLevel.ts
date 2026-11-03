@@ -28,11 +28,26 @@ export function budgetColour(score: Pick<JobScore, 'costPct' | 'tone'>, running 
   return RANK[bySpend] >= RANK[byTone] ? bySpend : byTone
 }
 
-/** The bell's level for a running job's spend, or null below yellow. */
+/** The bell's level for a running job's spend, or null below yellow. (0031's levels; the bell now uses budgetStep.) */
 export function budgetAlertLevel(costPct: number | null): BudgetAlertLevel | null {
   if (costPct == null) return null
   if (costPct > 100) return 'over'
   if (costPct >= BUDGET_RED_PCT) return 'red'
   if (costPct >= BUDGET_YELLOW_PCT) return 'yellow'
   return null
+}
+
+/*
+ * THE BELL'S STEPS (Remus · Handover 8). Stephan: "Budget warnings ... by the bell, and intervals ... 50%, 75%, 90%,
+ * and then 100%." The highest step a running job's spend has reached, or null under half. Told once each per job
+ * (remus_budget_step, migration 0040). The colours on screen are unchanged: green, yellow from 75%, red from 90%.
+ */
+export const BUDGET_STEPS = [50, 75, 90, 100] as const
+export type BudgetStep = (typeof BUDGET_STEPS)[number]
+
+export function budgetStep(costPct: number | null): BudgetStep | null {
+  if (costPct == null || !Number.isFinite(costPct)) return null
+  let reached: BudgetStep | null = null
+  for (const s of BUDGET_STEPS) if (costPct >= s) reached = s
+  return reached
 }
