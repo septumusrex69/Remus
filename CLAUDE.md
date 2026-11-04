@@ -67,7 +67,7 @@ How to apply it:
 - [x] **Change requests** (the light bulb, `/requests`, the bell, the nightly review): Raptor's
       Feedback Centre, copied in Remus · Handoff 1. `.claude/skills/change-requests/SKILL.md`.
 - [ ] Record pages with Raptor's hero band, cards (`CardHeader` title + subtitle) and tabs.
-- [ ] Phone and iPad layouts that work (site managers use phones).
+- [x] Phone and iPad layouts that work (site managers use phones; every page checked at 390 and 820 wide, Remus · Handover 8).
 
 ## Working rules
 

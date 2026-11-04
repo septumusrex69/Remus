@@ -1,4 +1,38 @@
-# Remus · Handover 9 (being written by the Remus · Handover 8 session, started 2 Nov 2026)
+# Remus · Handover 9 (written 4 Nov 2026 by the Remus · Handover 8 session)
+
+For the next Claude Code session on `septumusrex69/Remus`. Read `CLAUDE.md` (the standing rules), then this file, then do
+the Raptor check ("Start of every session: check Raptor first", further down) **before** waiting for Stephan's
+instructions. **You are the Remus · Handover 9 session**: say so on every reply and commit (`Remus H9: ...`), and write
+Handover 10 at the top of this file before you finish.
+
+## Start here (4 Nov 2026, end of Remus · Handover 8)
+
+**Live:** https://remus-xi.vercel.app -- `main` still at fd4f242 (nothing of Handover 7 or 8 is live). **Work from branch
+`claude/new-session-z0vgkh`** (preview https://remus-git-claude-new-session-z0vgkh-team-raptor.vercel.app). It contains
+Handover 7's cheap slip reader + /slip-test and everything below. **Database: migrations up to 0042 are applied live**
+(0036 returns, 0037 photo of the day, 0038 Big Boss, 0039 overhead kinds, 0040 budget steps, 0041 mail archive, 0042
+portal passwords + phase 2), all additive. So the preview works against the live database, and **going live is only a
+fast-forward of `main`** to this branch (check main has nothing it lacks, confirm the production deploy is READY).
+
+**Waiting on Stephan:**
+1. "Go live" for everything on the preview (list in the log below). The slip test (Handover 7) still decides whether
+   the cheap reader stays; on go-live, if Haiku passed, remove the test (slipReaderBaseline.ts, compare.ts, /slip-test,
+   SlipTestPage, the vercel.json entry; empty slip_reader_trials with a DELETE).
+2. Approve a month at /photo-days, and look over the 15 new photographs (chosen by description, never seen here).
+3. The client portal can only be tried end to end on the live site (the service key is Production-only): after go-live,
+   invite a test client, set a password, accept a test quote.
+4. Still open from before: Supabase auth URLs + turn off sign-ups (invite/reset links fail until set), Resend DNS,
+   P-0005 at R 0, clearing the demo data (`demo_rows`), contour heroes 11-18, photo picks, Platinum corner ticks.
+5. Later (Stephan, 3 Nov): "every company can use Remus" (multi-company); widening who approves changes beyond the
+   Big Boss.
+
+**Settled 3 Nov:** Big Boss = Stephan only (built). Crew message: dropped ("forget about that"). Duplicate quote: left
+as it is. Raptor's unread mail: already fixed in Raptor (S11 catchUpReadFlags + \Seen on first sight) -- nothing to do.
+Sign-in openings stay in Remus.
+
+**Gotcha (cost an hour on 3 Nov):** the Supabase connector stops on ANY `drop` -- even `drop trigger if exists` and even
+the word inside a comment -- and waits for a confirmation nobody can give; the call times out and the tool is barred
+for the rest of the turn. Strip comments before sending and guard creates with `if not exists` checks instead.
 
 ## Remus · Handover 8 (2 Nov 2026)
 
@@ -41,7 +75,29 @@ slip reader and /slip-test too). Preview: https://remus-git-claude-new-session-z
   page). 31 lines in DAY_LINES: our own words plus four quotes on good authority (Wotton 1624, Churchill 1943,
   Sullivan 1896, Le Corbusier 1923). DIFFERENT FROM RAPTOR: no text-side or shade setting (Remus's band always has its
   words on the left under the same black glass). Nothing approved yet, so nothing changes until Stephan approves.
-- **Client portal: password sign-in + part 2 (built 3 Nov, NOT on any preview yet; migration 0042 NOT applied).**
+- **3 Nov, second half (Stephan's list; all preview, database parts live):**
+  * **Big Boss** (Raptor S15): `profiles.is_boss` (0038), Stephan ticked; trigger `change_request_boss_decides` refuses
+    approve/decline/reopen-declined/ask-Claude for anyone else (server and Claude's tools, with no signed-in person,
+    pass); only a Big Boss can tick another (the profile guard raises). RequestPanel shows those buttons to the Big Boss
+    only; Settings -> Users has the badge and the tick. Tested live in a rolled-back transaction.
+  * **Overheads by kind:** Snap slip and the expense form ask "A job or Overheads?" (`components/JobOrOverhead.tsx`);
+    overheads pick a kind from `lib/overheads.ts` (17 kinds, +test; guessed from the supplier: Engen -> fuel, Vodacom ->
+    internet & phones, Tiger Wheel -> vehicle maintenance). `expenses.overhead_kind` (0039). Split parts on no job pick a
+    kind too. Expenses filter by kind, CSV column, Finance "Overheads by kind".
+  * **Budget warnings at 50/75/90/100%** in the bell (Stephan: "by the bell ... 50%, 75%, 90%, and then 100%"):
+    `budget_alert_steps` + `remus_budget_step` (0040), seeded from 0031's, `budgetStep` in lib/budgetLevel.ts (+test).
+    Screen colours unchanged (yellow 75, red 90). The old remus_budget_alert stays, unused.
+  * **Black icon:** remus-icon-64/192/512.png recoloured black (#0c0c0e), manifest colours too.
+  * **Unsplash-down alarm** (Raptor S16): the morning email-sync cron probes Unsplash (`api/_lib/photoCheck.ts`) and
+    rings Administrators once a day (`photo.unsplash`); the dashboard's `PhotoAlert` says so on screen and warns when
+    days in the next week have no approved photo of the day (only once the planner is used).
+  * **Mail Archive** (Raptor S16, by a helper session): `user_emails.done_at/done_by` (0041); Inbox/Archive tabs, Archive
+    and Move to inbox on the open email, each row, the floating bar and in bulk; `lib/mailTabs.ts` (+test). Remus-side
+    only, never changes the real mailbox.
+  * **Client portal password sign-in + part 2** (helper session): see the next bullet; 0042 is now applied.
+  * **Phone check:** every page at 390 and 820 wide, no sideways scroll; five pages had an empty top-bar title (fixed);
+    Expenses rows stack on a phone. (Fixture harness only; scripts in the session scratchpad, not in the repo.)
+- **Client portal: password sign-in + part 2 (built 3 Nov, on the preview; migration 0042 APPLIED live 4 Nov).**
   Stephan: "Yeah, you can continue with the client. Login as well. The Raptor stuff, you can build in." Built in a
   worktree branch by a helper session; **apply `0042_portal_passwords_and_phase2.sql` BEFORE this code goes live** --
   the portal overview, the diary form's save and the accept route read/write its new columns and fail without them.
@@ -964,7 +1020,7 @@ what Raptor gained since the last one:
 4. Tick off the Raptor checklist in `CLAUDE.md` as features land, and update the "Raptor last
    checked" line below.
 
-**Raptor last checked:** 2 Nov 2026 (Remus · Handover 8) — `claude/beautiful-curie-f7deq7` at 6aa89a0 (Raptor · Handover 16). New since 8296885: Raptor's sign-in no longer plays an opening animation (Stephan, 2 Nov: "remove that animation when you log into Raptor. I don't like that."); /opening still replays them on demand, the client portal's opening untouched. Asked Stephan whether Remus's sign-in openings should go the same way. Not for Remus: the Neon Genie imagery brief for Ryno and the portal photo links list (docs/briefs, Raptor's own marketing). Previous check: 2 Nov 2026 (Remus · Handover 7) at 8296885.
+**Raptor last checked:** 4 Nov 2026 (Remus · Handover 8) — Raptor's live branch is now `claude/sales-raptor-review-p1pzx2` (2759a67, Raptor · Handover 16 / S17). New since 6aa89a0: the client portal keeps clients signed in by default and a code no longer forces a new password (7d082d1 -- COPIED into Remus's portal 4 Nov); one skin for everyone with the day's line; portal emails wear the logo. Not for Remus: the debtor portal (S17 parts 1-4, debt collection), the letter of demand builder (Ryno). Worth a look later: `claude/exciting-turing-byyd3w` 55a7520 "test everything with one command, tour the app with a robot, and get told when it breaks" (Remus has no test suite like it). Previous check: 2 Nov 2026 at 6aa89a0.
 
 Before that: 31 Oct 2026 (Remus · Handover 6) — `claude/beautiful-curie-f7deq7` at 1d2f716 (S16: openings, Platinum, portal photographs of the day, Mail Archive, portal passwords); before that 29 Oct — `claude/sales-raptor-review-p1pzx2` at 04947bf, plus
 `claude/beautiful-curie-f7deq7` (7a13c74, S16) and `claude/s13-reino-campaigns` (48579a1, Ryno's PR #2, not merged).

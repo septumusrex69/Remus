@@ -100,7 +100,12 @@ function SignIn({ onSignedIn }: { onSignedIn: (token: string, remember: boolean)
   const [again, setAgain] = useState('')
   const [code, setCode] = useState('')
   const [sent, setSent] = useState<string | null>(null)
-  const [remember, setRemember] = useState(false)
+  /* SIGNED IN ONCE MEANS SIGNED IN (Raptor S17, 3 Nov; Stephan: "they can have confirmed the email addresses once,
+     and that's it. The rest is irritating"). Ticked by default -- a month; anybody on a shared computer unticks it. */
+  const [remember, setRemember] = useState(true)
+  /* Only "Forgot your password?" asks for a new password after a code; a first visit still sets one, because the
+     server asks wherever there is none (Raptor S17). */
+  const [resetting, setResetting] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   /* The session the code opened, held until the new password is saved: a client who walks away at that step
      has not been left signed in without one. */
@@ -119,8 +124,7 @@ function SignIn({ onSignedIn }: { onSignedIn: (token: string, remember: boolean)
   const check = (e: FormEvent) => {
     e.preventDefault()
     void run(async () => {
-      /* Always asked for a password after a code: the code is the first visit or the reset. */
-      const r = await verifyPortalCode(email, code, true, remember)
+      const r = await verifyPortalCode(email, code, resetting, remember)
       if (r.needsPassword) { setPending(r.token); setPassword(''); setAgain(''); setStep('set') } else onSignedIn(r.token, remember)
     })
   }
@@ -202,7 +206,7 @@ function SignIn({ onSignedIn }: { onSignedIn: (token: string, remember: boolean)
                     className="h-4 w-4 rounded border-slate-300 accent-ink-950" />
                   Keep me signed in
                 </label>
-                <button type="button" onClick={() => go('email')} className={`${link} text-slate-600 underline`} data-testid="portal-forgot">
+                <button type="button" onClick={() => { setResetting(true); go('email') }} className={`${link} text-slate-600 underline`} data-testid="portal-forgot">
                   Forgot your password?
                 </button>
               </div>
@@ -211,7 +215,7 @@ function SignIn({ onSignedIn }: { onSignedIn: (token: string, remember: boolean)
               </button>
               <p className="pt-1 text-center text-sm text-slate-600">
                 First time here?{' '}
-                <button type="button" onClick={() => go('email')} className={`${link} text-slate-900`} data-testid="portal-use-code">Email me a sign-in code</button>
+                <button type="button" onClick={() => { setResetting(false); go('email') }} className={`${link} text-slate-900`} data-testid="portal-use-code">Email me a sign-in code</button>
               </p>
             </form>
           )}
