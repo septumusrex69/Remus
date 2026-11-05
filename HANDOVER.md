@@ -7,16 +7,16 @@ Handover 10 at the top of this file before you finish.
 
 ## Start here (4 Nov 2026, end of Remus · Handover 8)
 
-**Live:** https://remus-xi.vercel.app -- `main` still at fd4f242 (nothing of Handover 7 or 8 is live). **Work from branch
-`claude/new-session-z0vgkh`** (preview https://remus-git-claude-new-session-z0vgkh-team-raptor.vercel.app). It contains
-Handover 7's cheap slip reader + /slip-test and everything below. **Database: migrations up to 0042 are applied live**
+**LIVE (Stephan: "go live", 5 Nov):** https://remus-xi.vercel.app -- `main` fast-forwarded fd4f242 -> ed09238, i.e.
+everything of Handover 7 and 8 below, INCLUDING the cheap Haiku slip reader: Stephan said go live before running the
+slip test, so the test page /slip-test is kept live for him to run when the slips are ready (remove it after, see 1).
+**Work from branch `claude/new-session-z0vgkh`** (same commit as main). **Database: migrations up to 0042 are applied live**
 (0036 returns, 0037 photo of the day, 0038 Big Boss, 0039 overhead kinds, 0040 budget steps, 0041 mail archive, 0042
 portal passwords + phase 2), all additive. So the preview works against the live database, and **going live is only a
 fast-forward of `main`** to this branch (check main has nothing it lacks, confirm the production deploy is READY).
 
 **Waiting on Stephan:**
-1. "Go live" for everything on the preview (list in the log below). The slip test (Handover 7) still decides whether
-   the cheap reader stays; on go-live, if Haiku passed, remove the test (slipReaderBaseline.ts, compare.ts, /slip-test,
+1. The slip test (Handover 7) still decides whether the cheap reader stays (it is live already); if Haiku passes, remove the test (slipReaderBaseline.ts, compare.ts, /slip-test,
    SlipTestPage, the vercel.json entry; empty slip_reader_trials with a DELETE).
 2. Approve a month at /photo-days, and look over the 15 new photographs (chosen by description, never seen here).
 3. The client portal can only be tried end to end on the live site (the service key is Production-only): after go-live,
