@@ -598,6 +598,8 @@ export interface ReceiptExtraction {
   payment_method?: string | null
   card_last4?: string | null
   line_items: ReceiptLineItem[]
+  /** Words written on the slip by hand (Remus · Handover 8), e.g. "Nancy Rubble Removal" on a card slip. */
+  note?: string | null
 }
 
 export interface ReceiptSuggestion {

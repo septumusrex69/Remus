@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import sharp from 'sharp'
-import { cleanExtraction, readingSize, shrinkForReading } from './slipReader.js'
+import { cleanExtraction, fixDate, readingSize, shrinkForReading } from './slipReader.js'
 
 describe('readingSize', () => {
   it('shrinks a normal photo to 1200px on its long side', () => {
@@ -41,5 +41,25 @@ describe('cleanExtraction', () => {
     expect(x.supplier).toBe('Cashbuild')
     expect(x.date).toBeNull()
     expect(x.line_items).toHaveLength(1)
+  })
+})
+
+describe('the first five test slips (Remus · Handover 8)', () => {
+  it('reads a month-first date the other way round when day-first would be in the future', () => {
+    // Brite-Lite: "06/11/26" read day-first on 5 Nov 2026 is 6 Nov -- tomorrow, so it is 11 June.
+    expect(fixDate('2026-11-06', '2026-11-05')).toBe('2026-06-11')
+    expect(fixDate('2026-11-05', '2026-11-05')).toBe('2026-11-05')
+    expect(fixDate('2026-12-06', '2026-11-05')).toBe('2026-06-12')
+    expect(fixDate('2026-09-21', '2026-11-05')).toBe('2026-09-21')
+    expect(fixDate('2027-03-30', '2026-11-05')).toBeNull() // cannot be swapped: dropped, not kept wrong
+    expect(fixDate(null, '2026-11-05')).toBeNull()
+  })
+  it('keeps the handwritten note and negative promotion lines', () => {
+    const x = cleanExtraction({ supplier: 'Madibeng Local Municipality', date: '2026-09-17', total_incl: 232.38, vat: null, slip_number: null, line_items: [], note: ' Nancy Rubble Removal ' }, '2026-11-05')
+    expect(x.note).toBe('Nancy Rubble Removal')
+    const b = cleanExtraction({ supplier: 'Builders', date: '2026-09-21', total_incl: 900, vat: 117.39, slip_number: 'S148210926102036', note: null,
+      line_items: [{ description: 'Lasher spade 660mm', quantity: 2, amount: 518 }, { description: 'Promotion item', quantity: null, amount: -60 }] }, '2026-11-05')
+    expect(b.line_items[1].amount).toBe(-60)
+    expect(b.note).toBeNull()
   })
 })

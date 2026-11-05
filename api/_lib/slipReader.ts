@@ -75,7 +75,7 @@ const nullable = (type: string) => ({ anyOf: [{ type }, { type: 'null' }] })
 export const SLIP_SCHEMA = {
   type: 'object',
   additionalProperties: false,
-  required: ['supplier', 'date', 'slip_number', 'total_incl', 'vat', 'line_items'],
+  required: ['supplier', 'date', 'slip_number', 'total_incl', 'vat', 'line_items', 'note'],
   properties: {
     supplier: nullable('string'),
     date: { ...nullable('string'), description: 'YYYY-MM-DD' },
@@ -91,10 +91,24 @@ export const SLIP_SCHEMA = {
         properties: { description: { type: 'string' }, quantity: nullable('number'), amount: nullable('number') },
       },
     },
+    note: { ...nullable('string'), description: 'Words written on the slip by hand, if any' },
   },
 } as const
 
-export const SLIP_SYSTEM = `Read this South African till slip or supplier invoice. Amounts are in rand. Return the store's trading name, the date (YYYY-MM-DD), the slip/invoice number, the total paid incl. VAT, the VAT amount if printed, and each line item (description, quantity, line amount). Use null for anything you cannot read clearly; never guess digits.`
+/*
+ * THE INSTRUCTIONS (Remus · Handover 7, sharpened in Handover 8 from Stephan's first five test slips, 5 Nov 2026 --
+ * docs/slip-test-truth.md). Each rule after the first sentence is one of those slips:
+ *   - Builders' "Promotion Item -60,00": a discount is a line with a negative amount, and the total is what was paid.
+ *   - Builders' "Document Number" vs the card machine's RRN / AUTH / TRN: the slip number is the store's own.
+ *   - Brite-Lite's "06/11/26", printed month first: dates are usually day first in South Africa; the server also
+ *     swaps a date that would be in the future (fixDate).
+ *   - Madibeng's card-machine slip with "Nancy Rubble Removal" written on it: the merchant is the supplier, no items,
+ *     no VAT, and the handwriting comes back as the note.
+ *   - Dreiers' A4 invoice photographed sideways with the card slip on top: read the invoice.
+ * Kept short on purpose: every word is paid for on every slip.
+ */
+export const SLIP_SYSTEM = `Read this South African till slip or supplier invoice. Amounts are in rand. Return the store's trading name, the date (YYYY-MM-DD), the slip/invoice number, the total paid incl. VAT, the VAT amount if printed, and each line item (description, quantity, line amount). Use null for anything you cannot read clearly; never guess digits.
+Rules: a discount or promotion is a line with a negative amount, and the total is the amount actually paid. The slip number is the store's own document/invoice number, not a card-machine reference (RRN, AUTH, TRN). Dates are usually day first (DD/MM/YY). If the photo holds an invoice and a card-machine slip, read the invoice. If there is only a card-machine slip, the supplier is the merchant name on it, with no items. Put any handwritten words in note. The photo may be sideways.`
 
 export interface SlipExtraction {
   supplier: string | null
@@ -103,6 +117,8 @@ export interface SlipExtraction {
   total_incl: number | null
   vat: number | null
   line_items: { description: string; quantity: number | null; amount: number | null }[]
+  /** Handwriting on the slip ("Nancy Rubble Removal"), for the expense's description (Remus · Handover 8). */
+  note: string | null
 }
 
 export type SlipRead =
@@ -116,19 +132,40 @@ export function isYmd(v: unknown): v is string {
   return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === v
 }
 
+/**
+ * A DATE THAT CANNOT BE RIGHT (Remus · Handover 8; Brite-Lite printed 11 June as "06/11/26"). A slip is never from
+ * the future: a date after `today` whose day and month can be swapped into a real date on or
+ * before today is read the other way round; one that cannot is dropped rather than kept wrong.
+ */
+export function fixDate(date: string | null, today: string): string | null {
+  if (!date || !isYmd(date) || !isYmd(today)) return date && isYmd(date) ? date : null
+  // Today is in Johannesburg (johannesburgToday), the slip's own time zone, so no day of slack is needed.
+  const limit = today
+  if (date <= limit) return date
+  const [y, m, d] = date.split('-')
+  const swapped = `${y}-${d}-${m}`
+  return isYmd(swapped) && swapped <= limit ? swapped : null
+}
+
+/** Today in Johannesburg, yyyy-mm-dd. */
+export function johannesburgToday(now = new Date()): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Johannesburg', year: 'numeric', month: '2-digit', day: '2-digit' }).format(now)
+}
+
 /** Tidies what Claude returned: a bad date becomes null, numbers stay numbers, items keep a description. */
-export function cleanExtraction(x: Partial<SlipExtraction> | null | undefined): SlipExtraction {
+export function cleanExtraction(x: Partial<SlipExtraction> | null | undefined, today: string = johannesburgToday()): SlipExtraction {
   const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : null)
   const str = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim().slice(0, 200) : null)
   return {
     supplier: str(x?.supplier),
-    date: isYmd(x?.date) ? x!.date! : null,
+    date: fixDate(isYmd(x?.date) ? x!.date! : null, today),
     slip_number: str(x?.slip_number),
     total_incl: num(x?.total_incl),
     vat: num(x?.vat),
     line_items: (Array.isArray(x?.line_items) ? x!.line_items! : [])
       .filter((l) => l && typeof l.description === 'string' && l.description.trim())
       .map((l) => ({ description: l.description.trim().slice(0, 200), quantity: num(l.quantity), amount: num(l.amount) })),
+    note: str(x?.note),
   }
 }
 

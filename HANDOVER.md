@@ -97,6 +97,15 @@ slip reader and /slip-test too). Preview: https://remus-git-claude-new-session-z
   * **Client portal password sign-in + part 2** (helper session): see the next bullet; 0042 is now applied.
   * **Phone check:** every page at 390 and 820 wide, no sideways scroll; five pages had an empty top-bar title (fixed);
     Expenses rows stack on a phone. (Fixture harness only; scripts in the session scratchpad, not in the repo.)
+- **5 Nov: Stephan's first five test slips** (sent in the chat "to help build the reader"; right answers in
+  `docs/slip-test-truth.md`; photos NOT committed -- real card slips and the firm's customer number). The reader
+  learned from them (preview only): SLIP_SYSTEM gained one short rules paragraph (discounts are negative lines and
+  the total is what was paid; the slip number is the store's, not the card machine's RRN/AUTH; day-first dates; an
+  invoice beats the card slip on top of it; a card-only slip's merchant is the supplier; handwriting goes to the new
+  `note` field), `fixDate` swaps a day/month that would be in the future (Brite-Lite's 06/11/26 = 11 June) and drops
+  one that cannot be swapped, and Snap slip uses the note as the description. NOT YET MEASURED: the readers only run
+  on the live site with Stephan's login (no Claude key here), so the score table waits for him to run the photos at
+  /slip-test.
 - **5 Nov: sign-in (preview only).** Supabase settings done by Stephan (Site URL, redirect /set-password, sign-ups off).
   "Continue with Google" button built (`lib/authProviders.ts`), hidden until Google is switched on in Supabase --
   Stephan: "Google later" (he must create the OAuth client in his own Google Cloud account; walk him through it).

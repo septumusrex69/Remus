@@ -201,6 +201,8 @@ export function SlipCapture() {
     if (total !== null) { f.total_incl = String(total); marks.add('total_incl') }
     if (vat !== null) f.vat = String(vat)
     if (x.line_items?.length) f.description = x.line_items.slice(0, 4).map((l) => l.description).join(', ').slice(0, 200)
+    // Handwriting says what it was for, better than the items do ("Nancy Rubble Removal" on a card slip).
+    if (x.note) { f.description = x.note.slice(0, 200); marks.add('description') }
     // A fuel station, a cellphone network, a tyre centre: overheads of that kind, as a suggestion (lib/overheads.ts).
     const kind = presetProject ? null : guessOverheadKind(x.supplier, ...(x.line_items ?? []).slice(0, 4).map((l) => l.description))
     if (kind) { f.for = 'overheads'; f.overhead_kind = kind; marks.add('overhead_kind') }
