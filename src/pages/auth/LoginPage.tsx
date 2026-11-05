@@ -30,6 +30,7 @@ export function LoginPage() {
   const [info, setInfo] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const google = useGoogleSignIn()
+  const [linking, setLinking] = useState(false)
   // Coming back from Google with a refusal (an account nobody invited), Supabase puts the reason in the address.
   useEffect(() => {
     const p = new URLSearchParams(window.location.hash.slice(1) || window.location.search)
@@ -45,6 +46,8 @@ export function LoginPage() {
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
+    // The password box is no longer `required` (the email link needs only the email), so Sign in asks for it here.
+    if (!password) return setError('Enter your password, or tap "Email me a sign-in link".')
     setError(null)
     setSubmitting(true)
     /* The press is what lets the opening's sound play on an iPad, so the audio is woken here, inside it. */
@@ -59,6 +62,23 @@ export function LoginPage() {
     setError(null)
     const { error: err } = await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin } })
     if (err) setError(googleRefusal(err.message))
+  }
+
+  /*
+   * EMAIL ME A SIGN-IN LINK (Remus · Handover 8, 5 Nov 2026). Stephan, for now instead of Google: "do the email link".
+   * Not in Raptor. Supabase emails a link that signs the person in; `shouldCreateUser: false` so it only ever works
+   * for someone already invited -- an unknown address gets the same calm answer and no account.
+   */
+  async function handleLink() {
+    if (!email) return setError('Enter your email first, then tap "Email me a sign-in link".')
+    setError(null)
+    setInfo(null)
+    setLinking(true)
+    const { error: err } = await supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: false, emailRedirectTo: window.location.origin } })
+    setLinking(false)
+    // One answer for known and unknown addresses alike, so the page does not tell a stranger who is on Remus.
+    if (err && !/signups? not allowed|not found|otp_disabled/i.test(err.message)) setError(err.message)
+    else setInfo(`If ${email} is on Remus, a sign-in link is on its way. Open it on this device.`)
   }
 
   async function handleReset() {
@@ -151,7 +171,7 @@ export function LoginPage() {
               <label htmlFor="password" className="label">Password</label>
               <div className="relative">
                 <Lock size={15} className="absolute top-1/2 left-3 -translate-y-1/2 text-slate-400" />
-                <input id="password" type="password" autoComplete="current-password" required className="input pl-9" value={password} onChange={(e) => setPassword(e.target.value)} />
+                <input id="password" type="password" autoComplete="current-password" className="input pl-9" value={password} onChange={(e) => setPassword(e.target.value)} />
               </div>
             </div>
             {error && <p className="text-sm text-red-600">{error}</p>}
@@ -162,6 +182,10 @@ export function LoginPage() {
               className="flex w-full items-center justify-center gap-2 rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-60"
             >
               {submitting ? 'Signing in…' : 'Sign in'} <ArrowRight size={16} />
+            </button>
+            <button type="button" onClick={() => void handleLink()} disabled={linking} data-testid="email-link"
+              className="flex w-full items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800 hover:bg-slate-50 disabled:opacity-60">
+              <Mail size={15} /> {linking ? 'Sending…' : 'Email me a sign-in link'}
             </button>
             <button type="button" onClick={handleReset} className="w-full text-center text-sm text-slate-500 hover:text-slate-700">
               Forgot password?

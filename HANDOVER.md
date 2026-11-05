@@ -97,6 +97,13 @@ slip reader and /slip-test too). Preview: https://remus-git-claude-new-session-z
   * **Client portal password sign-in + part 2** (helper session): see the next bullet; 0042 is now applied.
   * **Phone check:** every page at 390 and 820 wide, no sideways scroll; five pages had an empty top-bar title (fixed);
     Expenses rows stack on a phone. (Fixture harness only; scripts in the session scratchpad, not in the repo.)
+- **5 Nov: sign-in (preview only).** Supabase settings done by Stephan (Site URL, redirect /set-password, sign-ups off).
+  "Continue with Google" button built (`lib/authProviders.ts`), hidden until Google is switched on in Supabase --
+  Stephan: "Google later" (he must create the OAuth client in his own Google Cloud account; walk him through it).
+  "Email me a sign-in link" on the sign-in page (signInWithOtp, shouldCreateUser false: invited people only; one
+  answer for known and unknown addresses). Neither is in Raptor -- Remus's own at Stephan's word. If the email does
+  not arrive, it is Supabase's default email sender (limited): the fix is the Resend DNS item, then Resend as
+  Supabase's SMTP.
 - **Client portal: password sign-in + part 2 (built 3 Nov, on the preview; migration 0042 APPLIED live 4 Nov).**
   Stephan: "Yeah, you can continue with the client. Login as well. The Raptor stuff, you can build in." Built in a
   worktree branch by a helper session; **apply `0042_portal_passwords_and_phase2.sql` BEFORE this code goes live** --
