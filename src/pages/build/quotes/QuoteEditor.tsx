@@ -46,7 +46,8 @@ import {
   type EditableLine, type StagePlan,
 } from '../../../lib/quoteMath'
 import { QUOTE_FILES_BUCKET, supabase } from '../../../lib/supabase'
-import { Button, Card, ErrorBanner, Field, PageHeader, Spinner, StatusBadge } from '../../../components/ui'
+import { Button, Card, ErrorBanner, Field, Spinner, StatusBadge } from '../../../components/ui'
+import { HeroFact, RecordHero } from '../../../components/record/RecordShell'
 import { DictateButton } from '../../../components/ui/Dictate'
 import { RowMenu } from '../../../components/ui/RowMenu'
 import { NumInput } from '../../../components/ui/NumInput'
@@ -507,6 +508,11 @@ export function QuoteEditor() {
     }
   }
 
+  /* The client named in the band, linked to their page. */
+  const heroClient = quoteContact && !quote.company_id
+    ? { name: `${quoteContact.first_name} ${quoteContact.last_name}`.trim(), to: paths.contact(quoteContact.id) }
+    : quoteCompany ? { name: quoteCompany.name, to: paths.company(quoteCompany.id) } : null
+
   const clientEmail = (() => {
     if (!dir) return ''
     const contact = quote.contact_id ? dir.contactById.get(quote.contact_id) : null
@@ -520,48 +526,54 @@ export function QuoteEditor() {
       <Link to={paths.quotes()} className="no-print mb-3 inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-800">
         <ArrowLeft size={14} /> Quotes
       </Link>
-      <PageHeader
-        title={
-          <span className="flex items-center gap-2">
-            <span className="font-mono text-base text-slate-400">{quote.number}</span> {quote.title || 'Untitled quote'}
-          </span>
-        }
-        subtitle={
-          <span className="flex flex-wrap items-center gap-2">
-            <StatusBadge status={quote.status} />
-            {quote.sent_at && <span className="text-xs">Sent {formatDateTime(quote.sent_at)} to {quote.sent_to}</span>}
-            {/* Remus · Handover 8: the client's own yes, from the portal (the bell told the Administrators). */}
-            {quote.accepted_via === 'portal' && quote.accepted_at && (
-              <span className="text-xs font-medium text-emerald-700" data-testid="quote-accepted-portal">
-                Accepted on the client portal by {quote.accepted_by_name || 'the client'}, {formatDateTime(quote.accepted_at)}
-              </span>
-            )}
-            {dirty ? <span className="text-xs text-brand-700">Unsaved changes</span> : savedAt ? <span className="text-xs text-emerald-700">Saved</span> : null}
-          </span>
-        }
-        actions={
-          <>
+      {/*
+        RAPTOR'S RECORD BAND (Remus · Handover 8): the quote's number, title, client and where it stands, on the
+        same band as a project and a client. The buttons stay under it rather than in it: the PDF and WhatsApp
+        menus drop down, and a band clips what hangs out of it. Save stays in the band, where the eye is.
+      */}
+      <div className="mb-4 space-y-3">
+        <RecordHero
+          eyebrow="Quote"
+          title={quote.title || 'Untitled quote'}
+          code={quote.number}
+          subtitle={heroClient ? <Link to={heroClient.to} className="text-white/85 hover:text-white hover:underline">{heroClient.name}</Link> : 'No client yet'}
+          facts={
+            <>
+              <StatusBadge status={quote.status} />
+              {quote.sent_at && <HeroFact icon={Send}>Sent {formatDateTime(quote.sent_at)} to {quote.sent_to}</HeroFact>}
+              {/* Remus · Handover 8: the client's own yes, from the portal (the bell told the Administrators). */}
+              {quote.accepted_via === 'portal' && quote.accepted_at && (
+                <span className="max-w-full" data-testid="quote-accepted-portal">
+                  <HeroFact dot="bg-emerald-400">Accepted on the client portal by {quote.accepted_by_name || 'the client'}, {formatDateTime(quote.accepted_at)}</HeroFact>
+                </span>
+              )}
+              {dirty ? <HeroFact dot="bg-brand-400">Unsaved changes</HeroFact> : savedAt ? <HeroFact dot="bg-emerald-400">Saved</HeroFact> : null}
+            </>
+          }
+          actions={
             <Button variant="primary" onClick={save} loading={saving} disabled={!dirty}>
               <Save size={15} /> Save
             </Button>
-            {/* Print and PDF save first, so they always show what is on the screen. */}
-            <Button onClick={async () => { if (!dirty || (await save())) navigate(paths.quotePrint(quote.id)) }}>
-              <Printer size={15} /> Print
-            </Button>
-            <PdfMenu quoteId={quote.id} beforeBuild={async () => (dirty ? save() : true)} onError={setError} />
-            <WhatsAppQuoteButton quoteId={quote.id} numbers={whatsAppNumbers} beforeBuild={async () => (dirty ? save() : true)}
-              message={quoteWhatsAppMessage({ firstName: quoteContact?.first_name, senderName: currentUser?.name?.split(' ')[0], companyName: settings?.name, quoteNumber: quote.number, title: quote.title })}
-              blocked={needsApproval} onSent={(to) => void markSentVia(to)} onError={setError} />
-            {/* Internal: where to buy each material (ShoppingListModal). */}
-            <Button onClick={() => setShopping(true)}>
-              <ShoppingCart size={15} /> Shopping list
-            </Button>
-            <Button onClick={() => !needsApproval() && setSending(true)}>
-              <Mail size={15} /> Send to client
-            </Button>
-          </>
-        }
-      />
+          }
+        />
+        <div className="no-print flex flex-wrap items-start gap-2">
+          {/* Print and PDF save first, so they always show what is on the screen. */}
+          <Button onClick={async () => { if (!dirty || (await save())) navigate(paths.quotePrint(quote.id)) }}>
+            <Printer size={15} /> Print
+          </Button>
+          <PdfMenu quoteId={quote.id} beforeBuild={async () => (dirty ? save() : true)} onError={setError} />
+          <WhatsAppQuoteButton quoteId={quote.id} numbers={whatsAppNumbers} beforeBuild={async () => (dirty ? save() : true)}
+            message={quoteWhatsAppMessage({ firstName: quoteContact?.first_name, senderName: currentUser?.name?.split(' ')[0], companyName: settings?.name, quoteNumber: quote.number, title: quote.title })}
+            blocked={needsApproval} onSent={(to) => void markSentVia(to)} onError={setError} />
+          {/* Internal: where to buy each material (ShoppingListModal). */}
+          <Button onClick={() => setShopping(true)}>
+            <ShoppingCart size={15} /> Shopping list
+          </Button>
+          <Button onClick={() => !needsApproval() && setSending(true)}>
+            <Mail size={15} /> Send to client
+          </Button>
+        </div>
+      </div>
       <ErrorBanner error={error} />
 
       <div className="mb-4 flex flex-wrap gap-2">

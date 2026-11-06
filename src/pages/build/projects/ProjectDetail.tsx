@@ -1,9 +1,9 @@
 import { parseISO } from 'date-fns'
-import { editsQuotes, seesBudget, seesMoney, seesQuotes, useAccess } from '../../../lib/access'
+import { editsQuotes, seesBudget, seesMoney, seesQuotes, useAccess, useSnapsSlips } from '../../../lib/access'
 import { NumInput } from '../../../components/ui/NumInput'
 import { useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { ArrowLeft, Camera, Check, ExternalLink, FileText, Pencil, Plus, Printer, Trash2 } from 'lucide-react'
+import { ArrowLeft, CalendarDays, Camera, Check, ExternalLink, FileText, MapPin, Pencil, Plus, Printer, Trash2 } from 'lucide-react'
 import {
   clientLabel,
   diaryEvents,
@@ -27,7 +27,9 @@ import {
 import { formatDate, formatDateTime, formatPct, formatZAR, labelize, round2, todayYmd } from '../../../lib/format'
 import { invoiceTotal, paidByInvoice } from '../../../lib/finance'
 import { useLoad } from '../../../hooks/useLoad'
-import { Button, Card, EmptyState, ErrorBanner, Field, Modal, PageHeader, ProgressBar, Spinner, StatTile, StatusBadge, Tabs } from '../../../components/ui'
+import { Button, Card, EmptyState, ErrorBanner, Field, Modal, ProgressBar, Spinner, StatusBadge } from '../../../components/ui'
+import { HeroAction, HeroFact, RecordFigure, RecordFigures, RecordHero, RecordTabs } from '../../../components/record/RecordShell'
+import { actualCost, quotedCost, scoreJob } from '../../../lib/jobScore'
 import {
   EXPENSE_CATEGORIES,
   INVOICE_STATUSES,
@@ -112,6 +114,7 @@ export function ProjectDetail() {
   // Who sees what (lib/access.ts): slips, invoices and variations are money; the rest is everybody's.
   const access = useAccess()
   const money = seesMoney(access)
+  const snaps = useSnapsSlips()
   const asked = (params.get('tab') as Tab) || 'overview'
   const tab: Tab = !money && MONEY_TABS.includes(asked) ? 'overview' : asked
   const { data, error, loading, reload } = useLoad(() => load(id), [id], 'project')
@@ -130,24 +133,43 @@ export function ProjectDetail() {
   if (!data?.project) return <ErrorBanner error={error ?? 'Project not found'} />
   const { project } = data
 
+  const progress = projectProgress(project.status, data.stages, todayYmd())
+  const clientTo = project.company_id ? paths.company(project.company_id) : project.contact_id ? paths.contact(project.contact_id) : null
+  const client = clientLabel(data.dir, project)
+  const dates = project.start_date || project.end_date
+    ? `${formatDate(project.start_date, 'd MMM yyyy')} – ${formatDate(project.end_date, 'd MMM yyyy')}`
+    : null
+
   return (
-    <div>
-      <Link to={paths.projects()} className="mb-3 inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-800"><ArrowLeft size={14} /> Projects</Link>
-      <PageHeader
+    <div className="space-y-4">
+      <Link to={paths.projects()} className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-800"><ArrowLeft size={14} /> Projects</Link>
+      {/*
+        RAPTOR'S RECORD PAGE (Remus · Handover 8): the band naming the job, the figures under it, then the tabs.
+        Stephan: "when we build things, build it exactly like Raptor." What the band and figures show follows
+        lib/access.ts: rand only for those who see money, the budget in percentages for a contractor, and for a
+        site manager the job, its dates and how far along it is.
+      */}
+      <RecordHero
+        eyebrow="Project"
         title={project.name}
-        subtitle={
-          <span className="flex flex-wrap items-center gap-2">
+        code={project.code}
+        subtitle={clientTo ? <Link to={clientTo} className="text-white/85 hover:text-white hover:underline">{client}</Link> : client}
+        facts={
+          <>
             <StatusBadge status={project.status} />
-            {project.code && <span className="font-mono text-xs">{project.code}</span>}
-            <span>{clientLabel(data.dir, project)}</span>
-            {project.site_address && <span>· {project.site_address}</span>}
-          </span>
+            {project.site_address && <HeroFact icon={MapPin}>{project.site_address}</HeroFact>}
+            {dates && <HeroFact icon={CalendarDays}>{dates}</HeroFact>}
+            {progress != null && <HeroFact dot="bg-emerald-400">{progress}% by the plan</HeroFact>}
+          </>
         }
         actions={
           <>
-            {seesQuotes(access) && <Button onClick={() => setEditing(true)}><Pencil size={14} /> Edit</Button>}
-            {money && <Button
-              variant="danger"
+            {snaps && <HeroAction primary icon={Camera} label="Snap slip" to={`${paths.capture()}?project=${project.id}`} title="Photograph a slip for this job" />}
+            {seesQuotes(access) && <HeroAction icon={Pencil} label="Edit" onClick={() => setEditing(true)} />}
+            {money && <HeroAction
+              danger
+              icon={Trash2}
+              title="Delete this project"
               onClick={() => {
                 if (!window.confirm('Delete this project? Its variations, site diary and scheduled events are deleted with it; expenses and invoices are kept as unassigned.')) return
                 act(async () => {
@@ -155,26 +177,25 @@ export function ProjectDetail() {
                   navigate(paths.projects())
                 })
               }}
-            >
-              <Trash2 size={14} />
-            </Button>}
+            />}
           </>
         }
       />
+      <ProjectFigures data={data} money={money} budget={seesBudget(access)} progress={progress} />
       <ErrorBanner error={actionError ?? error} />
-      <Tabs<Tab>
-        value={tab}
+      <RecordTabs<Tab>
+        active={tab}
         onChange={(t) => setParams({ tab: t }, { replace: true })}
         tabs={([
           { id: 'overview', label: 'Overview' },
           ...(seesQuotes(access) ? [{ id: 'quote' as Tab, label: data.shownQuote?.number ? `Quote ${data.shownQuote.number}` : 'Quote' }] : []),
-          { id: 'plan', label: 'Plan & crew' },
-          { id: 'expenses', label: `Expenses (${data.exp.length})` },
-          { id: 'invoices', label: 'Invoices & payments' },
-          { id: 'variations', label: `Variations (${data.vars.length})` },
-          { id: 'diary', label: 'Site diary' },
-          { id: 'schedule', label: 'Events' },
-        ] as { id: Tab; label: string }[]).filter((t) => money || !MONEY_TABS.includes(t.id))}
+          { id: 'plan', label: 'Plan & crew', count: data.stages.length },
+          { id: 'expenses', label: 'Expenses', count: data.exp.length },
+          { id: 'invoices', label: 'Invoices & payments', count: data.inv.length },
+          { id: 'variations', label: 'Variations', count: data.vars.length },
+          { id: 'diary', label: 'Site diary', count: data.entries.length },
+          { id: 'schedule', label: 'Events', count: data.events.length },
+        ] as { id: Tab; label: string; count?: number }[]).filter((t) => money || !MONEY_TABS.includes(t.id))}
       />
 
       {tab === 'overview' && (money ? <Overview data={data} /> : <PlainOverview data={data} budget={seesBudget(access)} quotes={seesQuotes(access)} />)}
@@ -194,6 +215,51 @@ export function ProjectDetail() {
 type Data = Awaited<ReturnType<typeof load>>
 
 /**
+ * THE FIGURES UNDER THE BAND (Raptor's RecordFigures, Remus · Handover 8), on every tab. Who sees which
+ * (lib/access.ts): the four rand figures that used to open the Overview for those who see money; for a
+ * contractor, how far along and how much of the budget is used, in percentages only (the scorecard's own
+ * reading, lib/jobScore.ts, so the two never disagree); nothing for a site manager, whose Overview opens
+ * with how far along the job is.
+ */
+function ProjectFigures({ data, money, budget, progress }: { data: Data; money: boolean; budget: boolean; progress: number | null }) {
+  const p = data.project!
+  const f = data.fin
+  if (money) {
+    // Spent and profit include the crew's booked days, as the scorecard and Plan & crew count them.
+    const crew = data.crew
+    const spent = round2((f?.expenses_total ?? 0) + crew)
+    const revised = f?.revised_contract ?? p.contract_value
+    const profit = round2(revised - spent)
+    const margin = revised ? (profit / revised) * 100 : null
+    return (
+      <RecordFigures count={4}>
+        <RecordFigure strong label="Revised contract" value={formatZAR(revised, { decimals: 0 })} note={f?.approved_variations ? `incl. ${formatZAR(f.approved_variations, { decimals: 0 })} variations` : 'excl. VAT'} />
+        <RecordFigure label="Spent" value={formatZAR(spent, { decimals: 0 })} note={crew ? `excl. VAT, incl. ${formatZAR(crew, { decimals: 0 })} crew` : 'excl. VAT'} />
+        <RecordFigure label="Gross profit" value={formatZAR(profit, { decimals: 0 })} tone={profit < 0 ? 'bad' : 'good'} note={`Margin ${formatPct(margin)}`} />
+        <RecordFigure label="Received" value={formatZAR(f?.received ?? 0, { decimals: 0 })} note={`Invoiced ${formatZAR(f?.invoiced_incl ?? 0, { decimals: 0 })} incl. VAT`} />
+      </RecordFigures>
+    )
+  }
+  if (!budget) return null
+  const s = scoreJob({
+    quoted: quotedCost(data.quote, data.items, Number(p.budget), data.stages),
+    actual: actualCost(data.exp, data.crew),
+    contract: Number(p.contract_value),
+    variations: Number(f?.approved_variations ?? 0),
+    status: p.status,
+    start: p.start_date,
+    end: p.end_date,
+    today: todayYmd(),
+  })
+  return (
+    <RecordFigures count={4}>
+      <RecordFigure strong label="How far along" value={progress == null ? '—' : `${progress}%`} note={progress == null ? 'No plan yet' : 'by the plan'} />
+      <RecordFigure label="Budget used" value={s.costPct == null ? '—' : `${s.costPct}%`} tone={s.tone === 'bad' ? 'bad' : undefined} note={s.plain} />
+    </RecordFigures>
+  )
+}
+
+/**
  * THE OVERVIEW WITHOUT MONEY (lib/access.ts): a contractor sees whether the job is on budget, in words
  * and percentages (the same verdict as the Administrator's scorecard); a site manager sees the dates.
  */
@@ -203,7 +269,7 @@ function PlainOverview({ data, budget, quotes }: { data: Data; budget: boolean; 
     <div className="space-y-4">
       <HowFarAlong data={data} />
       {budget && <JobScorecard plain project={p} quote={data.quote} items={data.items} stages={data.stages} expenses={data.exp} crew={data.crew} variations={Number(data.fin?.approved_variations ?? 0)} />}
-      <Card title="The job">
+      <Card title="The job" subtitle="Dates, the quote and notes.">
         <dl className="grid grid-cols-2 gap-y-2 text-sm sm:grid-cols-4">
           <dt className="text-slate-500">Start</dt><dd>{formatDate(p.start_date)}</dd>
           <dt className="text-slate-500">End</dt><dd>{formatDate(p.end_date)}</dd>
@@ -224,24 +290,14 @@ function Overview({ data }: { data: Data }) {
   const p = data.project!
   const f = data.fin
   const byCat = EXPENSE_CATEGORIES.map((c) => ({ name: labelize(c), value: Number(f?.[`expenses_${c}` as const] ?? 0) })).filter((x) => x.value > 0)
-  // Spent and profit include the crew's booked days, as the scorecard below and Plan & crew count them.
-  const crew = data.crew
-  const spent = round2((f?.expenses_total ?? 0) + crew)
-  const revised = f?.revised_contract ?? p.contract_value
-  const profit = round2(revised - spent)
-  const margin = revised ? (profit / revised) * 100 : null
+  // Spent includes the crew's booked days, as the figures above and Plan & crew count them.
+  const spent = round2((f?.expenses_total ?? 0) + data.crew)
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatTile label="Revised contract" value={formatZAR(f?.revised_contract ?? p.contract_value, { decimals: 0 })} hint={f?.approved_variations ? `incl. ${formatZAR(f.approved_variations, { decimals: 0 })} variations` : 'excl. VAT'} />
-        <StatTile label="Spent" value={formatZAR(spent, { decimals: 0 })} hint={crew ? `excl. VAT, incl. ${formatZAR(crew, { decimals: 0 })} crew` : 'excl. VAT'} />
-        <StatTile label="Gross profit" value={formatZAR(profit, { decimals: 0 })} tone={profit < 0 ? 'bad' : 'good'} hint={`Margin ${formatPct(margin)}`} />
-        <StatTile label="Received" value={formatZAR(f?.received ?? 0, { decimals: 0 })} hint={`Invoiced ${formatZAR(f?.invoiced_incl ?? 0, { decimals: 0 })} incl. VAT`} />
-      </div>
       <HowFarAlong data={data} />
       <JobScorecard project={p} quote={data.quote} items={data.items} stages={data.stages} expenses={data.exp} crew={data.crew} variations={Number(f?.approved_variations ?? 0)} />
       <div className="grid gap-4 lg:grid-cols-2">
-        <Card title="Budget">
+        <Card title="Budget" subtitle="Spent so far against the project budget, excl. VAT.">
           <div className="mb-2 flex justify-between text-sm">
             <span className="text-slate-600">{formatZAR(spent)} of {formatZAR(p.budget)}</span>
             <span className={`font-medium ${p.budget - spent < 0 ? 'text-red-600' : 'text-slate-800'}`}>{formatZAR(round2(p.budget - spent))} left</span>
@@ -257,7 +313,7 @@ function Overview({ data }: { data: Data }) {
           </dl>
           {p.notes && <p className="mt-3 whitespace-pre-line text-sm text-slate-600">{p.notes}</p>}
         </Card>
-        <Card title="Expenses by category">
+        <Card title="Expenses by category" subtitle="Slips on this job, excl. VAT.">
           {byCat.length === 0 ? (
             <EmptyState title="No expenses yet" />
           ) : (

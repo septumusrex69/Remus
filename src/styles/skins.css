@@ -532,3 +532,6 @@ html[data-theme='night'] .ops-board {
 }
 html[data-theme='night'] .ops-panel { background-color: rgba(18, 19, 21, 0.6); }
 html[data-theme='night'] .skin-band > div { width: 100%; }
+/* A record's band (a project, a client; Remus · Handover 8) is the dashboard's band, lower: the city drawing
+   still shows, but the job's figures and tabs are not pushed half a screen down. */
+html[data-theme='night'] .skin-band.skin-band-record { min-height: 190px; }
