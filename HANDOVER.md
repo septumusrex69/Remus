@@ -97,6 +97,13 @@ slip reader and /slip-test too). Preview: https://remus-git-claude-new-session-z
   * **Client portal password sign-in + part 2** (helper session): see the next bullet; 0042 is now applied.
   * **Phone check:** every page at 390 and 820 wide, no sideways scroll; five pages had an empty top-bar title (fixed);
     Expenses rows stack on a phone. (Fixture harness only; scripts in the session scratchpad, not in the repo.)
+- **6 Nov: `npm run qa` -- test everything with one command** (copied from Raptor's 55a7520 by a helper session):
+  typecheck, lint, unit tests, build, then a robot tour of every route in routes.tsx (+ /login, /portal) at 390 and
+  1280 against fixtures (fake database, no secrets) failing on errors, an empty title or sideways scroll, plus
+  `handover-8.mjs` checks of this session's features. `npm run qa -- --fast` skips the browser. All green on 6 Nov:
+  ~470 checks, ~2 min. `.github/workflows/qa.yml` runs it on GitHub (browser job never seen running yet).
+  `scripts/qa/README.md`. Run it before every go-live. Not copied: Raptor's live crash reports by email (needs a
+  table and Resend) -- offer it to Stephan.
 - **6 Nov: record pages in Raptor's layout** (Stephan picked it; helper session, preview only): `src/components/record/RecordShell.tsx`
   copied from Raptor's RecordShell + DashboardHero + CompanyDetail -- a `skin-band` hero (name, code chip, client,
   status, fact chips, 2-3 band buttons), a row of figure tiles by access (money / contractor percentages / none for
