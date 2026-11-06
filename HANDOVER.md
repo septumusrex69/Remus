@@ -97,6 +97,19 @@ slip reader and /slip-test too). Preview: https://remus-git-claude-new-session-z
   * **Client portal password sign-in + part 2** (helper session): see the next bullet; 0042 is now applied.
   * **Phone check:** every page at 390 and 820 wide, no sideways scroll; five pages had an empty top-bar title (fixed);
     Expenses rows stack on a phone. (Fixture harness only; scripts in the session scratchpad, not in the repo.)
+- **6 Nov: record pages in Raptor's layout** (Stephan picked it; helper session, preview only): `src/components/record/RecordShell.tsx`
+  copied from Raptor's RecordShell + DashboardHero + CompanyDetail -- a `skin-band` hero (name, code chip, client,
+  status, fact chips, 2-3 band buttons), a row of figure tiles by access (money / contractor percentages / none for
+  site managers), and Raptor's tab strip with counts and `?tab=`. Project, client (company + private: new Emails,
+  Quotes, Invoices tabs) and the quote editor's header. Different from Raptor: no logo in the band, slate-900 not
+  ink-950 for dark words (ink-950 is Night's page), frosted code chip, no More menu / layout switcher. Worker and
+  subcontractor pages still have the old header.
+- **6 Nov: company email (Resend) -- waiting on Stephan's DNS:** urbanhausgroup.co.za is in Resend but "failed";
+  Remus's side is ready (RESEND_API_KEY, EMAIL_FROM quotes@urbanhausgroup.co.za). Stephan was given the 4 records
+  (TXT resend._domainkey, MX send -> feedback-smtp.eu-west-1.amazonses.com 10, TXT send v=spf1
+  include:amazonses.com ~all, CNAME rsend -> send.forge.rmta.net) and asked who hosts the domain. Then: verify
+  with the Resend tool, and walk him through Supabase -> Authentication -> Emails -> SMTP (smtp.resend.com, 465,
+  user "resend", password = a Resend key HE creates and pastes there, sender no-reply@urbanhausgroup.co.za).
 - **5 Nov: Stephan's first five test slips** (sent in the chat "to help build the reader"; right answers in
   `docs/slip-test-truth.md`; photos NOT committed -- real card slips and the firm's customer number). The reader
   learned from them (preview only): SLIP_SYSTEM gained one short rules paragraph (discounts are negative lines and

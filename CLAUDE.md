@@ -66,7 +66,7 @@ How to apply it:
 - [x] **Settings in Raptor's layout**: tab menu on the left that folds, one tab at a time, Save per tab, `?tab=` links.
 - [x] **Change requests** (the light bulb, `/requests`, the bell, the nightly review): Raptor's
       Feedback Centre, copied in Remus · Handoff 1. `.claude/skills/change-requests/SKILL.md`.
-- [ ] Record pages with Raptor's hero band, cards (`CardHeader` title + subtitle) and tabs.
+- [x] Record pages with Raptor's hero band, cards (`CardHeader` title + subtitle) and tabs (project, client, quote header: Remus · Handover 8; worker and subcontractor pages still old).
 - [x] Phone and iPad layouts that work (site managers use phones; every page checked at 390 and 820 wide, Remus · Handover 8).
 
 ## Working rules
