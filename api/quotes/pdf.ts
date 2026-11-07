@@ -1,12 +1,15 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { requireCaller } from '../_lib/auth.js'
 import { buildQuotePdf, QuotePdfError } from '../_lib/quotePdf.js'
+import { statementPdfHandler } from '../_lib/statementSend.js'
 
-/** GET /api/quotes/pdf?id=<quote id> → the quote as an A4 PDF (Authorization: Bearer <session>). */
+/** GET /api/quotes/pdf?id=<quote id> → the quote as an A4 PDF (Authorization: Bearer <session>). Also a client's statement (below). */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
   const caller = await requireCaller(req)
   if (!caller) return res.status(401).json({ error: 'Please sign in again.' })
+  // Remus · Handover 8: a client's statement of account rides on this endpoint (?statement=company|contact&client=<id>).
+  if (req.query.statement) return statementPdfHandler(req, res, caller)
   const id = typeof req.query.id === 'string' ? req.query.id : ''
   if (!id) return res.status(400).json({ error: 'id is required.' })
   try {

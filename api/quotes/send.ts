@@ -5,6 +5,7 @@ import { credentialsKeyProblem } from '../_lib/crypto.js'
 import { adminClient, getConnection, logEmailActivity, sendFromOwnMailbox, type MailboxConnection } from '../_lib/mailbox.js'
 import { buildQuotePdf } from '../_lib/quotePdf.js'
 import { quoteFileLoader, shrinkPhoto } from '../_lib/quoteFiles.js'
+import { statementSendHandler } from '../_lib/statementSend.js'
 
 /**
  * Emails a quote to the client.
@@ -79,6 +80,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const caller = await requireCaller(req)
   if (!caller) {
     res.status(401).json({ error: 'Invalid or expired session.' })
+    return
+  }
+  // Remus · Handover 8: a client's statement of account goes out the same way (api/_lib/statementSend.ts).
+  if ((req.body as { statement?: unknown } | undefined)?.statement) {
+    await statementSendHandler(req, res, caller)
     return
   }
 
