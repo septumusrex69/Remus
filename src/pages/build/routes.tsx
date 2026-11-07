@@ -33,6 +33,7 @@ const pages = {
   ProductsPage: () => import('./products/ProductsPage'),
   ReturnsPage: () => import('./returns/ReturnsPage'),
   PhotoDaysPage: () => import('./photos/PhotoDaysPage'),
+  LibraryPage: () => import('./library/LibraryPage'),
 }
 
 const DashboardPage = lazy(() => pages.DashboardPage().then((x) => ({ default: x.DashboardPage })))
@@ -62,6 +63,7 @@ const FinancePage = lazy(() => pages.FinancePage().then((x) => ({ default: x.Fin
 const MailPage = lazy(() => pages.MailPage().then((x) => ({ default: x.MailPage })))
 const RequestsPage = lazy(() => pages.RequestsPage().then((x) => ({ default: x.RequestsPage })))
 const SettingsPage = lazy(() => pages.SettingsPage().then((x) => ({ default: x.SettingsPage })))
+const LibraryPage = lazy(() => pages.LibraryPage().then((x) => ({ default: x.LibraryPage })))
 
 /** The quote editor carries costs and markup: a contractor reads the quote as the client does. */
 function QuoteEditorOrPrint() {
@@ -124,5 +126,7 @@ export const buildRoutes = (
     {/* WHO SEES WHAT (lib/access.ts): money pages for Administrators; quotes not for site managers. */}
     {/* CHANGE REQUESTS (copied from Raptor): open to everybody -- "anyone can see requests". */}
     <Route path="requests" element={<RequestsPage />} />
+    {/* Remus · Handover 8: the Library (templates, letterhead). Everybody reads; an Administrator writes. */}
+    <Route path="library" element={<LibraryPage />} />
   </>
 )

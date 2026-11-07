@@ -127,3 +127,30 @@ export function baseDb(profile = ADMIN) {
 export function backend(profile = ADMIN, { db = {}, api = {}, handlers = [] } = {}) {
   return { db: { ...baseDb(profile), ...db }, api: { ...API, ...api }, handlers }
 }
+
+/* ---------- Remus · Handover 8: the Library and online signing (0046, 0047) ---------- */
+
+export const TEMPLATE_ID = '99999999-9999-4999-8999-999999999991'
+export const DOCUMENT_ID = '99999999-9999-4999-8999-999999999992'
+export const SIGNING_ID = '99999999-9999-4999-8999-999999999993'
+
+export const DOC_TEMPLATE = {
+  id: TEMPLATE_ID, kind: 'contract', name: 'Building contract', subject: 'Building contract: {{project_name}}',
+  body: '# BUILDING CONTRACT\n\n**The client:** {{client_name}}\n\n## 2. The contract sum\nThe price is {{contract_sum}}.\n- A deposit of {{deposit_pct}}%.',
+  signable: true, active: true, seed_key: 'contract-building', created_by: null, created_at: T0, updated_at: T0,
+}
+
+export const PROJECT_DOCUMENT = {
+  id: DOCUMENT_ID, project_id: PROJECT_ID, company_id: COMPANY_ID, contact_id: CONTACT_ID, quote_id: QUOTE_ID, variation_id: null,
+  invoice_id: null, template_id: TEMPLATE_ID, kind: 'contract', title: 'Building contract: Kitchen at 2 Client Road',
+  subject: 'Building contract: Kitchen at 2 Client Road',
+  body: '# BUILDING CONTRACT\n\n**The client:** Test Client (Pty) Ltd\n\nThe price is R 345 000.00.', signable: true,
+  status: 'sent', sent_at: '2026-11-06T09:00:00Z', sent_to: 'thandi@example.test', created_by: USER_ID, created_at: '2026-11-06T08:00:00Z', updated_at: '2026-11-06T09:00:00Z',
+}
+
+export const SIGNING_REQUEST = {
+  id: SIGNING_ID, source: 'document', document_id: DOCUMENT_ID, quote_id: QUOTE_ID, variation_id: null, project_id: PROJECT_ID,
+  title: 'Building contract: Kitchen at 2 Client Road', signer_name: 'Thandi Client', signer_email: 'thandi@example.test',
+  state: 'sent', expires_at: '2099-01-01T00:00:00Z', opened_at: '2026-11-06T10:00:00Z', open_count: 1, signed_at: null, signed_name: null,
+  signed_ip: null, emailed_at: '2026-11-06T09:00:00Z', copy_sent_at: null, created_by: USER_ID, created_at: '2026-11-06T09:00:00Z',
+}

@@ -13,6 +13,8 @@ import { SignInOpening } from './components/opening/SignInOpening'
 const PortalPage = lazy(() => import('./pages/portal/PortalPage'))
 /* Remus's sign-in openings, replayable (Remus · Handoff 6, from Raptor S16). No data, so no sign-in. */
 const OpeningPage = lazy(() => import('./pages/OpeningPage'))
+/* Online signing (Remus · Handover 8, from Raptor): a client signs a document from a link, no login. */
+const SignPage = lazy(() => import('./pages/sign/SignPage'))
 
 function App() {
   return (
@@ -24,6 +26,7 @@ function App() {
         <Route path="/set-password" element={<SetPasswordPage />} />
         <Route path="/opening" element={<Suspense fallback={null}><OpeningPage /></Suspense>} />
         <Route path="/portal" element={<Suspense fallback={null}><PortalPage /></Suspense>} />
+        <Route path="/sign/:token" element={<Suspense fallback={null}><SignPage /></Suspense>} />
         <Route
           path="/"
           element={

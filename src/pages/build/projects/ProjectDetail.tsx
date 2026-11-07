@@ -60,8 +60,9 @@ import { workingDaysIn } from '../../../lib/workdays'
 import { QuoteDocument } from '../quotes/QuotePrint'
 import type { Quote } from '../../../types'
 import { projectCrewCost } from '../../../lib/crewDays'
+import { DocumentsTab } from '../../../components/documents/DocumentsTab'
 
-type Tab = 'overview' | 'quote' | 'plan' | 'expenses' | 'invoices' | 'variations' | 'diary' | 'schedule'
+type Tab = 'overview' | 'quote' | 'plan' | 'expenses' | 'invoices' | 'variations' | 'diary' | 'schedule' | 'documents'
 const MONEY_TABS: Tab[] = ['expenses', 'invoices', 'variations']
 
 /** Runs a click action, reporting any failure to the page's error banner. */
@@ -195,6 +196,8 @@ export function ProjectDetail() {
           { id: 'variations', label: 'Variations', count: data.vars.length },
           { id: 'diary', label: 'Site diary', count: data.entries.length },
           { id: 'schedule', label: 'Events', count: data.events.length },
+          /* Remus · Handover 8: the Library's documents and online signing (components/documents/DocumentsTab). */
+          { id: 'documents', label: 'Documents' },
         ] as { id: Tab; label: string; count?: number }[]).filter((t) => money || !MONEY_TABS.includes(t.id))}
       />
 
@@ -206,6 +209,7 @@ export function ProjectDetail() {
       {tab === 'variations' && <VariationsTab projectId={project.id} rows={data.vars} reload={reload} act={act} />}
       {tab === 'diary' && <DiaryTab projectId={project.id} rows={data.entries} projects={data.allProjects} reload={reload} />}
       {tab === 'schedule' && <ScheduleTab data={data} reload={reload} />}
+      {tab === 'documents' && <DocumentsTab project={project} />}
 
       <ProjectFormModal open={editing} editing={project} onClose={() => setEditing(false)} onSaved={() => { setEditing(false); reload() }} />
     </div>

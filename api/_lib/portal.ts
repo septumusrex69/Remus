@@ -5,6 +5,7 @@ import { requireCaller } from './auth.js'
 import { credentialsKeyProblem, hashPassword, keyedHash, passwordMatches, sameHex } from './crypto.js'
 import { adminClient, getConnection, sendFromOwnMailbox } from './mailbox.js'
 import { buildQuotePdf, QuotePdfError } from './quotePdf.js'
+import { SIGNING_ROUTES } from './signing.js'
 import {
   CODE_SENT_MESSAGE, PORTAL_CODE_MESSAGE, PORTAL_CODE_MINUTES, PORTAL_INVOICE_STATUSES, PORTAL_PASSWORD_LOCK_MINUTES,
   PORTAL_PASSWORD_WRONG, PORTAL_PHOTOS_PER_PROJECT, PORTAL_PROJECT_STATUS, PORTAL_QUOTE_STATUS,
@@ -508,6 +509,8 @@ export const PORTAL_ROUTES: Record<string, Handler> = {
   'staff-list': staffList,
   'staff-invite': staffInvite,
   'staff-set-active': staffSetActive,
+  /* Remus · Handover 8: Library documents and online signing (api/_lib/signing.ts) share the portal's door. */
+  ...SIGNING_ROUTES,
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {

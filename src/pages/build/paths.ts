@@ -44,5 +44,7 @@ export const paths = {
   ops: () => p('/ops'),
   /** The products book: what the team buys, prefers and avoids (Remus · Handover 6). */
   products: () => p('/products'),
+  /** The Library: document templates and the letterhead (Remus · Handover 8). */
+  library: (tab?: 'letterhead') => p(tab ? `/library?tab=${tab}` : '/library'),
   settings: (tab?: string) => p(tab ? `/settings?tab=${encodeURIComponent(tab)}` : '/settings'),
 }
