@@ -127,3 +127,30 @@ export function baseDb(profile = ADMIN) {
 export function backend(profile = ADMIN, { db = {}, api = {}, handlers = [] } = {}) {
   return { db: { ...baseDb(profile), ...db }, api: { ...API, ...api }, handlers }
 }
+
+/* ---------- Remus · Handover 8: statement of account and reports ---------- */
+
+export const INVOICE_ID = '99999999-9999-4999-8999-999999999991'
+export const WORKER_ID = '99999999-9999-4999-8999-999999999992'
+
+/** An invoice on the kitchen, long overdue, part paid: the statement and the reports have something to show. */
+export const INVOICE = {
+  id: INVOICE_ID, project_id: PROJECT_ID, company_id: COMPANY_ID, contact_id: null, number: 'INV-0001',
+  issue_date: '2026-07-01', due_date: '2026-07-31', description: 'Deposit', amount_excl: 100000, vat: 15000,
+  status: 'sent', created_at: T0,
+}
+
+export const PAYMENT = {
+  id: '99999999-9999-4999-8999-999999999993', invoice_id: INVOICE_ID, project_id: PROJECT_ID, date: '2026-08-15',
+  amount: 50000, method: 'eft', reference: 'TEST CLIENT', created_at: T0,
+}
+
+export const WORKER = {
+  id: WORKER_ID, name: 'Sipho Builder', trade: 'Bricklayer', grade: 'senior', day_cost: 600, phone: null, notes: null,
+  active: true, created_at: T0,
+}
+
+export const CREW_DAY = {
+  id: '99999999-9999-4999-8999-999999999994', worker_id: WORKER_ID, project_id: PROJECT_ID, stage_id: null,
+  day: '2026-10-06', days: 1, day_cost: 600, note: null, created_at: T0,
+}

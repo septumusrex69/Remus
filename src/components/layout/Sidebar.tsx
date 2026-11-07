@@ -5,6 +5,7 @@ import {
   Banknote, CalendarDays, Radar, Package, CalendarRange, Camera, ChevronDown, FileText, FolderKanban, HardHat, Inbox, LayoutDashboard, LineChart, LogOut,
   Lightbulb, PanelLeftClose, RotateCcw, PanelLeftOpen, Receipt, Settings, Users, UsersRound, type LucideIcon, ClipboardCheck,
 } from 'lucide-react'
+import { BarChart3 } from 'lucide-react'
 import { useAuth } from '../../store/AuthContext'
 import { useBuild } from '../../pages/build/BuildContext'
 import { paths } from '../../pages/build/paths'
@@ -46,6 +47,8 @@ const NAV: { to: string; label: string; icon: LucideIcon; end?: boolean; badge?:
   { to: paths.bank(), label: 'Bank', icon: Banknote, badge: 'bank', when: seesMoney },
   { to: paths.diary(), label: 'Diary', icon: CalendarDays },
   { to: paths.finance(), label: 'Finance', icon: LineChart, when: seesMoney },
+  // Remus · Handover 8: the builder's reports, under Finance (money only).
+  { to: paths.reports(), label: 'Reports', icon: BarChart3, when: seesMoney },
   // Everybody's, at Raptor's firm's word: "anyone can see requests".
   // With a count (Raptor H13): new requests for an Administrator, my releases to test for anybody.
   { to: paths.requests(), label: 'Requests', icon: Lightbulb, badge: 'requests' },
