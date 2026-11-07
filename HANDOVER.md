@@ -97,6 +97,21 @@ slip reader and /slip-test too). Preview: https://remus-git-claude-new-session-z
   * **Client portal password sign-in + part 2** (helper session): see the next bullet; 0042 is now applied.
   * **Phone check:** every page at 390 and 820 wide, no sideways scroll; five pages had an empty top-bar title (fixed);
     Expenses rows stack on a phone. (Fixture harness only; scripts in the session scratchpad, not in the repo.)
+- **7 Nov: the big Raptor batch (Stephan: "We can like start with pretty much all of that" -- everything except staff
+  leave/records: "Everybody's pretty casual laborers"). Built by five helper sessions, merged, `npm run qa` all green
+  (611 checks), ALL MIGRATIONS 0043-0051 APPLIED LIVE (0045 unused). Preview only until Stephan says go live.**
+  Full notes per part (read them): `docs/handover-parts/raptor-s18.md` (parked requests 0048, questions to whoever
+  sent it through, spell check, no page scroll, no photo flash, dated mail days, crash emails 0049 via
+  /api/portal/report-error), `tasks-calendar-activities.md` (/tasks with sidebar count, /calendar, /activities,
+  Tasks + Activity tabs on project and client; 0043 tasks + bell trigger, 0044 activities.project_id/task_id),
+  `statement-and-reports.md` (statement PDF/email/WhatsApp on the client's Invoices tab via /api/quotes/pdf and
+  /api/quotes/send; /reports with seven printable/CSV reports; no migration), `library-and-signing.md` (/library
+  with six seeded templates -- the contract must be checked by their lawyer -- Documents tab on the project,
+  online signing at /sign/:token through /api/portal/sign-*; 0046, 0047), `news.md` (/news newsletters with
+  POPIA consent, /subscribe, /opt-in/:token, /unsubscribe/:token through /api/portal/news-*; 0050, 0051). Still
+  13 Vercel functions (everything new rides on existing endpoints). Needs the Resend domain verified for every
+  email part (crash emails, statements by company sender, signing emails, newsletters); RESEND_WEBHOOK_SECRET +
+  a Resend webhook for newsletter delivery results. Signing and the portal only work on the live site (service key).
 - **6 Nov: `npm run qa` -- test everything with one command** (copied from Raptor's 55a7520 by a helper session):
   typecheck, lint, unit tests, build, then a robot tour of every route in routes.tsx (+ /login, /portal) at 390 and
   1280 against fixtures (fake database, no secrets) failing on errors, an empty title or sideways scroll, plus
