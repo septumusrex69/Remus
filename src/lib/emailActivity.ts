@@ -23,7 +23,7 @@ export function parseEmailActivity(rawSubject: string): ParsedEmailActivity | nu
 
 /**
  * The heading a run of emails sits under, so each row only needs a time. Recent days read by
- * name ("Yesterday"); past a fortnight an exact date is easier to place than "37 days ago".
+ * name ("Yesterday"), then always with a date ("Thursday 5 Nov", "5 November"): never "Last week".
  */
 export function emailDayLabel(iso: string): string {
   const date = new Date(iso)
@@ -32,11 +32,19 @@ export function emailDayLabel(iso: string): string {
   const dayDiff = Math.round((startOfDay(new Date()) - startOfDay(date)) / 86400000)
   if (dayDiff === 0) return 'Today'
   if (dayDiff === 1) return 'Yesterday'
-  if (dayDiff > 1 && dayDiff < 7) return date.toLocaleDateString('en-ZA', { weekday: 'long' })
-  if (dayDiff >= 7 && dayDiff < 14) return 'Last week'
+  /*
+   * PAST YESTERDAY, ALWAYS A REAL DATE (Raptor S18, copied in Remus · Handover 8; Stephan on Raptor, 6 Nov, on an email:
+   * "It says last week at 13:40. When was it received? There's no actual date"). "Last week" named no day at all. A
+   * weekday keeps its name for the week just gone, because "Thursday" lands faster than a number, but the date rides
+   * with it; beyond that it is the date. Months written out by hand: en-ZA renders September as "Sept".
+   */
+  const month = MONTHS[date.getMonth()]
   const sameYear = date.getFullYear() === new Date().getFullYear()
-  return date.toLocaleDateString('en-ZA', { day: 'numeric', month: 'long', year: sameYear ? undefined : 'numeric' })
+  if (dayDiff > 1 && dayDiff < 7) return `${WEEKDAYS[date.getDay()]} ${date.getDate()} ${month.slice(0, 3)}`
+  return `${date.getDate()} ${month}${sameYear ? '' : ` ${date.getFullYear()}`}`
 }
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 
 /** Just the clock time; the day heading above the row carries the date. */
 export function emailTimeLabel(iso: string): string {

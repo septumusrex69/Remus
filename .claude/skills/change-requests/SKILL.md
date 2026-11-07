@@ -29,6 +29,7 @@ select r.number, r.status, r.priority, r.department, r.pane, r.tested_ok, r.test
        p.name as asked_by, p.role
   from public.change_requests r join public.profiles p on p.id = r.created_by
  where r.status in ('new', 'accepted', 'building')
+   and r.parked_at is null   -- PARKED (0048): Stephan has put it off; it is not tonight's to read or build
  order by (r.tested_ok = false) desc, r.number;   -- sent back after testing comes first
 ```
 
@@ -55,7 +56,7 @@ PDFs: Read with `pages`. Open the page the request came from (`page_path`) in th
 2. Find the requests not yet in any review:
    ```sql
    select r.* from public.change_requests r
-    where r.status = 'new'
+    where r.status = 'new' and r.parked_at is null   -- PARKED (0048): Stephan has put it off; not tonight's
       and not exists (select 1 from public.change_request_reviews v where r.id = any(v.request_ids));
    ```
    **None: stop. Write nothing** -- an empty review every morning is a notification people learn to ignore.
@@ -145,9 +146,14 @@ request to In development and Released.
    update public.change_requests set build_requested_at = null where number = 12;
    ```
    **When the answer is one of a few, ask it with options to tick** (Raptor · Handoff 12 -- "choose the
-   option by means of a tick. Or choose other"): a `question` with 2-6 `choices`; the person who asked
-   ticks one or writes their own under Other, and the answer arrives as a comment with `answers` = the
-   question's id. One question per event; ask the person who ASKED (they are notified), not Stephan:
+   option by means of a tick. Or choose other"): a `question` with 2-6 `choices`; the administrator who
+   sent it through ticks one or writes their own under Other (the Big Boss may tick it too), and the answer
+   arrives as a comment with `answers` = the question's id. One question per event. **It goes to the
+   administrator who sent the request through to you** (`build_requested_by`, else `decided_by`, else the
+   person who wrote it) -- Stephan, on Raptor (copied in Remus · Handover 8, migration 0048): "the question
+   should be asked rather to the administrator who sent it through" -- and they are notified; write it so
+   they can answer without asking the person who wrote the request. Leave `build_requested_by` as it is when
+   you take a request off the queue: it is how the question finds them.
    ```sql
    insert into public.change_request_events (request_id, kind, body, choices, by_id)
    select id, 'question', $q$Should weekends show on the schedule?$q$,

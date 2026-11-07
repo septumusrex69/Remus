@@ -5,6 +5,7 @@ import { requireCaller } from './auth.js'
 import { credentialsKeyProblem, hashPassword, keyedHash, passwordMatches, sameHex } from './crypto.js'
 import { adminClient, getConnection, sendFromOwnMailbox } from './mailbox.js'
 import { buildQuotePdf, QuotePdfError } from './quotePdf.js'
+import { reportErrorRoute } from './errorAlert.js'
 import {
   CODE_SENT_MESSAGE, PORTAL_CODE_MESSAGE, PORTAL_CODE_MINUTES, PORTAL_INVOICE_STATUSES, PORTAL_PASSWORD_LOCK_MINUTES,
   PORTAL_PASSWORD_WRONG, PORTAL_PHOTOS_PER_PROJECT, PORTAL_PROJECT_STATUS, PORTAL_QUOTE_STATUS,
@@ -508,6 +509,8 @@ export const PORTAL_ROUTES: Record<string, Handler> = {
   'staff-list': staffList,
   'staff-invite': staffInvite,
   'staff-set-active': staffSetActive,
+  /* CRASH REPORTS (Remus · Handover 8, from Raptor 55a7520): here rather than a function of their own -- see errorAlert.ts. */
+  'report-error': reportErrorRoute,
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -518,7 +521,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') { res.status(405).json({ error: 'Method not allowed' }); return }
   const admin = adminClient()
   if (!admin) { res.status(501).json({ error: 'The portal is not set up yet: add SUPABASE_SERVICE_ROLE_KEY to the Vercel project.' }); return }
-  const keyProblem = credentialsKeyProblem()
+  /* A crash report needs no portal key: it touches no password or code (errorAlert.ts). */
+  const keyProblem = action === 'report-error' ? null : credentialsKeyProblem()
   if (keyProblem) { res.status(500).json({ error: keyProblem }); return }
   await route(req, res, admin)
 }

@@ -1,9 +1,11 @@
-import { Check, Image } from 'lucide-react'
+import { useState } from 'react'
+import { Check, Image, SpellCheck } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { paths } from '../paths'
 import { Card } from '../../../components/ui'
 import { THEMES } from '../../../lib/themes'
 import { useTheme } from '../../../store/ThemeContext'
+import { setSpellCheckEnabled, spellCheckEnabled } from '../../../lib/spellCheck'
 
 /**
  * Picking a skin, copied from Raptor's AppearanceTab. Each option is shown as the thing it
@@ -11,7 +13,9 @@ import { useTheme } from '../../../store/ThemeContext'
  */
 export function AppearanceCard() {
   const { themeId, setTheme, theme } = useTheme()
+  const [spelling, setSpelling] = useState(spellCheckEnabled)
   return (
+    <div className="space-y-4">
     <Card
       title="Appearance"
       subtitle={`Choose how ${theme.productName} looks. This changes nothing but the styling, applies to you only, and never changes what clients receive.`}
@@ -57,5 +61,26 @@ export function AppearanceCard() {
       <Link to={paths.photos()} className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-brand-700 hover:underline"><Image size={15} /> Choose the photographs (Platinum)</Link>
       <Link to={paths.brand()} className="mt-4 ml-5 inline-flex items-center gap-1.5 text-sm font-medium text-brand-700 hover:underline">See the brand board</Link>
     </Card>
+    {/*
+      SPELL CHECK, ON UNLESS YOU SWITCH IT OFF (Raptor S18, copied in Remus · Handover 8; Stephan on Raptor: "by
+      default it's on, but the user can switch it off"). One switch for both halves: the underlines while typing, and
+      the list before an email is sent. Kept on this device (lib/spellCheck.ts).
+    */}
+    <Card title="Spell check"
+      subtitle={`Red underlines while you type, and a check for misspelled words before an email is sent. South African / British spelling. Nothing you type leaves ${theme.productName} to be checked.`}>
+      <button
+        type="button"
+        data-testid="spell-check-switch"
+        onClick={() => { const next = !spelling; setSpelling(next); setSpellCheckEnabled(next) }}
+        aria-pressed={spelling}
+        className={`inline-flex items-center gap-1.5 rounded-lg border px-3.5 py-2 text-sm font-medium transition-colors ${
+          spelling ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-slate-200 text-slate-500 hover:bg-slate-50'
+        }`}
+      >
+        <SpellCheck size={14} />
+        Spell check {spelling ? 'on' : 'off'}
+      </button>
+    </Card>
+    </div>
   )
 }

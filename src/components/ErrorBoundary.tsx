@@ -1,9 +1,13 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react'
+import { reportError } from '../lib/errorReporter'
 
 /**
  * A crash anywhere below shows a "Something went wrong" panel with a Reload button instead of a
  * blank page. A page whose code can't be fetched (usually because a new version was deployed while
  * the app was open) reloads once by itself to pick up the new version.
+ *
+ * A REAL CRASH IS REPORTED (Remus · Handover 8, from Raptor 55a7520): the Administrators are emailed and their bell
+ * rings the first time it happens (lib/errorReporter.ts), so the panel can say so.
  */
 
 const RELOADED_KEY = 'remus.chunkReloadAt'
@@ -42,6 +46,7 @@ export class ErrorBoundary extends Component<Props, { error: Error | null }> {
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.error('Remus crashed', error, info.componentStack)
     if (isChunkLoadError(error)) reloadForNewVersion()
+    else void reportError(error, 'render', { componentStack: info.componentStack ?? undefined })
   }
 
   componentDidUpdate(prev: Props) {
@@ -57,7 +62,7 @@ export class ErrorBoundary extends Component<Props, { error: Error | null }> {
         <div className="max-w-md card p-6 text-center">
           <p className="mb-1 font-semibold text-slate-900">{chunk ? 'A new version of Remus is available' : 'Something went wrong'}</p>
           <p className="mb-4 text-sm text-slate-500">
-            {chunk ? 'Reload to continue.' : 'This page hit an error. Your saved work is safe. Reload to try again.'}
+            {chunk ? 'Reload to continue.' : 'This page hit an error and it has been reported automatically. Your saved work is safe. Reload to try again.'}
           </p>
           {!chunk && <p className="mb-4 break-words rounded bg-slate-50 px-3 py-2 text-left font-mono text-xs text-slate-500">{error.message}</p>}
           <div className="flex justify-center gap-2">

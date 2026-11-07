@@ -8,6 +8,7 @@ import { photoUrl, rememberedLoginPhoto } from '../../lib/brandPhotos'
 import { getDayPhoto } from '../../lib/api'
 import { googleRefusal, useGoogleSignIn } from '../../lib/authProviders'
 import { johannesburgToday, lookFromRow, type DayLook } from '../../lib/dayPhotos'
+import { DAY_LOOK_FALLBACK_MS, rememberDay, rememberedDay } from '../../lib/dayLookCache'
 import { queueRemusOpening } from '../../components/opening/openingQueue'
 import { primeOpeningAudio } from '../../components/opening/remusSound'
 
@@ -18,12 +19,31 @@ export function LoginPage() {
   const remus = !!theme.tagline
   // The sign-in cannot read the settings: the photograph last chosen, remembered in this browser (lib/brandPhotos.ts).
   // Today's photo of the day, if approved (Remus · Handover 8): the sign-in may read approved days before anybody signs in.
-  const [day, setDay] = useState<DayLook | null>(null)
+  /*
+   * NO FLASH OF YESTERDAY'S PHOTOGRAPH (Raptor S18, copied in Remus · Handover 8 -- lib/dayLookCache.ts): today's
+   * answer as this device last read it, on the first paint; the first visit of the day shows the panel plain until the
+   * answer is in (or four seconds have passed), instead of the last photograph and then today's.
+   */
+  const [seen] = useState(() => rememberedDay(johannesburgToday()))
+  const [day, setDay] = useState<DayLook | null>(() => {
+    const l = seen ? lookFromRow(seen.row, null, 'login') : null
+    return l?.approved ? l : null
+  })
+  const [known, setKnown] = useState(() => !!seen || !isSupabaseConfigured)
   useEffect(() => {
     if (!theme.loginPhoto || !isSupabaseConfigured) return
-    getDayPhoto(johannesburgToday()).then((r) => { const l = lookFromRow(r, null, 'login'); if (l.approved) setDay(l) }).catch(() => {})
+    let live = true
+    const today = johannesburgToday()
+    const fallback = window.setTimeout(() => { if (live) setKnown(true) }, DAY_LOOK_FALLBACK_MS)
+    getDayPhoto(today).then((r) => {
+      if (!live) return
+      rememberDay(today, r)
+      const l = lookFromRow(r, null, 'login')
+      setDay(l.approved ? l : null)
+    }).catch(() => {}).finally(() => { if (live) { window.clearTimeout(fallback); setKnown(true) } })
+    return () => { live = false; window.clearTimeout(fallback) }
   }, [theme.loginPhoto])
-  const loginPhoto = theme.loginPhoto ? (day?.photo ?? rememberedLoginPhoto()) : null
+  const loginPhoto = theme.loginPhoto && known ? (day?.photo ?? rememberedLoginPhoto()) : null
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -142,7 +162,7 @@ export function LoginPage() {
           {remus ? 'Plans · People · Progress · Together' : 'Construction · Renovations · Maintenance · Electrical'}
         </p>
         {theme.loginPhoto
-          ? <span className="absolute right-4 bottom-3 text-[10px] text-white/40">Photo: {loginPhoto?.credit} / Unsplash</span>
+          ? (loginPhoto && <span className="absolute right-4 bottom-3 text-[10px] text-white/40">Photo: {loginPhoto.credit} / Unsplash</span>)
           : <div className="pointer-events-none absolute -right-24 -bottom-24 h-80 w-80 rounded-full bg-brand-500/15" />}
       </div>
       )}

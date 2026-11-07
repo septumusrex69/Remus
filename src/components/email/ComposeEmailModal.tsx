@@ -4,6 +4,8 @@ import { sendEmail } from '../../lib/api'
 import { Button, ErrorBanner, Field, Modal } from '../ui'
 import { draftKeyFor, dropDraft, findDraft, saveDraft, type MailDraft } from '../../lib/mailDrafts'
 import type { ID } from '../../types'
+import { useSpellGate } from '../SpellGate'
+import { spellCheckEnabled } from '../../lib/spellCheck'
 
 /**
  * Sends through the signed-in person's own mailbox (Settings → My mailbox) and logs the message
@@ -70,6 +72,8 @@ export function ComposeEmailModal({
   const [showCc, setShowCc] = useState((initialCc ?? []).length > 0)
   const [subject, setSubject] = useState(initialSubject ?? '')
   const [body, setBody] = useState(initialBody ?? '')
+  /* SPELL CHECK before it goes (Raptor S18, Remus · Handover 8): a list of doubtful words, Send again sends it as it is. */
+  const spell = useSpellGate()
   const [sending, setSending] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [keep, setKeep] = useState<string[]>(forward?.names ?? [])
@@ -107,6 +111,7 @@ export function ComposeEmailModal({
   async function submit(e: FormEvent) {
     e.preventDefault()
     if (!address.trim() || !subject.trim() || !body.trim()) return
+    if (!(await spell.clear([subject, body]))) { setError(null); return }
     setSending(true)
     setError(null)
     try {
@@ -177,7 +182,7 @@ export function ComposeEmailModal({
           <input className="input" value={subject} onChange={(e) => { touch(); setSubject(e.target.value) }} required autoFocus={!!address && !initialSubject} />
         </Field>
         <Field label="Message" hint="Your signature from Settings is added automatically. What you type is kept as a draft in this browser until it is sent.">
-          <textarea className="input min-h-44" value={body} onChange={(e) => { touch(); setBody(e.target.value) }} required autoFocus={!!initialSubject} />
+          <textarea className="input min-h-44" value={body} spellCheck={spellCheckEnabled()} onChange={(e) => { touch(); setBody(e.target.value) }} required autoFocus={!!initialSubject} />
         </Field>
         {keep.length > 0 && (
           <div className="flex flex-wrap gap-1.5" data-testid="forward-attachments">
@@ -193,6 +198,7 @@ export function ComposeEmailModal({
             ))}
           </div>
         )}
+        {spell.panel([{ value: subject, set: setSubject }, { value: body, set: setBody }])}
       </form>
     </Modal>
   )

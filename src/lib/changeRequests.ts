@@ -68,6 +68,9 @@ export interface ChangeRequest {
   /** On Claude's build queue since (Raptor H12): set by "Ask Claude to build it", cleared by the builder. */
   build_requested_at: string | null
   build_requested_by: string | null
+  /** Parked by the Big Boss (Raptor S18, Remus · Handover 8): "not now", laid over a Submitted or Approved request. Not a status. */
+  parked_at?: string | null
+  parked_by?: string | null
 }
 
 export type ReviewVerdict = 'ready' | 'decision' | 'blocked'
@@ -139,9 +142,21 @@ export function tickedOf(choices: string[], body: string | null): string | null 
   return body.startsWith(`${OTHER_CHOICE}:`) ? OTHER_CHOICE : null
 }
 
-/** The person who asked answers their own request's questions; an Administrator answers for nobody. */
-export function mayAnswer(user: Pick<User, 'id'> | null | undefined, r: Pick<ChangeRequest, 'created_by'>, q: Pick<RequestEvent, 'kind' | 'choices'>): boolean {
-  return !!user && user.id === r.created_by && q.kind === 'question' && (q.choices?.length ?? 0) >= 2
+/*
+ * WHO MAY TICK AN ANSWER: the person the question is for (questionFor), the person who asked, and the Big Boss
+ * (Raptor S18, copied in Remus · Handover 8). Stephan, on Raptor's R-26, a question Claude put to somebody else: "I
+ * can't click on any of these ... Maybe I should be able to also approve this or change this ... or put other". He
+ * decides what gets built, so his answer settles the question as well as theirs; the history says it was his. The
+ * database already allows an Administrator's answer (change_request_events_insert, 0018). (Raptor's copy reads a
+ * missing by_id and Claude's null alike, so there the administrator who sent it through cannot tick -- worth fixing in Raptor too.)
+ */
+export function mayAnswer(
+  user: Pick<User, 'id' | 'is_boss'> | null | undefined,
+  r: Pick<ChangeRequest, 'created_by'> & Partial<Pick<ChangeRequest, 'build_requested_by' | 'decided_by'>>,
+  q: Pick<RequestEvent, 'kind' | 'choices'> & Partial<Pick<RequestEvent, 'by_id'>>,
+): boolean {
+  return !!user && (user.id === r.created_by || user.id === questionFor(r, { by_id: q.by_id === undefined ? '' : q.by_id }) || !!user.is_boss)
+    && q.kind === 'question' && (q.choices?.length ?? 0) >= 2
 }
 
 export interface RequestFileMeta {
@@ -227,6 +242,7 @@ export const STATUS_LABEL: Record<RequestStatus, string> = {
 
 /** Where a request stands in the workflow, Reviewed included. */
 export function stageOf(r: Pick<ChangeRequest, 'status' | 'reviewed_at'>): string {
+  /* Parked is drawn as a pill of its own beside the stage (StagePill), not instead of it. */
   return r.status === 'new' && r.reviewed_at ? 'Reviewed' : STATUS_LABEL[r.status]
 }
 
@@ -243,13 +259,22 @@ export function titleOf(r: Pick<ChangeRequest, 'review_title' | 'description'>):
  *   claude    -- With Claude: on the build queue, or being built
  *   test      -- To test: released and not yet tested ("Not right yet" sends it back to approved)
  *   finished  -- Done: released and tested
+ *   parked    -- Parked (Raptor S18, copied in Remus · Handover 8; Stephan on Raptor: "something that is parked for
+ *                now. Until I can make another decision"): off "Needs a decision" and off the sidebar count, kept
+ *                whole, back where it was the moment it is unparked or decided.
  * The stored statuses are unchanged; this is only how the list sorts them.
  */
-export type Shelf = 'decide' | 'claude' | 'test' | 'finished' | 'declined' | 'all'
+export type Shelf = 'decide' | 'claude' | 'test' | 'finished' | 'parked' | 'declined' | 'all'
 export const SHELVES: readonly [Shelf, string][] = [
-  ['decide', 'Needs a decision'], ['claude', 'With Claude'], ['test', 'To test'], ['finished', 'Done'], ['declined', 'Declined'], ['all', 'All'],
+  ['decide', 'Needs a decision'], ['claude', 'With Claude'], ['test', 'To test'], ['finished', 'Done'], ['parked', 'Parked'], ['declined', 'Declined'], ['all', 'All'],
 ]
-export function onShelf(r: Pick<ChangeRequest, 'status' | 'build_requested_at' | 'tested_ok'>, shelf: Shelf): boolean {
+/** Parked: only ever on a request still waiting on a decision; any decision clears it in the database (0048). */
+export function isParked(r: Pick<ChangeRequest, 'parked_at'>): boolean {
+  return !!r.parked_at
+}
+export function onShelf(r: Pick<ChangeRequest, 'status' | 'build_requested_at' | 'tested_ok' | 'parked_at'>, shelf: Shelf): boolean {
+  if (shelf === 'parked') return isParked(r)
+  if (shelf !== 'all' && isParked(r)) return false
   switch (shelf) {
     case 'all': return true
     case 'decide': return r.status === 'new' || (r.status === 'accepted' && !r.build_requested_at)
@@ -260,19 +285,39 @@ export function onShelf(r: Pick<ChangeRequest, 'status' | 'build_requested_at' |
   }
 }
 
-/**
- * Is an open request waiting for the person who asked to answer a question? A question with options
- * waits until it is ticked; a question for words waits until they write anything after it. Questions
- * answer themselves no other way -- an Administrator's own note does not answer for them.
+/*
+ * WHO A QUESTION IS FOR (Raptor S18, copied in Remus · Handover 8). Stephan, on Raptor's R-26 -- a question Claude put
+ * to somebody about a request he had sent through: "the question should be asked rather to the administrator who sent
+ * it through." So CLAUDE'S questions (by_id null: the builder or the nightly review) go to whoever put the request on
+ * Claude's queue, else whoever approved it, else -- a request nobody has decided yet -- the person who wrote it. A
+ * question an Administrator asks with Request info is still for the person who wrote the request: that is what the
+ * button is for. change_request_event_notify (0048) sends the bell to the same person.
  */
-export function waitingOnAsker(
-  r: Pick<ChangeRequest, 'id' | 'created_by' | 'status'>,
+export function questionFor(
+  r: Pick<ChangeRequest, 'created_by'> & Partial<Pick<ChangeRequest, 'build_requested_by' | 'decided_by'>>,
+  q: Pick<RequestEvent, 'by_id'>,
+): string {
+  return q.by_id === null ? (r.build_requested_by ?? r.decided_by ?? r.created_by) : r.created_by
+}
+
+/**
+ * Who an open request is waiting on to answer a question, or null. A question with options waits until it is
+ * ticked (by anyone allowed to); a question for words waits until the person it is for writes after it. An
+ * Administrator's own note does not answer a question put to somebody else.
+ */
+export function waitingOn(
+  r: Pick<ChangeRequest, 'id' | 'created_by' | 'status'> & Partial<Pick<ChangeRequest, 'build_requested_by' | 'decided_by'>>,
   events: Pick<RequestEvent, 'id' | 'request_id' | 'kind' | 'by_id' | 'at' | 'answers' | 'choices'>[],
-): boolean {
-  if (!isOpen(r.status)) return false
+): string | null {
+  if (!isOpen(r.status)) return null
   const mine = events.filter((e) => e.request_id === r.id)
-  return mine.some((q) => q.kind === 'question' && !mine.some((a) => a.kind === 'comment' && (
-    (q.choices?.length ?? 0) >= 2 ? a.answers === q.id : (a.by_id === r.created_by && a.at > q.at))))
+  const open = mine.find((q) => q.kind === 'question' && !mine.some((a) => a.kind === 'comment' && (
+    (q.choices?.length ?? 0) >= 2 ? a.answers === q.id : (a.by_id === questionFor(r, q) && a.at > q.at))))
+  return open ? questionFor(r, open) : null
+}
+/** Is it waiting on anybody's answer? (The name is older than questionFor: it is no longer always the asker.) */
+export function waitingOnAsker(r: Parameters<typeof waitingOn>[0], events: Parameters<typeof waitingOn>[1]): boolean {
+  return waitingOn(r, events) !== null
 }
 
 /** A night's tiles: how many of the requests it read are ready, need a decision, or are blocked. */

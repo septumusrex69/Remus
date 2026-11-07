@@ -103,6 +103,7 @@ export const CHANGE_REQUEST = {
   decided_by: null, decided_at: null, closed_at: null, tested_ok: null, tested_note: null, tested_at: null,
   tested_by: null, assigned_to: null, review_title: null, review_verdict: null, review_size: null,
   review_summary: null, review_questions: [], reviewed_at: null, build_requested_at: null, build_requested_by: null,
+  parked_at: null, parked_by: null,
 }
 
 /* The Vercel functions' answers the pages need in order to draw (the dev server runs none of them). */

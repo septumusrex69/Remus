@@ -39,6 +39,22 @@ body,
   min-height: 100%;
 }
 
+/*
+ * THE APP IS ONE WINDOW TALL AND NEVER SCROLLS AS A PAGE (Raptor's R-22, copied in Remus · Handover 8; on Raptor:
+ * "the page scrolling is weird, Raptor goes up and the grey displays at the bottom"). Only <main> scrolls. Anything
+ * that sticks out of the shell -- a menu, a popover put on <body>, a focus() on something off-screen, find-in-page --
+ * used to make the DOCUMENT scroll, sliding the whole app up and showing the bare page below it. The shell itself is
+ * overflow-clip (AppLayout), which cannot be scrolled at all. Pages with no app shell (sign-in, the client portal,
+ * a quote's print page) are not matched and scroll as pages do.
+ */
+html:has(.app-layout) {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+.app-layout {
+  position: relative;
+}
+
 body {
   margin: 0;
   background: var(--color-surface);

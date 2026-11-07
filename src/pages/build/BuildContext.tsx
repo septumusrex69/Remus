@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useState, type React
 import { countNeedsLinking, getDayPhoto, getSettings } from '../../lib/api'
 import { applyBrandPhotos } from '../../lib/brandPhotos'
 import { applyDayLook, johannesburgToday, lookFromRow, type DayLook } from '../../lib/dayPhotos'
+import { DAY_LOOK_FALLBACK_MS, paintPlainBand, rememberDay, rememberedDay, unpaintPlainBand } from '../../lib/dayLookCache'
 import type { CompanySettings } from '../../types'
 
 interface BuildContextValue {
@@ -19,19 +20,35 @@ const Ctx = createContext<BuildContextValue | null>(null)
 export function BuildProvider({ children }: { children: ReactNode }) {
   const [settings, setSettings] = useState<CompanySettings | null>(null)
   const [needsLinking, setNeedsLinking] = useState(0)
-  const [dayLook, setDayLook] = useState<DayLook | null>(null)
+  /*
+   * NO FLASH OF YESTERDAY'S PHOTOGRAPH (Raptor S18, copied in Remus · Handover 8 -- lib/dayLookCache.ts). Before the
+   * first paint: today's answer as this device last read it, or, the first visit of the day, a plain band until the
+   * answer is in. The initialiser runs once, before anything under this provider is drawn.
+   */
+  const [dayLook, setDayLook] = useState<DayLook | null>(() => {
+    if (typeof document === 'undefined') return null
+    const seen = rememberedDay(johannesburgToday())
+    if (!seen) { paintPlainBand(); return null }
+    applyBrandPhotos(seen.choice)
+    const look = lookFromRow(seen.row, seen.choice)
+    applyDayLook(look)
+    return look
+  })
 
   const reloadSettings = useCallback(() => {
-    // The chosen photographs go on the page as soon as the settings are read (lib/brandPhotos.ts).
-    // Then today's photo of the day over it, if an Administrator approved one (lib/dayPhotos.ts).
-    getSettings().then(async (s) => {
-      setSettings(s)
-      applyBrandPhotos(s.brand_photos)
-      const row = await getDayPhoto(johannesburgToday()).catch(() => null)
-      const look = lookFromRow(row, s.brand_photos)
-      applyDayLook(look)
-      setDayLook(look)
-    }).catch(() => {})
+    // The settings and today's photo of the day are asked for together and put on the page once BOTH are in: the
+    // chosen photographs (lib/brandPhotos.ts), then today's approved look over them (lib/dayPhotos.ts). Applying the
+    // chosen one first and the day's a round trip later was the flash.
+    const day = johannesburgToday()
+    Promise.all([getSettings(), getDayPhoto(day).then((row) => ({ row, ok: true }), () => ({ row: null, ok: false }))])
+      .then(([s, { row, ok }]) => {
+        setSettings(s)
+        applyBrandPhotos(s.brand_photos)
+        const look = lookFromRow(row, s.brand_photos)
+        applyDayLook(look)
+        setDayLook(look)
+        if (ok) rememberDay(day, row, s.brand_photos ?? null)
+      }).catch(() => {})
   }, [])
   const refreshNeedsLinking = useCallback(() => {
     countNeedsLinking().then(setNeedsLinking).catch(() => {})
@@ -41,6 +58,12 @@ export function BuildProvider({ children }: { children: ReactNode }) {
     reloadSettings()
     refreshNeedsLinking()
   }, [reloadSettings, refreshNeedsLinking])
+  /* No answer in four seconds: the photographs as they always were, never a bare band all day (lib/dayLookCache.ts). */
+  useEffect(() => {
+    if (dayLook) return
+    const t = window.setTimeout(unpaintPlainBand, DAY_LOOK_FALLBACK_MS)
+    return () => window.clearTimeout(t)
+  }, [dayLook])
 
   return <Ctx.Provider value={{ settings, reloadSettings, needsLinking, refreshNeedsLinking, dayLook }}>{children}</Ctx.Provider>
 }

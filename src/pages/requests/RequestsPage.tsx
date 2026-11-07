@@ -11,7 +11,7 @@ import type { Profile } from '../../types'
 import { useAuth } from '../../store/AuthContext'
 import { formatDate, formatDateTime } from '../../lib/format'
 import {
-  REQUEST_DEPARTMENTS, SHELVES, VERDICT_LABEL, onShelf, waitingOnAsker, requestLabel, reviewTiles, sortRequests, titleOf,
+  REQUEST_DEPARTMENTS, SHELVES, VERDICT_LABEL, isParked, onShelf, waitingOn, requestLabel, reviewTiles, sortRequests, titleOf,
   type ChangeRequest, type RequestDepartment, type RequestFileMeta, type RequestReview, type ReviewVerdict, type Shelf,
 } from '../../lib/changeRequests'
 import { listFiles, listQuestionThreads, listRequests, listReviews } from '../../lib/changeRequestsApi'
@@ -100,7 +100,9 @@ export function RequestsPage() {
   const feedbackFrom = useMemo(() => {
     const m = new Map<string, string>()
     for (const r of rows ?? []) {
-      if (waitingOnAsker(r, threads)) m.set(r.id, users.find((u) => u.id === r.created_by)?.name.split(' ')[0] ?? 'them')
+      /* Whoever the open question is FOR (questionFor): Claude's go to the administrator who sent it through. */
+      const w = waitingOn(r, threads)
+      if (w) m.set(r.id, users.find((u) => u.id === w)?.name.split(' ')[0] ?? 'them')
     }
     return m
   }, [rows, threads, users])
@@ -246,7 +248,8 @@ function NightlyReview({ review, index, count, rows, onPick, onTile, active }: {
 
 /** WHAT WAITS ON SOMEBODY: new requests to decide, and released ones still to be tested. */
 function WaitingOnYou({ rows, onOpen }: { rows: ChangeRequest[]; onOpen: (r: ChangeRequest) => void }) {
-  const fresh = sortRequests(rows.filter((r) => r.status === 'new'))
+  /* A parked request is not waiting for a decision today (Raptor S18): it is on the Parked shelf. */
+  const fresh = sortRequests(rows.filter((r) => r.status === 'new' && !isParked(r)))
   if (!fresh.length) return null
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm" data-testid="requests-waiting">

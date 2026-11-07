@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { DictateButton } from '../ui/Dictate'
 import { Link } from 'react-router-dom'
 import {
@@ -8,11 +8,11 @@ import { Button } from '../ui'
 import { PersonAvatar, ZoomableImage } from './bits'
 import { formatDateTime } from '../../lib/format'
 import {
-  MAX_CHOICES, OTHER_CHOICE, waitingOnAsker, PRIORITY_LABEL, STATUS_LABEL, VERDICT_LABEL, answerBody, answerTo, choicesOk, mayAnswer, mayApproveBuild, mayDecide, mayEdit, mayTest, mayWithdraw,
+  MAX_CHOICES, OTHER_CHOICE, waitingOn, questionFor, isParked, PRIORITY_LABEL, STATUS_LABEL, VERDICT_LABEL, answerBody, answerTo, choicesOk, mayAnswer, mayApproveBuild, mayDecide, mayEdit, mayTest, mayWithdraw,
   parseChoices, requestLabel, stageOf, testState, tickedOf, titleOf,
   type ChangeRequest, type RequestEvent, type RequestFileMeta, type RequestPriority, type RequestStatus,
 } from '../../lib/changeRequests'
-import { addEvent, answerQuestion, answerTest, askClaude, editRequest, fileDataUrl, listEvents, updateRequest, withdrawRequest } from '../../lib/changeRequestsApi'
+import { addEvent, answerQuestion, answerTest, askClaude, editRequest, fileDataUrl, listEvents, parkRequest, updateRequest, withdrawRequest } from '../../lib/changeRequestsApi'
 import { refreshRequestCount } from '../../lib/requestCount'
 import type { Profile } from '../../types'
 
@@ -52,7 +52,7 @@ export function RequestPanel({ r, files, users, me, onClose, onPrev, onNext, onC
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   /* One box for words, used by whichever action needs them: a decline's reason, a question, how to test. */
-  const [composing, setComposing] = useState<null | 'decline' | 'question' | 'comment' | 'sendback'>(null)
+  const [composing, setComposing] = useState<null | 'decline' | 'question' | 'comment' | 'sendback' | 'park'>(null)
   const [words, setWords] = useState('')
   /* A question's options, one per line; empty is a question that wants words. */
   const [choiceWords, setChoiceWords] = useState('')
@@ -92,12 +92,15 @@ export function RequestPanel({ r, files, users, me, onClose, onPrev, onNext, onC
     else if (composing === 'comment') void act(() => addEvent(r.id, 'comment', w, me.id))
     else if (composing === 'sendback') void act(() => answerTest(r.number, false, w))
   }
+  /* Parking needs no reason (Raptor S18), so it is sent from here rather than from submitWords' "nothing typed" guard. */
+  const park = () => { if (me) void act(() => parkRequest(r, me, true, words)) }
 
   const PROMPT: Record<NonNullable<typeof composing>, { label: string; placeholder: string; button: string }> = {
     decline: { label: 'Why not? They are told.', placeholder: 'e.g. Covered by R-8, which does the same.', button: 'Decline' },
     question: { label: `Ask ${asker?.name ?? 'them'} — they are notified and can answer here.`, placeholder: 'e.g. Should weekends show greyed out, or stay hidden?', button: 'Send question' },
     comment: { label: 'Add a note to the history.', placeholder: 'Write a note…', button: 'Add note' },
     sendback: { label: 'What is still not right?', placeholder: 'e.g. The deposit still does not show on the quote list.', button: 'Send it back' },
+    park: { label: 'Parked for now, until you decide. A note for later, if you like.', placeholder: 'e.g. After the month-end run.', button: 'Park it' },
   }
 
   return (
@@ -105,7 +108,7 @@ export function RequestPanel({ r, files, users, me, onClose, onPrev, onNext, onC
       data-testid="request-panel" data-number={r.number} aria-label={`Request ${requestLabel(r)}`}>
       <div className="flex items-center gap-2 border-b border-slate-100 px-5 py-3">
         <span className="whitespace-nowrap rounded-md bg-ink-950 px-2 py-1 font-mono text-xs font-bold text-white">{requestLabel(r)}</span>
-        <StagePill r={r} feedbackFrom={events && waitingOnAsker(r, events) ? (asker?.name.split(' ')[0] ?? 'them') : null} />
+        <StagePill r={r} feedbackFrom={(() => { const w = events ? waitingOn(r, events) : null; return w ? (userOf(w)?.name.split(' ')[0] ?? 'them') : null })()} />
         <div className="ml-auto flex items-center gap-1">
           <IconButton label="Previous request" disabled={!onPrev} onClick={() => onPrev?.()}><ChevronLeft size={16} /></IconButton>
           <IconButton label="Next request" disabled={!onNext} onClick={() => onNext?.()}><ChevronRight size={16} /></IconButton>
@@ -217,7 +220,7 @@ export function RequestPanel({ r, files, users, me, onClose, onPrev, onNext, onC
               {events.map((e) => (
                 <EventLine key={e.id} e={e} who={userOf(e.by_id)?.name ?? null}>
                   {(e.choices?.length ?? 0) >= 2 && (
-                    <ChoiceAnswer q={e} answer={answerTo(e, events)} canAnswer={mayAnswer(me, r, e)} askerName={asker?.name ?? 'the person who asked'}
+                    <ChoiceAnswer q={e} answer={answerTo(e, events)} canAnswer={mayAnswer(me, r, e)} askerName={userOf(questionFor(r, e))?.name ?? 'the person who asked'}
                       busy={busy} onAnswer={(body) => { if (me) void act(() => answerQuestion(r.id, e.id, body, me.id)) }} />
                   )}
                 </EventLine>
@@ -236,6 +239,7 @@ export function RequestPanel({ r, files, users, me, onClose, onPrev, onNext, onC
             <p className="text-xs font-semibold text-slate-600">{PROMPT[composing].label}</p>
             <textarea value={words} onChange={(e) => setWords(e.target.value)} rows={3} autoFocus placeholder={PROMPT[composing].placeholder}
               className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" data-testid="request-compose-words" />
+            <div className="flex justify-end"><DictateButton size="small" value={words} onChange={setWords} /></div>
             {composing === 'question' && (
               <label className="block space-y-1">
                 <span className="text-xs text-slate-600">Options to tick, one per line (optional, up to {MAX_CHOICES}). They can always choose Other and write their own.</span>
@@ -246,8 +250,8 @@ export function RequestPanel({ r, files, users, me, onClose, onPrev, onNext, onC
               </label>
             )}
             <div className="flex gap-2">
-              <Button size="sm" variant={composing === 'decline' || composing === 'sendback' ? 'danger' : 'primary'} disabled={busy || !words.trim() || (composing === 'question' && !choicesOk(choices))}
-                onClick={submitWords} data-testid="request-compose-send">{PROMPT[composing].button}</Button>
+              <Button size="sm" variant={composing === 'decline' || composing === 'sendback' ? 'danger' : 'primary'} disabled={busy || (composing !== 'park' && !words.trim()) || (composing === 'question' && !choicesOk(choices))}
+                onClick={composing === 'park' ? park : submitWords} data-testid="request-compose-send">{PROMPT[composing].button}</Button>
               <Button size="sm" variant="ghost" onClick={() => setComposing(null)}>Cancel</Button>
             </div>
           </div>
@@ -265,6 +269,18 @@ export function RequestPanel({ r, files, users, me, onClose, onPrev, onNext, onC
             the work is on the preview -- there is no button here for them, so nothing reads as
             released that nobody built.
           */}
+          {/*
+            PARKED (Raptor S18, copied in Remus · Handover 8; Stephan on Raptor: "something that is parked for now.
+            Until I can make another decision"). While parked the only moves are to take it out again or decide it there
+            and then; any decision unparks it in the database (0048). A parked request is never on Claude's queue.
+          */}
+          {isParked(r) && <>
+            <span className="text-xs text-slate-600" data-testid="request-parked">Parked since {formatDateTime(r.parked_at!)}</span>
+            {boss && <Button variant="secondary" disabled={busy} onClick={() => void act(() => parkRequest(r, me, false))} data-testid="request-unpark">Take out of Parked</Button>}
+          </>}
+          {!isParked(r) && boss && (r.status === 'new' || r.status === 'accepted') && (
+            <Button variant="ghost" disabled={busy} onClick={() => { setComposing('park'); setWords('') }} data-testid="request-park">Park</Button>
+          )}
           {r.status === 'new' && <>
             {boss && <Button variant="primary" disabled={busy} onClick={() => void approveAndBuild()} data-testid="request-approve-build">Approve &amp; ask Claude</Button>}
             {boss && <Button variant="secondary" disabled={busy} onClick={() => void move('accepted')} data-testid="request-approve">Approve only</Button>}
@@ -318,6 +334,7 @@ export function StagePill({ r, feedbackFrom }: { r: ChangeRequest; feedbackFrom?
   return (
     <span className="inline-flex items-center gap-1">
       <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${tone}`} data-testid="request-status">{stage}</span>
+      {isParked(r) && <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[11px] font-medium text-slate-700" data-testid="request-parked-pill">Parked</span>}
       {r.status === 'accepted' && r.build_requested_at && <span className="rounded-full bg-violet-100 px-2 py-0.5 text-[11px] font-medium text-violet-800" data-testid="request-queued-pill">Queued for Claude</span>}
       {feedbackFrom && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-900" data-testid="request-feedback">Needs feedback from {feedbackFrom}</span>}
       {test === 'works' && <span className="rounded-full bg-emerald-600 px-2 py-0.5 text-[11px] font-semibold text-white">Tested ✓</span>}
@@ -336,6 +353,13 @@ function ChoiceAnswer({ q, answer, canAnswer, askerName, busy, onAnswer }: {
 }) {
   const [pick, setPick] = useState<string | null>(null)
   const [other, setOther] = useState('')
+  /*
+   * ONE PRESS, ONE ANSWER (Raptor S18). Stephan's Other on Raptor's R-22 was saved twice, 0.8 s apart: `busy` comes back
+   * from the panel a render later, and a second tap on the iPad landed before it did. A ref is set in the same tick as
+   * the press, so the second one finds it set; cleared again if the save failed, so it can be pressed again.
+   */
+  const sentRef = useRef(false)
+  useEffect(() => { if (!busy && !answer) sentRef.current = false }, [busy, answer])
   const choices = q.choices ?? []
   const open = canAnswer && !answer
   const ticked = answer ? tickedOf(choices, answer.body) : pick
@@ -352,11 +376,16 @@ function ChoiceAnswer({ q, answer, canAnswer, askerName, busy, onAnswer }: {
           </button>
         )
       })}
+      {/* DICTATE ON OTHER (Raptor S18, Stephan: "when you say other and Claude asks, there should also be a dictate
+          option so you can speak"). The same button as everywhere else; speech is added onto what is typed. */}
       {open && pick === OTHER_CHOICE && (
-        <textarea value={other} onChange={(e) => setOther(e.target.value)} rows={2} autoFocus placeholder="Your suggestion…"
-          className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" data-testid="request-choice-other" />
+        <>
+          <textarea value={other} onChange={(e) => setOther(e.target.value)} rows={2} autoFocus placeholder="Your suggestion… type it, or press Dictate and say it"
+            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" data-testid="request-choice-other" />
+          <div className="flex justify-end"><DictateButton size="small" value={other} onChange={setOther} /></div>
+        </>
       )}
-      {open && <Button size="sm" variant="primary" disabled={busy || !send} onClick={() => { if (send) onAnswer(send) }} data-testid="request-choice-send">Send answer</Button>}
+      {open && <Button size="sm" variant="primary" disabled={busy || !send} onClick={() => { if (send && !sentRef.current) { sentRef.current = true; onAnswer(send) } }} data-testid="request-choice-send">Send answer</Button>}
       {answer && ticked === OTHER_CHOICE && <p className="text-[13px] text-emerald-900" data-testid="request-choice-other-said">{answer.body}</p>}
       {!answer && !canAnswer && <p className="text-xs text-slate-500">Waiting for {askerName} to choose.</p>}
     </div>

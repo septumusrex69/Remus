@@ -85,7 +85,7 @@ export function AppLayout() {
     )
 
   return (
-    <div className="flex h-dvh w-full overflow-hidden">
+    <div className="app-layout flex h-dvh w-full overflow-clip">
       <div className="no-print hidden lg:flex">
         <Sidebar />
       </div>
