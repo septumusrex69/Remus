@@ -6,6 +6,7 @@ import { credentialsKeyProblem, hashPassword, keyedHash, passwordMatches, sameHe
 import { adminClient, getConnection, sendFromOwnMailbox } from './mailbox.js'
 import { buildQuotePdf, QuotePdfError } from './quotePdf.js'
 import { reportErrorRoute } from './errorAlert.js'
+import { SIGNING_ROUTES } from './signing.js'
 import {
   CODE_SENT_MESSAGE, PORTAL_CODE_MESSAGE, PORTAL_CODE_MINUTES, PORTAL_INVOICE_STATUSES, PORTAL_PASSWORD_LOCK_MINUTES,
   PORTAL_PASSWORD_WRONG, PORTAL_PHOTOS_PER_PROJECT, PORTAL_PROJECT_STATUS, PORTAL_QUOTE_STATUS,
@@ -511,6 +512,8 @@ export const PORTAL_ROUTES: Record<string, Handler> = {
   'staff-set-active': staffSetActive,
   /* CRASH REPORTS (Remus · Handover 8, from Raptor 55a7520): here rather than a function of their own -- see errorAlert.ts. */
   'report-error': reportErrorRoute,
+  /* Remus · Handover 8: Library documents and online signing (api/_lib/signing.ts) share the portal's door. */
+  ...SIGNING_ROUTES,
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {

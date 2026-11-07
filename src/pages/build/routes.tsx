@@ -38,6 +38,7 @@ const pages = {
   ActivitiesPage: () => import('./activities/ActivitiesPage'),
   // Remus · Handover 8: reports.
   ReportsPage: () => import('./reports/ReportsPage'),
+  LibraryPage: () => import('./library/LibraryPage'),
 }
 
 const DashboardPage = lazy(() => pages.DashboardPage().then((x) => ({ default: x.DashboardPage })))
@@ -71,6 +72,7 @@ const TasksPage = lazy(() => pages.TasksPage().then((x) => ({ default: x.TasksPa
 const CalendarPage = lazy(() => pages.CalendarPage().then((x) => ({ default: x.CalendarPage })))
 const ActivitiesPage = lazy(() => pages.ActivitiesPage().then((x) => ({ default: x.ActivitiesPage })))
 const ReportsPage = lazy(() => pages.ReportsPage().then((x) => ({ default: x.ReportsPage })))
+const LibraryPage = lazy(() => pages.LibraryPage().then((x) => ({ default: x.LibraryPage })))
 
 /** The quote editor carries costs and markup: a contractor reads the quote as the client does. */
 function QuoteEditorOrPrint() {
@@ -139,5 +141,7 @@ export const buildRoutes = (
     <Route path="activities" element={<ActivitiesPage />} />
     {/* Remus · Handover 8: reports are money (seesMoney). */}
     <Route path="reports" element={<Allow when={seesMoney}><ReportsPage /></Allow>} />
+    {/* Remus · Handover 8: the Library (templates, letterhead). Everybody reads; an Administrator writes. */}
+    <Route path="library" element={<LibraryPage />} />
   </>
 )

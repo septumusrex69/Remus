@@ -7,6 +7,7 @@ import {
   Activity, CalendarCheck, CheckSquare,
 } from 'lucide-react'
 import { BarChart3 } from 'lucide-react'
+import { BookOpen } from 'lucide-react'
 import { useAuth } from '../../store/AuthContext'
 import { useBuild } from '../../pages/build/BuildContext'
 import { paths } from '../../pages/build/paths'
@@ -59,6 +60,8 @@ const NAV: { to: string; label: string; icon: LucideIcon; end?: boolean; badge?:
   // Everybody's, at Raptor's firm's word: "anyone can see requests".
   // With a count (Raptor H13): new requests for an Administrator, my releases to test for anybody.
   { to: paths.requests(), label: 'Requests', icon: Lightbulb, badge: 'requests' },
+  // Remus · Handover 8: the Library (Raptor's): templates and the letterhead.
+  { to: paths.library(), label: 'Library', icon: BookOpen },
   { to: paths.settings(), label: 'Settings', icon: Settings },
 ]
 

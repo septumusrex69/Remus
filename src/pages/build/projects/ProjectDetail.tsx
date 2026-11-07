@@ -63,7 +63,9 @@ import { projectCrewCost } from '../../../lib/crewDays'
 import { RecordTasks } from '../tasks/RecordTasks'
 import { RecordActivity } from '../activities/RecordActivity'
 
-type Tab = 'overview' | 'quote' | 'plan' | 'expenses' | 'invoices' | 'variations' | 'diary' | 'schedule' | 'tasks' | 'activity'
+import { DocumentsTab } from '../../../components/documents/DocumentsTab'
+
+type Tab = 'overview' | 'quote' | 'plan' | 'expenses' | 'invoices' | 'variations' | 'diary' | 'schedule' | 'tasks' | 'activity' | 'documents'
 const MONEY_TABS: Tab[] = ['expenses', 'invoices', 'variations']
 
 /** Runs a click action, reporting any failure to the page's error banner. */
@@ -200,6 +202,8 @@ export function ProjectDetail() {
           // Remus · Handover 8, from Raptor: the job's to-dos and its activity log.
           { id: 'tasks', label: 'Tasks' },
           { id: 'activity', label: 'Activity' },
+          /* Remus · Handover 8: the Library's documents and online signing (components/documents/DocumentsTab). */
+          { id: 'documents', label: 'Documents' },
         ] as { id: Tab; label: string; count?: number }[]).filter((t) => money || !MONEY_TABS.includes(t.id))}
       />
 
@@ -213,6 +217,7 @@ export function ProjectDetail() {
       {tab === 'schedule' && <ScheduleTab data={data} reload={reload} />}
       {tab === 'tasks' && <RecordTasks projectId={project.id} label="this job" defaults={{ project_id: project.id, company_id: project.company_id, contact_id: project.contact_id, related_to_label: project.name }} />}
       {tab === 'activity' && <RecordActivity projectId={project.id} label="this job" defaults={{ project_id: project.id, company_id: project.company_id, contact_id: project.contact_id }} />}
+      {tab === 'documents' && <DocumentsTab project={project} />}
 
       <ProjectFormModal open={editing} editing={project} onClose={() => setEditing(false)} onSaved={() => { setEditing(false); reload() }} />
     </div>
