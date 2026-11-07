@@ -56,6 +56,10 @@ const TITLES: { test: RegExp; title: string }[] = [
   { test: /^\/photos/, title: 'Photos' },
   { test: /^\/brand/, title: 'Brand board' },
   { test: /^\/slip-test/, title: 'Slip test' },
+  // Remus · Handover 8, from Raptor.
+  { test: /^\/tasks/, title: 'Tasks' },
+  { test: /^\/calendar/, title: 'Calendar' },
+  { test: /^\/activities/, title: 'Activities' },
 ]
 
 /**

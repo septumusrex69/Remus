@@ -128,3 +128,29 @@ export function baseDb(profile = ADMIN) {
 export function backend(profile = ADMIN, { db = {}, api = {}, handlers = [] } = {}) {
   return { db: { ...baseDb(profile), ...db }, api: { ...API, ...api }, handlers }
 }
+
+/* Remus · Handover 8: tasks, the calendar and the activity log (scripts/qa/e2e/tasks-calendar.mjs). Dated today,
+   on the machine's clock (the browser runs on the same one), so "due today" and "today's square" hold any day. */
+export const TASK_ID = '99999999-9999-4999-8999-999999999991'
+const todayAt = (h) => { const d = new Date(); d.setHours(h, 0, 0, 0); return d.toISOString() }
+const todayYmd = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` }
+export const TASK = {
+  id: TASK_ID, title: 'Order the tiles for the kitchen', type: 'Order', status: 'Not Started', priority: 'High',
+  owner_id: USER_ID, due_date: todayAt(10), project_id: PROJECT_ID, company_id: COMPANY_ID, contact_id: null,
+  related_to_label: 'Kitchen at 2 Client Road', notes: null, created_by: BOSS_ID, created_at: T0,
+  completed_at: null, cancelled_at: null, cancel_reason: null,
+}
+export const ACTIVITY_CALL = {
+  id: '99999999-9999-4999-8999-999999999993', type: 'Call', user_id: USER_ID, company_id: COMPANY_ID, contact_id: null,
+  project_id: PROJECT_ID, task_id: null, subject: 'Called about the tile colour', notes: 'She wants the grey.',
+  activity_date: todayAt(9), created_at: todayAt(9), email_message_id: null, is_read: true, attachment_names: null,
+}
+export const ACTIVITY_EMAIL = {
+  ...ACTIVITY_CALL, id: '99999999-9999-4999-8999-999999999994', type: 'Email', project_id: null,
+  subject: 'Email received: Tile samples', notes: 'Here are the samples.', activity_date: todayAt(8), created_at: todayAt(8),
+}
+export const STAGE = {
+  id: '99999999-9999-4999-8999-999999999992', project_id: PROJECT_ID, name: 'Tiling', sort_order: 1,
+  start_date: todayYmd(), end_date: todayYmd(), quoted_sell: 0, quoted_material: 0, quoted_labour: 0,
+  quoted_subcontractor: 0, created_at: T0,
+}

@@ -45,4 +45,8 @@ export const paths = {
   /** The products book: what the team buys, prefers and avoids (Remus · Handover 6). */
   products: () => p('/products'),
   settings: (tab?: string) => p(tab ? `/settings?tab=${encodeURIComponent(tab)}` : '/settings'),
+  /** Remus · Handover 8 (from Raptor): to-dos per person, one calendar of everything, the activity log. */
+  tasks: () => p('/tasks'),
+  calendar: () => p('/calendar'),
+  activities: () => p('/activities'),
 }

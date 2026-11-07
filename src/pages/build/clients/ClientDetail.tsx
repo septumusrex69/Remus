@@ -21,8 +21,10 @@ import type { Company, Contact } from '../../../types'
 import { paths } from '../paths'
 import { ClientEmails } from './ClientEmails'
 import { PortalAccessCard } from './PortalAccessCard'
+import { RecordTasks } from '../tasks/RecordTasks'
+import { RecordActivity } from '../activities/RecordActivity'
 
-type ClientTab = 'overview' | 'emails' | 'quotes' | 'invoices'
+type ClientTab = 'overview' | 'emails' | 'quotes' | 'invoices' | 'tasks' | 'activity'
 
 /** One page for both client kinds: /clients/company/:id and /clients/contact/:id. */
 export function ClientDetail({ kind }: { kind: 'company' | 'contact' }) {
@@ -38,7 +40,7 @@ export function ClientDetail({ kind }: { kind: 'company' | 'contact' }) {
    */
   const [params, setParams] = useSearchParams()
   const asked = (params.get('tab') as ClientTab | null) ?? (params.get('email') ? 'emails' : 'overview')
-  const tab: ClientTab = (asked === 'quotes' && !quotesToo) || (asked === 'invoices' && !money) || !['overview', 'emails', 'quotes', 'invoices'].includes(asked) ? 'overview' : asked
+  const tab: ClientTab = (asked === 'quotes' && !quotesToo) || (asked === 'invoices' && !money) || !['overview', 'emails', 'quotes', 'invoices', 'tasks', 'activity'].includes(asked) ? 'overview' : asked
   const setTab = (t: ClientTab) => setParams((p) => { const next = new URLSearchParams(p); next.set('tab', t); return next }, { replace: true })
   const { data, error, loading, reload } = useLoad(async () => {
     const [company, contact, people, allQuotes, totals, allProjects, allInvoices, allPayments] = await Promise.all([
@@ -201,6 +203,9 @@ export function ClientDetail({ kind }: { kind: 'company' | 'contact' }) {
           { id: 'emails', label: 'Emails' },
           ...(quotesToo ? [{ id: 'quotes' as const, label: 'Quotes', count: data.quotes.length }] : []),
           ...(money ? [{ id: 'invoices' as const, label: 'Invoices', count: data.invoices.length }] : []),
+          // Remus · Handover 8, from Raptor: the client's to-dos and their activity log (emails included).
+          { id: 'tasks' as const, label: 'Tasks' },
+          { id: 'activity' as const, label: 'Activity' },
         ]}
       />
 
@@ -227,6 +232,18 @@ export function ClientDetail({ kind }: { kind: 'company' | 'contact' }) {
       )}
 
       {tab === 'emails' && <ClientEmails company={data.company} contact={data.contact} people={data.people} />}
+      {tab === 'tasks' && <RecordTasks
+        companyId={kind === 'company' ? id : undefined}
+        contactIds={kind === 'company' ? data.people.map((p) => p.id) : [id]}
+        label="this client"
+        defaults={{ company_id: kind === 'company' ? id : data.contact?.company_id ?? null, contact_id: kind === 'contact' ? id : null, related_to_label: name }}
+      />}
+      {tab === 'activity' && <RecordActivity
+        companyId={kind === 'company' ? id : undefined}
+        contactIds={kind === 'company' ? data.people.map((p) => p.id) : [id]}
+        label="this client"
+        defaults={{ company_id: kind === 'company' ? id : data.contact?.company_id ?? null, contact_id: kind === 'contact' ? id : null }}
+      />}
 
       {tab === 'quotes' && quotesToo && <Card title="Quotes" subtitle={`${data.quotes.length} for this client · ${openQuotes} open`} padded={false}>
         {data.quotes.length === 0 ? <EmptyState title="No quotes" /> : (
