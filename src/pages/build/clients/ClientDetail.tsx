@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { seesMoney, seesQuotes, useAccess } from '../../../lib/access'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { ArrowLeft, FileText, FolderKanban, Mail, MapPin, Phone, Receipt, Save, Trash2, Wallet } from 'lucide-react'
+import { ArrowLeft, FileText, FolderKanban, Mail, MapPin, Phone, Receipt, Save, ScrollText, Trash2, Wallet } from 'lucide-react'
 import {
   companies,
   contactName,
@@ -23,6 +23,8 @@ import { ClientEmails } from './ClientEmails'
 import { PortalAccessCard } from './PortalAccessCard'
 import { RecordTasks } from '../tasks/RecordTasks'
 import { RecordActivity } from '../activities/RecordActivity'
+import { StatementActions } from '../../../components/statement/StatementActions'
+import { statementClientFor } from '../../../lib/statement'
 
 type ClientTab = 'overview' | 'emails' | 'quotes' | 'invoices' | 'tasks' | 'activity'
 
@@ -183,6 +185,7 @@ export function ClientDetail({ kind }: { kind: 'company' | 'contact' }) {
         actions={
           <>
             <HeroAction primary icon={Mail} label="Emails" onClick={() => setTab('emails')} title="The emails with this client, and write a new one" />
+            {money && <HeroAction icon={ScrollText} label="Statement" onClick={() => setTab('invoices')} title="The statement of account: preview, download, email or WhatsApp it" />}
             <HeroAction danger icon={Trash2} title={`Delete ${name}`} onClick={remove} />
           </>
         }
@@ -259,6 +262,13 @@ export function ClientDetail({ kind }: { kind: 'company' | 'contact' }) {
           </ul>
         )}
       </Card>}
+
+      {/* Remus · Handover 8: the client's statement of account (Stephan, 7 Nov: "Definitely a statement of account"). */}
+      {tab === 'invoices' && money && record && (
+        <Card title="Statement of account" subtitle="Every invoice and payment over the period, with a running balance, what is overdue and how to pay.">
+          <StatementActions client={statementClientFor(kind, record, data.people)} />
+        </Card>
+      )}
 
       {tab === 'invoices' && money && <Card title="Invoices" subtitle={`${formatZAR(invoiced)} invoiced · ${formatZAR(received)} received`} padded={false}>
         {data.invoices.length === 0 ? <EmptyState title="No invoices" /> : (

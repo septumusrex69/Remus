@@ -3,7 +3,7 @@ import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { eachMonthOfInterval, format, parseISO } from 'date-fns'
 import { Bar, BarChart, CartesianGrid, Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
-import { Download } from 'lucide-react'
+import { Download, ScrollText } from 'lucide-react'
 import {
   clientLabel,
   invoices as invoicesApi,
@@ -23,6 +23,8 @@ import { useLoad } from '../../../hooks/useLoad'
 import { Button, Card, EmptyState, ErrorBanner, PageHeader, Spinner, StatTile, Table, td, th } from '../../../components/ui'
 import { EXPENSE_CATEGORIES } from '../../../types'
 import { paths } from '../paths'
+import { StatementModal, type StatementClient } from '../../../components/statement/StatementActions'
+import { statementClientFor } from '../../../lib/statement'
 
 const YMD = /^\d{4}-\d{2}-\d{2}$/
 
@@ -38,6 +40,8 @@ export function FinancePage() {
   // inverted range is ignored (the page keeps showing the last good one) with a hint.
   const [customInput, setCustomInput] = useState(() => periodRange('this_month'))
   const [custom, setCustom] = useState(customInput)
+  /** Remus · Handover 8: the statement of the client on an outstanding invoice. */
+  const [statementFor, setStatementFor] = useState<StatementClient | null>(null)
   const customValid = isValidRange(customInput.from, customInput.to)
   const range = period === 'custom' ? custom : periodRange(period)
   function editCustom(next: { from: string; to: string }) {
@@ -240,6 +244,7 @@ export function FinancePage() {
                     <th className={`${th} text-right`}>Total</th>
                     <th className={`${th} text-right`}>Outstanding</th>
                     <th className={th}>Age</th>
+                    <th className={`${th} no-print`}><span className="sr-only">Statement</span></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -253,6 +258,20 @@ export function FinancePage() {
                       <td className={`${td} tabular text-right`}>{formatZAR(o.total)}</td>
                       <td className={`${td} tabular text-right font-medium`}>{formatZAR(o.outstanding)}</td>
                       <td className={`${td} ${o.daysOverdue > 0 ? 'text-red-600' : 'text-slate-500'}`}>{o.daysOverdue > 0 ? `${o.daysOverdue} days overdue` : 'Current'}</td>
+                      <td className={`${td} no-print text-right`}>
+                        {(() => {
+                          const company = o.invoice.company_id ? data.dir.companyById.get(o.invoice.company_id) : null
+                          const contact = !company && o.invoice.contact_id ? data.dir.contactById.get(o.invoice.contact_id) : null
+                          if (!company && !contact) return null
+                          const people = company ? data.dir.contacts.filter((c) => c.company_id === company.id) : []
+                          return (
+                            <Button size="sm" variant="ghost" data-testid="finance-statement" title="This client's statement of account"
+                              onClick={() => setStatementFor(company ? statementClientFor('company', company, people) : statementClientFor('contact', contact!))}>
+                              <ScrollText size={14} /> Statement
+                            </Button>
+                          )
+                        })()}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -261,6 +280,7 @@ export function FinancePage() {
           </Card>
         </div>
       )}
+      {statementFor && <StatementModal client={statementFor} onClose={() => setStatementFor(null)} />}
     </div>
   )
 }
