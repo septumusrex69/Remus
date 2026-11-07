@@ -208,3 +208,63 @@ export const SIGNING_REQUEST = {
   state: 'sent', expires_at: '2099-01-01T00:00:00Z', opened_at: '2026-11-06T10:00:00Z', open_count: 1, signed_at: null, signed_name: null,
   signed_ip: null, emailed_at: '2026-11-06T09:00:00Z', copy_sent_at: null, created_by: USER_ID, created_at: '2026-11-06T09:00:00Z',
 }
+
+/* ---------- News (Remus · Handover 8): one sent newsletter, one draft, a subscriber, a diary photo the client may see ---------- */
+
+export const NEWS_SENT_ID = '99999999-9999-4999-8999-999999999901'
+export const NEWS_DRAFT_ID = '99999999-9999-4999-8999-999999999902'
+
+const NEWS_BASE = {
+  kind: 'news', preheader: '', images: [], audience: { kind: 'all_clients' }, created_by: USER_ID,
+  created_at: '2026-11-05T08:00:00Z', updated_at: '2026-11-05T08:00:00Z', queued_by: null,
+}
+export const NEWS_SENT = {
+  ...NEWS_BASE, id: NEWS_SENT_ID, name: 'Newsletter October 2026', subject: 'We’ve finished a job in Brooklyn',
+  body: 'Hello {{first_name}},\n\nThe kitchen is done.', status: 'sent', recipient_count: 2,
+  queued_at: '2026-11-05T09:00:00Z', finished_at: '2026-11-05T09:01:00Z',
+}
+export const NEWS_DRAFT = {
+  ...NEWS_BASE, id: NEWS_DRAFT_ID, name: 'Newsletter November 2026', subject: '', body: '', status: 'draft',
+  recipient_count: null, queued_at: null, finished_at: null,
+}
+export const NEWS_RESULTS = {
+  campaign_id: NEWS_SENT_ID, total: 2, queued: 0, accepted: 2, failed: 0, skipped: 0, delivered: 2, delayed: 0,
+  bounced: 0, complained: 0, opened: 1, clicked: 0, unsubscribed: 0, opted_in: 0,
+}
+const SEND_BASE = {
+  campaign_id: NEWS_SENT_ID, company_name: 'Test Client (Pty) Ltd', basis: 'Existing client (POPIA soft opt-in)', state: 'sent', error: null,
+  sent_at: '2026-11-05T09:00:30Z', delivered_at: '2026-11-05T09:00:40Z', first_clicked_at: null, click_count: 0,
+  unsubscribed_at: null, opted_in_at: null, company_id: COMPANY_ID,
+}
+export const NEWS_SENDS = [
+  { ...SEND_BASE, id: 'a1', email: 'client@example.test', first_name: null, first_opened_at: '2026-11-05T10:00:00Z', open_count: 1, contact_id: null },
+  { ...SEND_BASE, id: 'a2', email: 'thandi@example.test', first_name: 'Thandi', first_opened_at: null, open_count: 0, contact_id: CONTACT_ID },
+]
+export const NEWS_SUBSCRIBER = {
+  id: '99999999-9999-4999-8999-999999999903', email: 'anna@sub.test', name: 'Anna Signup', company: null, source: 'sign-up page',
+  consent_at: '2026-11-03T10:00:00Z', consent_how: 'sign-up page', consent_note: 'Signed up on the news page and confirmed from the email',
+  confirm_sent_at: '2026-11-03T09:59:00Z', created_at: '2026-11-03T09:58:00Z',
+}
+export const NEWS_STOPPED = { email: 'gone@example.test', status: 'undeliverable', how: 'hard bounce', reason: 'Hard bounce: No such user', changed_at: '2026-11-05T09:05:00Z' }
+export const DIARY_PHOTO = {
+  id: '99999999-9999-4999-8999-999999999904', path: `${PROJECT_ID}/x/photo.jpg`, caption: 'The new kitchen', show_client: true,
+  created_at: '2026-11-04T12:00:00Z', project_id: PROJECT_ID, projects: { name: 'Kitchen at 2 Client Road' },
+}
+/** Sending set up (the domain still to be verified at Resend, which only the send itself finds out). */
+export const NEWS_CONFIG_READY = {
+  ready: true, missing: [], problem: null, from: 'Urban Haus <news@urbanhausgroup.co.za>', replyTo: 'info@urbanhaus.test',
+  webhook: false, steps: [], keyProblem: null,
+}
+
+/** The News tables, as rows, for a test to spread into `db`. */
+export function newsDb() {
+  return {
+    marketing_campaigns: [NEWS_SENT, NEWS_DRAFT],
+    'rpc/marketing_campaign_results': [NEWS_RESULTS],
+    marketing_sends: NEWS_SENDS,
+    marketing_subscribers: [NEWS_SUBSCRIBER],
+    marketing_preferences: [NEWS_STOPPED],
+    marketing_lists: [],
+    site_diary_photos: [DIARY_PHOTO],
+  }
+}

@@ -70,3 +70,9 @@ export function useAccess(): Access {
   const { currentUser } = useAuth()
   return accessOf(currentUser)
 }
+
+/**
+ * News: writing and sending newsletters to clients (Remus · Handover 8). Administrators only, as asked; the
+ * database holds the same rule (0050, news_may_send). Read Only may not: sending is a change.
+ */
+export const sendsNews = (a: Access) => a === 'admin'

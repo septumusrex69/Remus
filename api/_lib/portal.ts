@@ -15,6 +15,7 @@ import {
   portalPasswordProblem, portalProgressNotes, portalQuoteAcceptProblem, portalSessionDays, projectProgress, resendDecision,
   stageState, todayJhb,
 } from './portalRules.js'
+import { newsHandler } from './news.js'
 
 /**
  * /api/portal/<action> -- THE CLIENT PORTAL'S SERVER (Remus · Handoff 5, copied from Raptor H13's
@@ -518,6 +519,9 @@ export const PORTAL_ROUTES: Record<string, Handler> = {
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const action = typeof req.query.action === 'string' ? req.query.action : ''
+  /* NEWS (Remus · Handover 8): its own actions and rules, in api/_lib/news.ts. First, before anything reads the
+     body: Resend's webhook needs the bytes it signed. */
+  if (action.startsWith('news-')) { await newsHandler(req, res, action); return }
   /* hasOwnProperty: `?action=constructor` must not find Object.prototype's. */
   const route = Object.prototype.hasOwnProperty.call(PORTAL_ROUTES, action) ? PORTAL_ROUTES[action] : undefined
   if (!route) { res.status(404).json({ error: `Unknown portal route: ${action || '(none)'}` }); return }

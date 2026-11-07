@@ -15,6 +15,10 @@ const PortalPage = lazy(() => import('./pages/portal/PortalPage'))
 const OpeningPage = lazy(() => import('./pages/OpeningPage'))
 /* Online signing (Remus · Handover 8, from Raptor): a client signs a document from a link, no login. */
 const SignPage = lazy(() => import('./pages/sign/SignPage'))
+/* News's pages outside the app (Remus · Handover 8, Raptor S10): unsubscribe, "Yes, keep me informed", sign up. */
+const NewsUnsubscribe = lazy(() => import('./pages/news/PublicNewsPages').then((m) => ({ default: m.UnsubscribePage })))
+const NewsOptIn = lazy(() => import('./pages/news/PublicNewsPages').then((m) => ({ default: m.OptInPage })))
+const NewsSignUp = lazy(() => import('./pages/news/PublicNewsPages').then((m) => ({ default: m.SignUpPage })))
 
 function App() {
   return (
@@ -27,6 +31,9 @@ function App() {
         <Route path="/opening" element={<Suspense fallback={null}><OpeningPage /></Suspense>} />
         <Route path="/portal" element={<Suspense fallback={null}><PortalPage /></Suspense>} />
         <Route path="/sign/:token" element={<Suspense fallback={null}><SignPage /></Suspense>} />
+        <Route path="/unsubscribe/:token" element={<Suspense fallback={null}><NewsUnsubscribe /></Suspense>} />
+        <Route path="/opt-in/:token" element={<Suspense fallback={null}><NewsOptIn /></Suspense>} />
+        <Route path="/subscribe" element={<Suspense fallback={null}><NewsSignUp /></Suspense>} />
         <Route
           path="/"
           element={

@@ -46,6 +46,8 @@ export const paths = {
   products: () => p('/products'),
   /** The Library: document templates and the letterhead (Remus · Handover 8). */
   library: (tab?: 'letterhead') => p(tab ? `/library?tab=${tab}` : '/library'),
+  /** News: newsletters to clients (Remus · Handover 8); one newsletter with its id. */
+  news: (id?: string) => p(id ? `/news?c=${id}` : '/news'),
   settings: (tab?: string) => p(tab ? `/settings?tab=${encodeURIComponent(tab)}` : '/settings'),
   /** Remus · Handover 8 (from Raptor): to-dos per person, one calendar of everything, the activity log. */
   tasks: () => p('/tasks'),
