@@ -4,6 +4,7 @@ import { clsx } from 'clsx'
 import {
   Banknote, CalendarDays, Radar, Package, CalendarRange, Camera, ChevronDown, FileText, FolderKanban, HardHat, Inbox, LayoutDashboard, LineChart, LogOut,
   Lightbulb, PanelLeftClose, RotateCcw, PanelLeftOpen, Receipt, Settings, Users, UsersRound, type LucideIcon, ClipboardCheck,
+  Activity, CalendarCheck, CheckSquare,
 } from 'lucide-react'
 import { useAuth } from '../../store/AuthContext'
 import { useBuild } from '../../pages/build/BuildContext'
@@ -12,6 +13,7 @@ import { useSidebarCollapsed } from '../../lib/sidebarCollapsed'
 import { useUnreadMail } from '../../lib/unreadMail'
 import { useRequestCount } from '../../lib/requestCount'
 import { useReturnCount } from '../../lib/returnCount'
+import { useTaskCount } from '../../lib/taskCount'
 import { useTheme } from '../../store/ThemeContext'
 import { ACCESS_LABEL, seesMoney, seesQuotes, useAccess, useSnapsSlips, type Access } from '../../lib/access'
 
@@ -22,7 +24,7 @@ import { ACCESS_LABEL, seesMoney, seesQuotes, useAccess, useSnapsSlips, type Acc
  * Only a few items carry a count, Raptor's rule: a badge earns its place if it counts something one
  * person can clear today (unread client mail, bank lines to link, requests waiting on me).
  */
-type Badge = 'mail' | 'bank' | 'requests' | 'returns'
+type Badge = 'mail' | 'bank' | 'requests' | 'returns' | 'tasks'
 /** `when`: who sees the item (lib/access.ts); everybody when absent. */
 /** `slips`: only for the people who snap slips (lib/access snapsSlips). */
 const NAV: { to: string; label: string; icon: LucideIcon; end?: boolean; badge?: Badge; when?: (a: Access) => boolean; slips?: boolean }[] = [
@@ -45,6 +47,11 @@ const NAV: { to: string; label: string; icon: LucideIcon; end?: boolean; badge?:
   { to: paths.returns(), label: 'Returns', icon: RotateCcw, badge: 'returns', slips: true },
   { to: paths.bank(), label: 'Bank', icon: Banknote, badge: 'bank', when: seesMoney },
   { to: paths.diary(), label: 'Diary', icon: CalendarDays },
+  // Remus · Handover 8: Raptor's three, where Raptor puts them -- straight after its Diary. Tasks wears Raptor's
+  // count: my open tasks due by tonight, "something one person can clear today".
+  { to: paths.tasks(), label: 'Tasks', icon: CheckSquare, badge: 'tasks' },
+  { to: paths.calendar(), label: 'Calendar', icon: CalendarCheck },
+  { to: paths.activities(), label: 'Activities', icon: Activity },
   { to: paths.finance(), label: 'Finance', icon: LineChart, when: seesMoney },
   // Everybody's, at Raptor's firm's word: "anyone can see requests".
   // With a count (Raptor H13): new requests for an Administrator, my releases to test for anybody.
@@ -70,7 +77,8 @@ export function Sidebar({ drawer, onNavigate }: { drawer?: boolean; onNavigate?:
   const access = useAccess()
   const snaps = useSnapsSlips()
   const returnCount = useReturnCount(snaps)
-  const counts: Record<Badge, number> = { mail: unreadMail.count, bank: needsLinking, requests: requestCount, returns: returnCount }
+  const taskCount = useTaskCount()
+  const counts: Record<Badge, number> = { mail: unreadMail.count, bank: needsLinking, requests: requestCount, returns: returnCount, tasks: taskCount }
 
   useEffect(() => {
     function onClick(e: MouseEvent) {

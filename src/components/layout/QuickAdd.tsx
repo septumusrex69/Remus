@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { CalendarPlus, Camera, ChevronDown, FileText, FolderKanban, HardHat, Mail, Plus, UserPlus, type LucideIcon } from 'lucide-react'
+import { CalendarPlus, Camera, CheckSquare, ChevronDown, FileText, FolderKanban, HardHat, Mail, Phone, Plus, UserPlus, type LucideIcon } from 'lucide-react'
 import { paths } from '../../pages/build/paths'
 import { editsQuotes, seesQuotes, useAccess, useSnapsSlips, type Access } from '../../lib/access'
 
@@ -17,6 +17,9 @@ const OPTIONS: { label: string; icon: LucideIcon; to: () => string; when?: (a: A
   { label: 'Snap slip', icon: Camera, to: () => paths.capture(), slips: true },
   { label: 'Diary event', icon: CalendarPlus, to: () => `${paths.diary()}?new=1` },
   { label: 'New email', icon: Mail, to: () => `${paths.mail()}?new=1` },
+  // Remus · Handover 8: Raptor's "Add Task", and "Log a call" (Raptor's quick note), not for Read Only.
+  { label: 'Task', icon: CheckSquare, to: () => `${paths.tasks()}?new=1`, when: (a) => a !== 'read_only' },
+  { label: 'Log a call', icon: Phone, to: () => `${paths.activities()}?new=1`, when: (a) => a !== 'read_only' },
 ]
 
 export function QuickAdd() {

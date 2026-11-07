@@ -33,6 +33,9 @@ const pages = {
   ProductsPage: () => import('./products/ProductsPage'),
   ReturnsPage: () => import('./returns/ReturnsPage'),
   PhotoDaysPage: () => import('./photos/PhotoDaysPage'),
+  TasksPage: () => import('./tasks/TasksPage'),
+  CalendarPage: () => import('./calendar/CalendarPage'),
+  ActivitiesPage: () => import('./activities/ActivitiesPage'),
 }
 
 const DashboardPage = lazy(() => pages.DashboardPage().then((x) => ({ default: x.DashboardPage })))
@@ -62,6 +65,9 @@ const FinancePage = lazy(() => pages.FinancePage().then((x) => ({ default: x.Fin
 const MailPage = lazy(() => pages.MailPage().then((x) => ({ default: x.MailPage })))
 const RequestsPage = lazy(() => pages.RequestsPage().then((x) => ({ default: x.RequestsPage })))
 const SettingsPage = lazy(() => pages.SettingsPage().then((x) => ({ default: x.SettingsPage })))
+const TasksPage = lazy(() => pages.TasksPage().then((x) => ({ default: x.TasksPage })))
+const CalendarPage = lazy(() => pages.CalendarPage().then((x) => ({ default: x.CalendarPage })))
+const ActivitiesPage = lazy(() => pages.ActivitiesPage().then((x) => ({ default: x.ActivitiesPage })))
 
 /** The quote editor carries costs and markup: a contractor reads the quote as the client does. */
 function QuoteEditorOrPrint() {
@@ -124,5 +130,9 @@ export const buildRoutes = (
     {/* WHO SEES WHAT (lib/access.ts): money pages for Administrators; quotes not for site managers. */}
     {/* CHANGE REQUESTS (copied from Raptor): open to everybody -- "anyone can see requests". */}
     <Route path="requests" element={<RequestsPage />} />
+    {/* Remus · Handover 8, from Raptor: tasks, one calendar, the activity log. Everybody's; none holds money. */}
+    <Route path="tasks" element={<TasksPage />} />
+    <Route path="calendar" element={<CalendarPage />} />
+    <Route path="activities" element={<ActivitiesPage />} />
   </>
 )
