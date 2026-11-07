@@ -1,7 +1,7 @@
 import { lazy } from 'react'
 import { Route, useParams } from 'react-router-dom'
 import { Allow } from '../../components/Allow'
-import { editsQuotes, seesMoney, seesQuotes, snapsSlips } from '../../lib/access'
+import { editsQuotes, seesMoney, seesQuotes, sendsNews, snapsSlips } from '../../lib/access'
 import { paths as P } from './paths'
 
 // Each page loads on demand (charts in particular are heavy); AppLayout supplies the Suspense boundary.
@@ -33,6 +33,7 @@ const pages = {
   ProductsPage: () => import('./products/ProductsPage'),
   ReturnsPage: () => import('./returns/ReturnsPage'),
   PhotoDaysPage: () => import('./photos/PhotoDaysPage'),
+  NewsPage: () => import('../news/NewsPage'),
 }
 
 const DashboardPage = lazy(() => pages.DashboardPage().then((x) => ({ default: x.DashboardPage })))
@@ -46,6 +47,7 @@ const WorkersPage = lazy(() => pages.WorkersPage().then((x) => ({ default: x.Wor
 const CrewRegisterPage = lazy(() => pages.CrewRegisterPage().then((x) => ({ default: x.CrewRegisterPage })))
 const ProductsPage = lazy(() => pages.ProductsPage().then((x) => ({ default: x.ProductsPage })))
 const PhotoDaysPage = lazy(() => pages.PhotoDaysPage().then((x) => ({ default: x.PhotoDaysPage })))
+const NewsPage = lazy(() => pages.NewsPage().then((x) => ({ default: x.NewsPage })))
 const ReturnsPage = lazy(() => pages.ReturnsPage().then((x) => ({ default: x.ReturnsPage })))
 const OpsPage = lazy(() => pages.OpsPage().then((x) => ({ default: x.OpsPage })))
 const BrandBoardPage = lazy(() => pages.BrandBoardPage().then((x) => ({ default: x.BrandBoardPage })))
@@ -124,5 +126,7 @@ export const buildRoutes = (
     {/* WHO SEES WHAT (lib/access.ts): money pages for Administrators; quotes not for site managers. */}
     {/* CHANGE REQUESTS (copied from Raptor): open to everybody -- "anyone can see requests". */}
     <Route path="requests" element={<RequestsPage />} />
+    {/* Remus · Handover 8: News -- newsletters to clients, for Administrators (one newsletter is ?c=<id>). */}
+    <Route path="news" element={<Allow when={sendsNews}><NewsPage /></Allow>} />
   </>
 )

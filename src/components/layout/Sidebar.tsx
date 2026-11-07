@@ -3,7 +3,7 @@ import { Link, NavLink } from 'react-router-dom'
 import { clsx } from 'clsx'
 import {
   Banknote, CalendarDays, Radar, Package, CalendarRange, Camera, ChevronDown, FileText, FolderKanban, HardHat, Inbox, LayoutDashboard, LineChart, LogOut,
-  Lightbulb, PanelLeftClose, RotateCcw, PanelLeftOpen, Receipt, Settings, Users, UsersRound, type LucideIcon, ClipboardCheck,
+  Lightbulb, Megaphone, PanelLeftClose, RotateCcw, PanelLeftOpen, Receipt, Settings, Users, UsersRound, type LucideIcon, ClipboardCheck,
 } from 'lucide-react'
 import { useAuth } from '../../store/AuthContext'
 import { useBuild } from '../../pages/build/BuildContext'
@@ -13,7 +13,7 @@ import { useUnreadMail } from '../../lib/unreadMail'
 import { useRequestCount } from '../../lib/requestCount'
 import { useReturnCount } from '../../lib/returnCount'
 import { useTheme } from '../../store/ThemeContext'
-import { ACCESS_LABEL, seesMoney, seesQuotes, useAccess, useSnapsSlips, type Access } from '../../lib/access'
+import { ACCESS_LABEL, seesMoney, seesQuotes, sendsNews, useAccess, useSnapsSlips, type Access } from '../../lib/access'
 
 /**
  * The navigation, copied from Raptor's Sidebar: folds to an icon rail (remembered per device),
@@ -36,6 +36,8 @@ const NAV: { to: string; label: string; icon: LucideIcon; end?: boolean; badge?:
   { to: paths.products(), label: 'Products', icon: Package },
   { to: paths.projects(), label: 'Projects', icon: FolderKanban },
   { to: paths.clients(), label: 'Clients', icon: Users },
+  // Remus · Handover 8: News under Clients, where Raptor places it ("that is who it is mostly to"). Administrators.
+  { to: paths.news(), label: 'News', icon: Megaphone, when: sendsNews },
   { to: paths.schedule(), label: 'Schedule', icon: CalendarRange },
   { to: paths.workers(), label: 'Workers', icon: UsersRound },
   { to: paths.crew(), label: 'Crew register', icon: ClipboardCheck },
